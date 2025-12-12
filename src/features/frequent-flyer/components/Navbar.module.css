@@ -1,0 +1,184 @@
+.nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    height: 80px;
+    display: flex;
+    align-items: center;
+    transition: height 0.3s ease;
+}
+
+.nav.expanded {
+    height: 160px;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+    height: 100%;
+    padding-top: 1rem;
+}
+
+.logo {
+    font-weight: 800;
+    font-size: 1.5rem;
+    color: var(--primary);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-top: 0.5rem;
+}
+
+.searchContainer {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 850px;
+    transition: all 0.3s ease;
+}
+
+.searchBar {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    padding: 8px 8px 8px 24px;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: auto;
+    min-width: 300px;
+}
+
+.searchBar:hover {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12), 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.searchLabel {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--foreground);
+    padding-right: 1rem;
+    border-right: 1px solid var(--border);
+}
+
+.searchLabel:last-child {
+    border-right: none;
+}
+
+.searchIcon {
+    background: var(--primary);
+    color: white;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Expanded State */
+.expandedSearch {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 32px;
+    width: 100%;
+    display: flex;
+    margin-top: 1rem;
+    overflow: hidden;
+    animation: slideDown 0.3s ease forwards;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.filterGroup {
+    flex: 1;
+    padding: 14px 24px;
+    border-radius: 32px;
+    cursor: pointer;
+    transition: background 0.2s;
+    position: relative;
+}
+
+.filterGroup:hover {
+    background: #f7f7f7;
+}
+
+.filterGroup:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 20%;
+    height: 60%;
+    width: 1px;
+    background: var(--border);
+}
+
+.filterLabel {
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    margin-bottom: 2px;
+    display: block;
+}
+
+.filterInput {
+    font-size: 0.9rem;
+    color: var(--secondary-foreground);
+    background: transparent;
+    border: none;
+    width: 100%;
+    outline: none;
+}
+
+.userMenu {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding-top: 0.5rem;
+}
+
+.profileButton {
+    background: white;
+    border: 1px solid var(--border);
+    padding: 5px 5px 5px 12px;
+    border-radius: 21px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+}
+
+.profileButton:hover {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

@@ -1,0 +1,133 @@
+.container {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 100vh;
+    position: relative;
+}
+
+.header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 16px;
+}
+
+.closeButton {
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 8px;
+    transition: color 0.2s;
+}
+
+.closeButton:hover {
+    color: #fff;
+}
+
+.progressContainer {
+    flex: 1;
+    margin: 0 24px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progressBar {
+    height: 100%;
+    background: #fff;
+    transition: width 0.3s ease;
+}
+
+.cardArea {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    perspective: 1000px;
+}
+
+.controls {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    padding-bottom: 48px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+    pointer-events: none;
+}
+
+.controls.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.controlButton {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: #fff;
+    padding: 16px 24px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 100px;
+}
+
+.controlButton:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: #fff;
+    transform: translateY(-2px);
+}
+
+.controlButton.primary {
+    background: #fff;
+    color: #000;
+    border-color: #fff;
+    font-weight: 700;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+}
+
+.controlButton.primary:hover {
+    background: #f0f0f0;
+    transform: translateY(-2px) scale(1.05);
+}
+
+.completeContainer {
+    text-align: center;
+    animation: fadeIn 0.5s ease-out;
+}
+
+.completeTitle {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 16px;
+}
+
+.completeText {
+    color: #888;
+    margin-bottom: 32px;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}

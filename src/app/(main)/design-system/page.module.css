@@ -1,0 +1,140 @@
+.header {
+    padding: 120px 0 80px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 60px;
+}
+
+.title {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-md);
+}
+
+.subtitle {
+    font-size: 1.25rem;
+    color: var(--secondary-foreground);
+    max-width: 600px;
+}
+
+.section {
+    margin-bottom: 100px;
+}
+
+.sectionTitle {
+    font-size: 2rem;
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--border);
+}
+
+/* Tabs */
+.tabs {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xl);
+    border-bottom: 1px solid var(--border);
+}
+
+.tabBtn {
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: none;
+    border: none;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--secondary-foreground);
+    cursor: pointer;
+    position: relative;
+    transition: color 0.2s;
+}
+
+.tabBtn:hover {
+    color: var(--foreground);
+}
+
+.tabActive {
+    color: var(--foreground);
+}
+
+.tabActive::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--foreground);
+}
+
+/* Colors */
+.colorGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.colorCard {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.swatch {
+    height: 120px;
+    width: 100%;
+}
+
+.colorInfo {
+    padding: var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+}
+
+.colorName {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.colorValue {
+    font-family: monospace;
+    color: var(--secondary-foreground);
+    font-size: 0.9rem;
+}
+
+/* Typography */
+.typeScale {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xl);
+}
+
+.typeRow {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    align-items: baseline;
+}
+
+.typeLabel {
+    color: var(--secondary-foreground);
+    font-family: monospace;
+}
+
+/* Components */
+.componentGrid {
+    display: grid;
+    gap: var(--spacing-2xl);
+}
+
+.componentDemo {
+    background: var(--secondary);
+    padding: var(--spacing-xl);
+    border-radius: var(--radius-lg);
+}
+
+.componentLabel {
+    margin-bottom: var(--spacing-lg);
+    font-size: 1.2rem;
+}
+
+.buttonGroup {
+    display: flex;
+    gap: var(--spacing-md);
+}

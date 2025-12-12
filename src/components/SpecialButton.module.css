@@ -1,0 +1,30 @@
+.button {
+    padding: 0 1.5rem;
+    /* Equivalent to var(--spacing-lg) */
+    background: #1a1a1a;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    /* Equivalent to var(--radius-md) */
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+:global(.dark) .button {
+    background: #fff;
+    color: #000;
+}
+
+.button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.button:hover:not(:disabled) {
+    opacity: 0.9;
+}

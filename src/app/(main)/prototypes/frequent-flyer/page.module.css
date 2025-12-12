@@ -1,0 +1,80 @@
+.container {
+    position: relative;
+    display: flex;
+    height: calc(100vh - 65px);
+    overflow: hidden;
+    margin-top: 65px;
+    /* Push content below fixed navbar + border */
+}
+
+.listContainer {
+    width: 40%;
+    min-width: 350px;
+    max-width: 500px;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    background: var(--background);
+    z-index: 10;
+}
+
+.header {
+    padding: var(--spacing-lg);
+    border-bottom: 1px solid var(--border);
+}
+
+.title {
+    font-size: 1.5rem;
+    margin-bottom: var(--spacing-xs);
+}
+
+.subtitle {
+    color: var(--secondary-foreground);
+    font-size: 0.9rem;
+}
+
+.list {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--spacing-md);
+}
+
+.mapContainer {
+    flex: 1;
+    background: #e5e5e5;
+    position: relative;
+    z-index: 1;
+    /* Keep below navbar (z-index: 100) */
+}
+
+.mapLoading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--secondary-foreground);
+    font-weight: 600;
+}
+
+.noResults {
+    padding: var(--spacing-xl);
+    text-align: center;
+    color: var(--secondary-foreground);
+}
+
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+        height: auto;
+    }
+
+    .listContainer {
+        width: 100%;
+        max-width: none;
+        height: 50vh;
+    }
+
+    .mapContainer {
+        height: 50vh;
+    }
+}

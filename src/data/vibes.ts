@@ -1,0 +1,23 @@
+export const VIBES = [
+    "Music",
+    "Markets & Flea Markets",
+    "Food & Drink",
+    "Wellness",
+    "Art & Cultural",
+    "Workshops & Classes",
+    "Community",
+    "Charity & Benefit",
+    "Holiday & Seasonal",
+    "Film Screenings & Movie Nights",
+    "Nightlife",
+    "Sports",
+    "Educational",
+    "Kids & Family",
+    "Pop-Up",
+    "Cultural Celebrations",
+    "Gaming",
+    "Networking",
+    "Outdoor Adventures",
+    "Book Clubs & Literary",
+    "Improv & Comedy"
+];

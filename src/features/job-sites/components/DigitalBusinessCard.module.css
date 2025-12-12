@@ -1,0 +1,227 @@
+.container {
+    width: 100%;
+    max-width: 450px;
+    margin: 0 auto;
+    perspective: 1000px;
+}
+
+.card {
+    position: relative;
+    background: #171717;
+    border: 1px solid #262626;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.header {
+    height: 128px;
+    background: linear-gradient(135deg, #ea580c, #7c2d12);
+    position: relative;
+}
+
+.pattern {
+    position: absolute;
+    inset: 0;
+    opacity: 0.3;
+    background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23000000' fill-opacity='0.4' fill-rule='evenodd'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+.gradientOverlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 64px;
+    background: linear-gradient(to top, #171717, transparent);
+}
+
+.content {
+    padding: 0 24px 32px;
+    position: relative;
+    margin-top: -48px;
+}
+
+.topRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 24px;
+}
+
+.avatar {
+    width: 96px;
+    height: 96px;
+    border-radius: 12px;
+    border: 4px solid #171717;
+    background: #262626;
+    object-fit: cover;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.iconBtn {
+    padding: 8px;
+    background: #262626;
+    border-radius: 50%;
+    color: #a3a3a3;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.iconBtn:hover {
+    background: #404040;
+    color: white;
+}
+
+.info {
+    margin-bottom: 24px;
+}
+
+.name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 4px;
+}
+
+.trade {
+    color: #f97316;
+    font-size: 1.125rem;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #a3a3a3;
+    font-size: 0.875rem;
+    margin-bottom: 16px;
+}
+
+.bullet {
+    color: #525252;
+}
+
+.tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tag {
+    padding: 4px 8px;
+    background: #262626;
+    color: #d4d4d4;
+    font-size: 0.75rem;
+    border-radius: 4px;
+    border: 1px solid #404040;
+}
+
+.contactButtons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.callBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    background: white;
+    color: black;
+    font-weight: 700;
+    padding: 12px;
+    border-radius: 12px;
+    transition: background 0.2s;
+}
+
+.callBtn:hover {
+    background: #e5e5e5;
+}
+
+.emailBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    background: #262626;
+    color: white;
+    font-weight: 500;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid #404040;
+    transition: background 0.2s;
+}
+
+.emailBtn:hover {
+    background: #404040;
+}
+
+.footer {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid #262626;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    color: #737373;
+}
+
+.status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.statusDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    animation: pulse 2s infinite;
+}
+
+.saveBtn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    color: #737373;
+    cursor: pointer;
+    font-size: 0.75rem;
+}
+
+.saveBtn:hover {
+    color: #d4d4d4;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+    }
+}

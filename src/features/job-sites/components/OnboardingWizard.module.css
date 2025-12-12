@@ -1,0 +1,98 @@
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px 24px;
+}
+
+.progressContainer {
+    margin-bottom: 40px;
+}
+
+.progressBar {
+    height: 4px;
+    background: #262626;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.progressFill {
+    height: 100%;
+    background: #ea580c;
+    transition: width 0.3s ease;
+}
+
+.steps {
+    display: flex;
+    justify-content: space-between;
+    color: #737373;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.stepActive {
+    color: #f5f5f5;
+}
+
+.stepCompleted {
+    color: #ea580c;
+}
+
+.content {
+    background: rgba(23, 23, 23, 0.5);
+    border: 1px solid #262626;
+    border-radius: 24px;
+    padding: 32px;
+    min-height: 400px;
+    backdrop-filter: blur(12px);
+}
+
+.navigation {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid #262626;
+}
+
+.backBtn {
+    padding: 12px 24px;
+    background: transparent;
+    color: #a3a3a3;
+    border: 1px solid #404040;
+    border-radius: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.backBtn:hover {
+    color: #f5f5f5;
+    border-color: #737373;
+}
+
+.nextBtn {
+    padding: 12px 32px;
+    background: #ea580c;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nextBtn:hover {
+    background: #f97316;
+    transform: translateY(-1px);
+}
+
+.nextBtn:disabled {
+    background: #404040;
+    color: #737373;
+    cursor: not-allowed;
+    transform: none;
+}

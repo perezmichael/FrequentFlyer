@@ -1,0 +1,23 @@
+.header {
+    padding: 120px 0 80px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 60px;
+}
+
+.title {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-md);
+}
+
+.subtitle {
+    font-size: 1.25rem;
+    color: var(--secondary-foreground);
+    max-width: 600px;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
+    padding-bottom: 80px;
+}

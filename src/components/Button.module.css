@@ -1,0 +1,205 @@
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full);
+    font-weight: 600;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: 1px solid transparent;
+    font-family: var(--font-sans);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Variants */
+.primary {
+    background-color: var(--foreground);
+    color: var(--background);
+    border-color: var(--foreground);
+}
+
+.primary:hover:not(:disabled) {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.secondary {
+    background-color: var(--secondary);
+    color: var(--foreground);
+    border-color: var(--secondary);
+}
+
+.secondary:hover:not(:disabled) {
+    background-color: #e5e5e5;
+}
+
+.outline {
+    background-color: transparent;
+    border-color: var(--border);
+    color: var(--foreground);
+}
+
+.outline:hover:not(:disabled) {
+    border-color: var(--foreground);
+    background-color: var(--secondary);
+}
+
+.ghost {
+    background-color: transparent;
+    color: var(--foreground);
+}
+
+.ghost:hover:not(:disabled) {
+    background-color: var(--secondary);
+}
+
+.gemini {
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 15px rgba(66, 133, 244, 0.3);
+}
+
+.gemini:hover:not(:disabled) {
+    box-shadow: 0 6px 20px rgba(66, 133, 244, 0.5);
+    transform: translateY(-1px);
+    filter: brightness(1.1);
+}
+
+.special {
+    /* Exact copy from particles.module.css .button */
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--radius-full);
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    box-shadow: none;
+    /* Reset any default shadows */
+}
+
+.special:hover:not(:disabled) {
+    /* Exact copy from particles.module.css .button:hover */
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: none;
+    /* Reset any default shadows */
+    border-color: rgba(255, 255, 255, 0.1);
+    /* Keep border consistent */
+}
+
+/* Active state matching particles.module.css .buttonActive */
+.special.active {
+    background: #fff !important;
+    color: #000 !important;
+    border-color: #fff !important;
+    box-shadow: 0 4px 20px rgba(255, 255, 255, 0.2) !important;
+    transform: scale(1.05);
+}
+
+/* Remove dark mode overrides since we want EXACT copy */
+:global(.dark) .special {
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+:global(.dark) .special:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+
+:global(.dark) .special.active {
+    background: #fff !important;
+    color: #000 !important;
+    border-color: #fff !important;
+}
+
+/* Sizes */
+.sm {
+    padding: 6px 16px;
+    font-size: 0.875rem;
+    height: 32px;
+}
+
+.md {
+    padding: 10px 24px;
+    font-size: 1rem;
+    height: 44px;
+}
+
+.lg {
+    padding: 14px 32px;
+    font-size: 1.125rem;
+    height: 52px;
+}
+
+/* Special Button 2 - Optimized for Light Backgrounds */
+/* Special Button 2 - Exact copy of Special but for Light Backgrounds (Dark Text) */
+.special-2 {
+    /* Exact copy from .special */
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--radius-full);
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    /* Dark border */
+    background: rgba(0, 0, 0, 0.05);
+    /* Dark transparent background */
+    color: rgba(0, 0, 0, 0.7);
+    /* Dark text */
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    box-shadow: none;
+}
+
+.special-2:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.1);
+    color: #000;
+    transform: translateY(-1px);
+    box-shadow: none;
+    border-color: rgba(0, 0, 0, 0.1);
+}
+
+.special-2:active:not(:disabled),
+.special-2.active {
+    background: #000 !important;
+    color: #fff !important;
+    border-color: #000 !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2) !important;
+    transform: scale(1.05);
+}
+
+/* Dark mode adaptation for Special 2 - Invert to look like Special 1 */
+:global(.dark) .special-2 {
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+:global(.dark) .special-2:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+
+:global(.dark) .special-2.active {
+    background: #fff !important;
+    color: #000 !important;
+    border-color: #fff !important;
+}

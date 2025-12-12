@@ -1,0 +1,55 @@
+.gridContainer {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 4px;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+    aspect-ratio: 1;
+}
+
+.cell {
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 2px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.cell.mastered {
+    background-color: #fff;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+}
+
+.cell.unlocked {
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background-color: transparent;
+}
+
+.cell.locked {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+.tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #000;
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 10;
+    margin-bottom: 4px;
+}
+
+.cell:hover .tooltip {
+    opacity: 1;
+}
