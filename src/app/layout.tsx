@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { EB_Garamond } from "next/font/google";
 import "./globals.css";
+// Import the Navbar!
+import Navbar from "@/features/frequent-flyer/components/Navbar";
 
 const ebGaramond = EB_Garamond({
   subsets: ["latin"],
@@ -21,6 +23,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={ebGaramond.variable}>
+        {/* Add Navbar here */}
+        <Navbar />
         <main>{children}</main>
       </body>
     </html>
