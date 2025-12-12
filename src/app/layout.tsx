@@ -9,11 +9,9 @@ const ebGaramond = EB_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "The Lab",
-  description: "Explorations into AI and Vibe Coding by a UX Designer",
+  title: "Frequent Flyer",
+  description: "Local events search and vibe check.",
 };
-
-import { ThemeProvider } from "@/context/ThemeContext";
 
 export default function RootLayout({
   children,
@@ -23,9 +21,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={ebGaramond.variable}>
-        <ThemeProvider>
-          <main>{children}</main>
-        </ThemeProvider>
+        <main>{children}</main>
       </body>
     </html>
   );
