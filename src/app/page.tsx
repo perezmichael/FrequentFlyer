@@ -13,7 +13,7 @@ const Map = dynamic(() => import('@/features/frequent-flyer/components/Map'), {
     loading: () => <div className={styles.mapLoading}>Loading Map...</div>
 });
 
-function FrequentFlyerContent() {
+function HomeContent() {
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
     const searchParams = useSearchParams();
 
@@ -117,10 +117,10 @@ function FrequentFlyerContent() {
     );
 }
 
-export default function FrequentFlyerPage() {
+export default function Page() {
     return (
-        <Suspense fallback={<div>Loading...</div>}>
-            <FrequentFlyerContent />
+        <Suspense fallback={<div>Loading events...</div>}>
+            <HomeContent />
         </Suspense>
     );
 }

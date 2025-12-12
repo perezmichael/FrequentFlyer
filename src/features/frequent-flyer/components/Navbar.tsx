@@ -6,8 +6,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './Navbar.module.css';
 import { events } from '@/features/frequent-flyer/data/events';
-import { VIBES } from '@/data/vibes';
-
+import { VIBES } from '@/features/frequent-flyer/data/vibes';
 export default function Navbar() {
     const pathname = usePathname();
     const router = useRouter();
@@ -53,7 +52,7 @@ export default function Navbar() {
         if (endDate) params.set('to', endDate);
         if (vibe) params.set('vibe', vibe);
 
-        router.push(`/frequent-flyer?${params.toString()}`);
+        router.push(`/?${params.toString()}`);
         setIsExpanded(false);
     };
 
@@ -65,7 +64,7 @@ export default function Navbar() {
         <nav className={styles.navbar}>
             <div className={styles.container}>
                 {/* Logo */}
-                <Link href="/frequent-flyer" className={styles.logo}>
+                <Link href="/" className={styles.logo}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src="/frequent-flyer-logo.png" alt="Frequent Flyer" style={{ height: '40px', objectFit: 'contain' }} />
                 </Link>
@@ -185,6 +184,6 @@ export default function Navbar() {
                     </div>
                 </div>
             </div>
-        </nav>
+        </nav >
     );
 }
