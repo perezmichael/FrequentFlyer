@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Event } from '@/features/frequent-flyer/data/events';
 import styles from './EventCard.module.css';
+import { getVibeCheck } from '@/app/actions';
 
 interface EventCardProps {
     event: Event;
@@ -9,6 +11,19 @@ interface EventCardProps {
 }
 
 export default function EventCard({ event, isActive, onClick, id }: EventCardProps) {
+    const [vibeCheck, setVibeCheck] = useState<string | null>(null);
+    const [loadingVibe, setLoadingVibe] = useState(false);
+
+    const handleVibeCheck = async (e: React.MouseEvent) => {
+        e.stopPropagation(); // Don't trigger card selection
+        if (vibeCheck) return; // Already fetched
+
+        setLoadingVibe(true);
+        const vibe = await getVibeCheck(event.title, event.vibe);
+        setVibeCheck(vibe);
+        setLoadingVibe(false);
+    };
+
     return (
         <div id={id} className={styles.card} onClick={onClick}>
             <div className={styles.imageContainer}>
@@ -19,6 +34,15 @@ export default function EventCard({ event, isActive, onClick, id }: EventCardPro
                 </button>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={event.image} alt={event.title} className={styles.image} />
+
+                {/* NEW: Vibe Check Button */}
+                <button
+                    className={styles.vibeButton}
+                    onClick={handleVibeCheck}
+                    disabled={loadingVibe}
+                >
+                    {loadingVibe ? '✨ Checking...' : '✨ Vibe Check'}
+                </button>
             </div>
 
             <div className={styles.content}>
@@ -35,17 +59,16 @@ export default function EventCard({ event, isActive, onClick, id }: EventCardPro
                 <div className={styles.info}>{event.location}</div>
                 <div className={styles.info}>{event.date}</div>
 
-                <div className={styles.price}>
-                    <span className={styles.priceValue}>Free</span>
-                    <span style={{ fontWeight: 400 }}>entry</span>
-                </div>
-
-                {/* Optional Vibe Tags */}
-                {/* <div className={styles.vibeTags}>
-                    {event.vibe.slice(0, 2).map(v => (
-                        <span key={v} className={styles.vibeTag}>{v}</span>
-                    ))}
-                </div> */}
+                {vibeCheck ? (
+                    <div className={styles.vibeResult}>
+                        "{vibeCheck}"
+                    </div>
+                ) : (
+                    <div className={styles.price}>
+                        <span className={styles.priceValue}>Free</span>
+                        <span style={{ fontWeight: 400 }}>entry</span>
+                    </div>
+                )}
             </div>
         </div>
     );
