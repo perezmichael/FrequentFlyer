@@ -108,3 +108,49 @@
     color: var(--secondary-foreground);
     font-weight: 500;
 }
+
+.vibeButton {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s, background 0.2s;
+    backdrop-filter: blur(4px);
+    z-index: 2;
+}
+
+.vibeButton:hover {
+    transform: scale(1.05);
+    background: white;
+}
+
+.vibeResult {
+    font-size: 0.85rem;
+    font-style: italic;
+    color: #4a4a4a;
+    background: #f0f0f0;
+    padding: 8px;
+    border-radius: 8px;
+    margin-top: 4px;
+    line-height: 1.4;
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

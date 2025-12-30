@@ -1,0 +1,65 @@
+[
+  {
+    "name": "Benny Boy Brewing",
+    "url": "https://bennyboybrewing.com/calendar",
+    "neighborhood": "Lincoln Heights",
+    "lat": 34.0747,
+    "lng": -118.2158
+  },
+  {
+    "name": "Gold-Diggers",
+    "url": "https://gold-diggers.com/pages/drink",
+    "neighborhood": "East Hollywood",
+    "lat": 34.0906,
+    "lng": -118.3056
+  },
+  {
+    "name": "Revenge Of",
+    "url": "https://revengeof.com/pages/events",
+    "neighborhood": "Glassell Park",
+    "lat": 34.1164,
+    "lng": -118.2361
+  },
+  {
+    "name": "Dynasty Typewriter",
+    "url": "https://www.dynastytypewriter.com/calendar-squad-up",
+    "neighborhood": "Koreatown",
+    "lat": 34.0610,
+    "lng": -118.2831
+  },
+  {
+    "name": "Lyric Hyperion",
+    "url": "https://lyrichyperion.com/tickets",
+    "neighborhood": "Silver Lake",
+    "lat": 34.1030,
+    "lng": -118.2750
+  },
+  {
+    "name": "The Elysian",
+    "url": "https://www.elysiantheater.com/shows-calendar",
+    "neighborhood": "Echo Park",
+    "lat": 34.0846,
+    "lng": -118.2467
+  },
+  {
+    "name": "Zebulon",
+    "url": "https://zebulon.la/",
+    "neighborhood": "Silver Lake",
+    "lat": 34.1065,
+    "lng": -118.2477
+  },
+  {
+    "name": "The Regent Theater",
+    "url": "https://regentdtla.com/events/",
+    "neighborhood": "DTLA",
+    "lat": 34.0475,
+    "lng": -118.2486
+  },
+  {
+    "name": "The Goldfish",
+    "url": "https://www.thegoldfishla.com/events",
+    "neighborhood": "Highland Park",
+    "lat": 34.1116,
+    "lng": -118.1966
+  }
+]
