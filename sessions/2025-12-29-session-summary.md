@@ -26,3 +26,13 @@
 - **Gemini "Vibe Check"**: Added an AI-powered interactive button to event cards. It generates a unique, mysterious 1-sentence description of the event's "vibe" on demand.
 - **"Current Week" Default**: The homepage now automatically filters to show only events for the upcoming week. This ensures the map never looks stale with old data.
 - **Optimistic UI**: Implemented `Suspense` loading states to ensure the app feels responsive even while fetching database records.
+
+### Creator Studio
+- **New Feature**: Built `/admin/studio` for generating custom event flyers.
+- **Fabric.js Canvas**: Implemented a live canvas editor with text manipulation.
+- **Vibe Engine Upgrade**: Integrated **Nano Banana (Gemini 2.5 Flash)** to generate real background images or complex CSS gradients from user prompts.
+- **Publishing Workflow**: One-click publish that uploads the flyer to Supabase and creates a live event record.
+
+## 🐛 Bug Fixes
+- **Fabric.js Double-Init**: Fixed a React Strict Mode bug where the canvas initialized twice, causing a crash. Implemented a robust cleanup function.
+- **Vibe Engine Typo**: Clarified "Nanobanana" requirement and successfully switched to Gemini 2.5 Flash.

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Event } from '@/features/frequent-flyer/data/events'; // Reuse Type
 import styles from '@/features/frequent-flyer/components/EventCard.module.css'; // Reuse styles
 import { approveEvent, rejectEvent, updateEvent } from '@/app/actions';
+import { VIBES, VIBE_KEYS } from '@/features/frequent-flyer/data/vibes';
 
 interface AdminEventCardProps {
     event: Event & { status?: string, vibe_score?: number };
@@ -15,7 +16,8 @@ export default function AdminEventCard({ event }: AdminEventCardProps) {
         title: event.title,
         date: event.date,
         location: event.location,
-        image: event.image
+        image: event.image,
+        vibe: (event.vibe && event.vibe[0]) || ''
     });
 
     const handleSave = async () => {
@@ -23,7 +25,8 @@ export default function AdminEventCard({ event }: AdminEventCardProps) {
         await updateEvent(event.id, {
             event_name: formData.title,
             event_date: formData.date,
-            flyer_url: formData.image
+            flyer_url: formData.image,
+            event_vibe: formData.vibe // Update database
         });
         setIsEditing(false);
     };
@@ -67,11 +70,26 @@ export default function AdminEventCard({ event }: AdminEventCardProps) {
                             className="border p-1 rounded"
                         />
                         <input
-                            value={formData.image}
                             onChange={e => setFormData({ ...formData, image: e.target.value })}
                             placeholder="Image URL"
                             className="border p-1 rounded"
                         />
+
+                        {/* Vibe Dropdown */}
+                        <select
+                            value={formData.vibe}
+                            onChange={e => setFormData({ ...formData, vibe: e.target.value })}
+                            className="border p-1 rounded"
+                        >
+                            <option value="">Select Vibe...</option>
+                            {VIBE_KEYS.map(key => (
+                                <option key={key} value={key}>
+                                    {VIBES[key]}
+                                </option>
+                            ))}
+                        </select>
+
+
                         <div style={{ display: 'flex', gap: 4 }}>
                             <button onClick={handleSave} className="bg-blue-500 text-white px-2 py-1 rounded">Save</button>
                             <button onClick={() => setIsEditing(false)} className="text-gray-500 px-2 py-1">Cancel</button>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Event } from '@/features/frequent-flyer/data/events';
 import styles from './EventCard.module.css';
 import { getVibeCheck } from '@/app/actions';
+import { VIBES } from '@/features/frequent-flyer/data/vibes';
 
 interface EventCardProps {
     event: Event;
@@ -69,6 +70,20 @@ export default function EventCard({ event, isActive, onClick, id }: EventCardPro
                         <span style={{ fontWeight: 400 }}>entry</span>
                     </div>
                 )}
+
+                {/* Vibe Pill */}
+                <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#666' }}>
+                    {event.vibe && event.vibe.length > 0 && VIBES[event.vibe[0]] ? (
+                        <span style={{
+                            background: '#f0f0f0',
+                            padding: '4px 8px',
+                            borderRadius: '12px',
+                            fontWeight: 600
+                        }}>
+                            {VIBES[event.vibe[0]]}
+                        </span>
+                    ) : null}
+                </div>
             </div>
         </div>
     );

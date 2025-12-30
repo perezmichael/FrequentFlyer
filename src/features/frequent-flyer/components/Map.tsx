@@ -75,35 +75,13 @@ function CustomControls({ isFullscreen, onToggleFullscreen }: { isFullscreen: bo
 }
 
 // Vibe to Emoji Mapping
-const VIBE_ICONS: Record<string, string> = {
-    "Music": "🎶 Music",
-    "Markets & Flea Markets": "🛍️ Markets",
-    "Food & Drink": "🍹 Food & Drink",
-    "Wellness": "🧘 Wellness",
-    "Art & Cultural": "🎨 Art",
-    "Workshops & Classes": "🛠️ Workshops",
-    "Community": "🌳 Community",
-    "Charity & Benefit": "💛 Charity",
-    "Holiday & Seasonal": "🎉 Holiday",
-    "Film Screenings & Movie Nights": "🎥 Film",
-    "Nightlife": "🌙 Nightlife",
-    "Sports": "🏃 Sports",
-    "Educational": "📚 Educational",
-    "Kids & Family": "🧸 Family",
-    "Pop-Up": "🏗️ Pop-Up",
-    "Cultural Celebrations": "🏮 Culture",
-    "Gaming": "🎮 Gaming",
-    "Networking": "🤝 Networking",
-    "Outdoor Adventures": "🏞️ Outdoor",
-    "Book Clubs & Literary": "📖 Books",
-    "Improv & Comedy": "🎭 Comedy"
-};
+import { VIBES } from '@/features/frequent-flyer/data/vibes';
 
 // Custom Price/Pill Icon
 const createCustomIcon = (vibes: string[]) => {
     // Get the first vibe that has a mapping, or default to the first vibe or "Event"
     const primaryVibe = vibes[0];
-    const label = VIBE_ICONS[primaryVibe] || primaryVibe || "Free";
+    const label = VIBES[primaryVibe] || primaryVibe || "Free";
 
     return L.divIcon({
         className: 'custom-map-marker',
