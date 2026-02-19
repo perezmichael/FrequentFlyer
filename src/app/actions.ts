@@ -121,3 +121,32 @@ export async function publishEvent(formData: any, flyerBase64: string) {
 
     return { success: true, event: data };
 }
+
+export async function getGuides() {
+    const { data, error } = await supabase
+        .from('guides')
+        .select(`
+            *,
+            items: guide_items (
+                id,
+                order_index,
+                curator_note,
+                venue_id,
+                venues (
+                    name,
+                    neighborhood,
+                    lat,
+                    lng,
+                    url,
+                    image_url
+                )
+            )
+        `);
+
+    if (error) {
+        console.error('Error fetching guides:', error);
+        return [];
+    }
+
+    return data;
+}

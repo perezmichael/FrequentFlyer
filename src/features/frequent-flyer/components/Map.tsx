@@ -1,11 +1,10 @@
 'use client';
 
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Event } from '@/features/frequent-flyer/data/events';
 import L from 'leaflet';
 import { useEffect, useState } from 'react';
-import styles from './Map.module.css';
 
 // Fix for default marker icon in Next.js
 // @ts-ignore
@@ -17,9 +16,14 @@ L.Icon.Default.mergeOptions({
 });
 
 interface MapProps {
-    events: Event[];
+    events?: Event[]; // Optional now
     selectedEventId?: string | null;
     onMarkerClick?: (id: string) => void;
+    // New prop for Guide Routes
+    route?: {
+        coordinates: [number, number][];
+        color?: string;
+    };
 }
 
 function MapUpdater({ center }: { center: [number, number] }) {
@@ -30,14 +34,28 @@ function MapUpdater({ center }: { center: [number, number] }) {
     return null;
 }
 
+function RouteUpdater({ coordinates }: { coordinates: [number, number][] }) {
+    const map = useMap();
+    useEffect(() => {
+        if (coordinates.length > 0) {
+            const bounds = L.latLngBounds(coordinates);
+            map.flyToBounds(bounds, { padding: [50, 50], duration: 1.5 });
+        }
+    }, [coordinates, map]);
+    return null;
+}
+
 // Custom Zoom & Fullscreen Controls
 function CustomControls({ isFullscreen, onToggleFullscreen }: { isFullscreen: boolean, onToggleFullscreen: () => void }) {
     const map = useMap();
 
+    // Position classes based on fullscreen state
+    const positionClass = isFullscreen ? 'top-6 right-6' : 'top-6 right-6';
+
     return (
-        <div className={styles.controls}>
+        <div className={`absolute ${positionClass} flex flex-col gap-2 z-[1000]`}>
             <button
-                className={styles.controlButton}
+                className="w-8 h-8 bg-white border border-gray-200 rounded-lg flex items-center justify-center cursor-pointer shadow-sm transition-all hover:bg-gray-50 hover:shadow-md active:translate-y-0 text-gray-800"
                 onClick={() => map.zoomIn()}
                 title="Zoom In"
             >
@@ -47,7 +65,7 @@ function CustomControls({ isFullscreen, onToggleFullscreen }: { isFullscreen: bo
                 </svg>
             </button>
             <button
-                className={styles.controlButton}
+                className="w-8 h-8 bg-white border border-gray-200 rounded-lg flex items-center justify-center cursor-pointer shadow-sm transition-all hover:bg-gray-50 hover:shadow-md active:translate-y-0 text-gray-800"
                 onClick={() => map.zoomOut()}
                 title="Zoom Out"
             >
@@ -56,7 +74,7 @@ function CustomControls({ isFullscreen, onToggleFullscreen }: { isFullscreen: bo
                 </svg>
             </button>
             <button
-                className={styles.controlButton}
+                className="w-8 h-8 bg-white border border-gray-200 rounded-lg flex items-center justify-center cursor-pointer shadow-sm transition-all hover:bg-gray-50 hover:shadow-md active:translate-y-0 text-gray-800"
                 onClick={onToggleFullscreen}
                 title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
             >
@@ -151,25 +169,25 @@ function EventPopup({ event, onClose }: { event: Event, onClose: () => void }) {
                 remove: onClose
             }}
         >
-            <div className={styles.popupCard}>
-                <div className={styles.popupImageContainer}>
+            <div className="w-[250px] font-space-grotesk font-sans">
+                <div className="relative w-full h-auto rounded-t-2xl overflow-hidden leading-[0]">
                     <img
                         src={event.image}
                         alt={event.title}
-                        className={styles.popupImage}
+                        className="w-full h-auto block"
                     />
-                    <button className={styles.heartButton}>
+                    <button className="absolute top-3 right-12 bg-transparent border-none cursor-pointer text-white z-10 p-0 drop-shadow-md">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="rgba(0,0,0,0.5)" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
                         </svg>
                     </button>
                 </div>
-                <div className={styles.popupContent}>
-                    <div className={styles.popupTitle}>{event.title}</div>
-                    <div className={styles.popupSubtitle}>{event.location}</div>
-                    <div className={styles.popupFooter}>
-                        <div className={styles.popupPrice}>Free</div>
-                        <div className={styles.popupMeta}>{event.date}</div>
+                <div className="p-4">
+                    <div className="text-base font-semibold mb-1 text-gray-900 leading-tight">{event.title}</div>
+                    <div className="text-sm text-gray-500 mb-2">{event.location}</div>
+                    <div className="mt-2 flex flex-col gap-1">
+                        <div className="font-semibold text-gray-900 text-base">Free</div>
+                        <div className="text-xs text-gray-500">{event.date}</div>
                     </div>
                 </div>
             </div>
@@ -177,13 +195,16 @@ function EventPopup({ event, onClose }: { event: Event, onClose: () => void }) {
     );
 }
 
-export default function Map({ events, selectedEventId, onMarkerClick }: MapProps) {
+export default function Map({ events = [], selectedEventId, onMarkerClick, route }: MapProps) {
     const [isFullscreen, setIsFullscreen] = useState(false);
 
     const selectedEvent = events.find(e => e.id === selectedEventId);
+
+    // Determine center: 1. Selected Event, 2. First Event, 3. Default LA
+    // If we have a route, we rely on RouteUpdater to fit bounds, but need initial center.
     const center: [number, number] = selectedEvent
         ? [selectedEvent.lat, selectedEvent.lng]
-        : [34.0782, -118.2606]; // Default to LA (Echo Park)
+        : (events.length > 0 ? [events[0].lat, events[0].lng] : [34.0782, -118.2606]); // Default to LA (Echo Park)
 
     const toggleFullscreen = () => {
         setIsFullscreen(!isFullscreen);
@@ -191,8 +212,7 @@ export default function Map({ events, selectedEventId, onMarkerClick }: MapProps
 
     return (
         <div
-            className={`${isFullscreen ? styles.fullscreenContainer : ''} ${styles.mapScope}`}
-            style={{ height: '100%', width: '100%', position: 'relative' }}
+            className={`relative w-full h-full ${isFullscreen ? 'fixed !top-0 !left-0 !w-[100vw] !h-[100vh] z-[9999] rounded-none' : ''}`}
         >
             <MapContainer
                 center={center}
@@ -208,6 +228,7 @@ export default function Map({ events, selectedEventId, onMarkerClick }: MapProps
                 <MapResizer isFullscreen={isFullscreen} />
                 <CustomControls isFullscreen={isFullscreen} onToggleFullscreen={toggleFullscreen} />
 
+                {/* Event Logic (Events Mode) */}
                 {selectedEvent && <MapUpdater center={[selectedEvent.lat, selectedEvent.lng]} />}
 
                 {/* Render Markers without nested Popups */}
@@ -228,6 +249,29 @@ export default function Map({ events, selectedEventId, onMarkerClick }: MapProps
                         event={selectedEvent}
                         onClose={() => onMarkerClick && onMarkerClick('')} // Close by clearing selection
                     />
+                )}
+
+                {/* Route Logic (Guides Mode) */}
+                {route && route.coordinates.length > 0 && (
+                    <>
+                        <Polyline
+                            positions={route.coordinates}
+                            pathOptions={{ color: route.color || '#3b82f6', weight: 4, opacity: 0.8 }}
+                        />
+                        <RouteUpdater coordinates={route.coordinates} />
+                        {/* Render Simple Dots for Route Points if no events are passed (optional enhancement) */}
+                        {route.coordinates.map((coord, idx) => (
+                            <Marker
+                                key={`route-${idx}`}
+                                position={coord}
+                                icon={L.divIcon({
+                                    className: 'route-dot',
+                                    html: `<div style="background: ${route.color || '#3b82f6'}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>`,
+                                    iconSize: [12, 12]
+                                })}
+                            />
+                        ))}
+                    </>
                 )}
             </MapContainer>
         </div>

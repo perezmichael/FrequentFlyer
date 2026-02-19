@@ -1,280 +1,272 @@
-Here are the top 30 events, grouped by day of the week, with the requested output format:
+Okay, here are the top 30 events from the provided data, categorized by day of the week, and formatted as requested:
 
 ---
-Monday
-10/10 The Dina Martina Christmas Show!
-SLIDE LABEL: 🎭 improv & comedy
-VENUE: Dynasty Typewriter @ Koreatown
-FLYER: null
-RAW DESCRIPTION: Dina Martina is an avant-garde legend, guaranteeing an utterly unique, bizarre, and hysterically funny performance art/cabaret experience.
-IG CAPTION: dina martina is back, baby! get ready for the weirdest, funniest night of your life.
-
+**Monday**
+Title: Double Pings on Graphic Novels
+Description: Get double rewards on graphic novel purchases every Monday.
+Location, Neighborhood: Revenge Of, Glassell Park
+Vibe: 📚 Educational
+Vibe Rank: 8/10
+Flyer Image: N/A
+Event Url: https://revengeof.com/pages/events
 ---
-Monday
-8/10 Double Pings on Graphic Novels
-SLIDE LABEL: 📚 Educational
-VENUE: Revenge Of @ Glassell Park
-FLYER: null
-RAW DESCRIPTION: A consistent weekly promotion that offers enhanced rewards (double pings) for graphic novel purchases, appealing to collectors and regular shoppers.
-IG CAPTION: level up your graphic novel game! double pings every monday.
-
+**Monday**
+Title: BLK Pizza Pop Up
+Description: Enjoy delicious pizza at this recurring Monday pop-up.
+Location, Neighborhood: Benny Boy Brewing, Lincoln Heights
+Vibe: 🛍️ Markets & Flea Markets
+Vibe Rank: 7/10
+Flyer Image: https://szjwuelaiawmqpbdubtp.supabase.co/storage/v1/object/public/event-flyers/flyers/4cba2a19-87ef-423f-96fe-d6761ed0fd64.jpg
+Event Url: https://bennyboybrewing.com/calendar
 ---
-Monday
-7/10 BLK Pizza Pop Up
-SLIDE LABEL: 🍹 Food & Drink
-VENUE: Benny Boy Brewing @ Lincoln Heights
-FLYER: https://szjwuelaiawmqpbdubtp.supabase.co/storage/v1/object/public/event-flyers/flyers/4cba2a19-87ef-423f-96fe-d6761ed0fd64.jpg
-RAW DESCRIPTION: Consistent and popular food option for guests.
-IG CAPTION: pizza & brews? yes, please! blk pizza is popping up at benny boy brewing.
-
+**Monday**
+Title: The Dina Martina Christmas Show!
+Description: Experience the bizarre and hilarious performance art of Dina Martina.
+Location, Neighborhood: Dynasty Typewriter, Koreatown
+Vibe: 🎭 improv & comedy
+Vibe Rank: 10/10
+Flyer Image: N/A
+Event Url: N/A
 ---
-Tuesday
-10/10 The Dina Martina Christmas Show!
-SLIDE LABEL: 🎭 improv & comedy
-VENUE: Dynasty Typewriter @ Koreatown
-FLYER: null
-RAW DESCRIPTION: Dina Martina is an avant-garde legend, guaranteeing an utterly unique, bizarre, and hysterically funny performance art/cabaret experience.
-IG CAPTION: dina martina's back for another night of festive madness! don't miss this avant-garde christmas experience.
-
+**Tuesday**
+Title: Jay's Tacos Pop-Up
+Description: A popular food choice that enhances the brewery experience.
+Location, Neighborhood: Benny Boy Brewing, Lincoln Heights
+Vibe: 🍹 Food & Drink
+Vibe Rank: 7/10
+Flyer Image: N/A
+Event Url: https://bennyboybrewing.com/calendar
 ---
-Tuesday
-7/10 Jay's Tacos Pop-Up
-SLIDE LABEL: 🍹 Food & Drink
-VENUE: Benny Boy Brewing @ Lincoln Heights
-FLYER: null
-RAW DESCRIPTION: A popular food choice that enhances the brewery experience.
-IG CAPTION: tacos and craft beer? perfect combo! jays tacos is at benny boy brewing.
-
+**Tuesday**
+Title: Rocco DeLuca, LEF
+Description: An intimate musical evening with two artists.
+Location, Neighborhood: Zebulon, Silver Lake
+Vibe: 🎶 Music
+Vibe Rank: 7/10
+Flyer Image: N/A
+Event Url: N/A
 ---
-Tuesday
-7/10 Rocco DeLuca, LEF
-SLIDE LABEL: 🎶 Music
-VENUE: Zebulon @ Silver Lake
-FLYER: null
-RAW DESCRIPTION: An intimate musical evening with two artists, likely offering soulful or alternative sounds in a relaxed setting.
-IG CAPTION: catch rocco deluca and lef for a chill night of soulful sounds at zebulon.
-
+**Tuesday**
+Title: The Dina Martina Christmas Show!
+Description: Experience the bizarre and hilarious performance art of Dina Martina.
+Location, Neighborhood: Dynasty Typewriter, Koreatown
+Vibe: 🎭 improv & comedy
+Vibe Rank: 10/10
+Flyer Image: N/A
+Event Url: N/A
 ---
-Wednesday
-10/10 New Years Hop ~ A Sixties Dance Party
-SLIDE LABEL: 🎶 Music
-VENUE: Gold-Diggers @ East Hollywood
-FLYER: null
-RAW DESCRIPTION: A New Year's Eve 'Sixties Dance Party' with 'Hop' in the name strongly evokes the 'disco-ball chandeliers,' 'dance floor,' and 'sleazy glamour' elements for a high-energy celebration.
-IG CAPTION: hop into the new year with a sixties dance party at gold-diggers! get your groove on!
-
+**Tuesday**
+Title: Brandon Rose, J3
+Description: A live music performance at Gold-Diggers.
+Location, Neighborhood: Gold-Diggers, East Hollywood
+Vibe: 🎶 Music
+Vibe Rank: 7/10
+Flyer Image: N/A
+Event Url: https://gold-diggers.com/pages/drink
 ---
-Wednesday
-10/10 NYE Dance Party
-SLIDE LABEL: 🎶 Music
-VENUE: Benny Boy Brewing @ Lincoln Heights
-FLYER: null
-RAW DESCRIPTION: Extremely high on Joy (celebratory, dance party, third annual), Community (bringing people together to ring in the new year), and Authenticity (DJ performances).
-IG CAPTION: get ready to dance the night away! nye dance party at benny boy brewing.
-
+**Wednesday**
+Title: New Year’s Eve
+Description: High energy and celebratory dance party with a lively mambo band.
+Location, Neighborhood: The Goldfish, Highland Park
+Vibe: 🎉 Holiday & Seasonal
+Vibe Rank: 9/10
+Flyer Image: https://dice-media.imgix.net/attachments/2025-12-10/2422cbba-e826-4213-a778-53f40ec93c15.jpg?rect=0%2C0%2C1080%2C1080&auto=format%2Ccompress&q=40&w=328&h=328&fit=crop&crop=faces%2Ccenter&dpr=2
+Event Url: N/A
 ---
-Wednesday
-9/10 New Year’s Eve Concert with The Egyptian Lover
-SLIDE LABEL: 🎶 Music
-VENUE: Zebulon @ Silver Lake
-FLYER: null
-RAW DESCRIPTION: An iconic electro-funk artist headlining New Year's Eve, promising a high-energy, legendary, and celebratory start to the new year.
-IG CAPTION: ring in the new year with the egyptian lover at zebulon! get ready to funk it up!
-
+**Wednesday**
+Title: GOTHICUMBIA – NEW YEAR’S EVE!
+Description: An immersive New Year's Eve celebration fusing gothic and cumbia aesthetics.
+Location, Neighborhood: The Regent Theater, DTLA
+Vibe: 🎉 Holiday & Seasonal
+Vibe Rank: 8/10
+Flyer Image: N/A
+Event Url: N/A
 ---
-Wednesday
-9/10 New Year’s Eve
-SLIDE LABEL: 🎉 Holiday & Seasonal
-VENUE: The Goldfish @ Highland Park
-FLYER: null
-RAW DESCRIPTION: High energy and celebratory, perfect for a New Year's Eve dance party with a lively mambo band.
-IG CAPTION: mambo into the new year at the goldfish! live music and good vibes all night long.
-
+**Wednesday**
+Title: New Years Hop ~ A Sixties Dance Party
+Description:  A New Year's Eve 'Sixties Dance Party'.
+Location, Neighborhood: Gold-Diggers, East Hollywood
+Vibe: 🎉 Holiday & Seasonal
+Vibe Rank: 10/10
+Flyer Image: https://dice-media.imgix.net/attachments/2025-12-18/b689c7f4-2759-4749-90bd-c740d6358872.jpg?rect=0%2C0%2C1080%2C1080&auto=format%2Ccompress&q=40&w=328&h=328&fit=crop&crop=faces%2Ccenter&dpr=2
+Event Url: https://gold-diggers.com/pages/drink
 ---
-Wednesday
-9/10 New Year's Eve at Dynasty Typewriter!
-SLIDE LABEL: 🎭 improv & comedy
-VENUE: Dynasty Typewriter @ Koreatown
-FLYER: null
-RAW DESCRIPTION: A strong lineup of established comedians for New Year's Eve promises a celebratory, high-energy, and consistently funny end to the year.
-IG CAPTION: laugh your way into the new year with our all-star comedy lineup at dynasty typewriter!
-
+**Wednesday**
+Title: NYE Dance Party
+Description: NYE party with music, dancing, food, and community celebration.
+Location, Neighborhood: Benny Boy Brewing, Lincoln Heights
+Vibe: 🎉 Holiday & Seasonal
+Vibe Rank: 7/10
+Flyer Image: https://szjwuelaiawmqpbdubtp.supabase.co/storage/v1/object/public/event-flyers/flyers/fa33fcb9-81d7-4063-adc4-56eef345f770.jpg
+Event Url: https://bennyboybrewing.com/calendar
 ---
-Wednesday
-8/10 NYE: Retro-Futurist Countdown
-SLIDE LABEL: 🎶 Music
-VENUE: Revenge Of @ Glassell Park
-FLYER: null
-RAW DESCRIPTION: New Year's Eve event specifically branded as 'Retro-Futurist Countdown' with a themed DJ, perfectly hitting the brand's core aesthetic.
-IG CAPTION: blast off into the future (but make it retro)! nye retro-futurist countdown at revenge of.
-
+**Wednesday**
+Title: NYE: Retro-Futurist Countdown
+Description: New Year's Eve event specifically branded as 'Retro-Futurist Countdown' with a themed DJ.
+Location, Neighborhood: Revenge Of, Glassell Park
+Vibe: 🎉 Holiday & Seasonal
+Vibe Rank: 10/10
+Flyer Image: N/A
+Event Url: https://revengeof.com/pages/events
 ---
-Wednesday
-8/10 DJ Dance Party with Burgers (after Egyptian Lover)
-SLIDE LABEL: 🎶 Music
-VENUE: Zebulon @ Silver Lake
-FLYER: null
-RAW DESCRIPTION: A continuation of the NYE festivities with a dedicated DJ set, perfect for dancing into the early hours after a main concert.
-IG CAPTION: keep the party going! dj dance party after egyptian lover at zebulon.
-
+**Wednesday**
+Title: DJ Dance Party with Burgers (after Egyptian Lover)
+Description: A continuation of the NYE festivities with a dedicated DJ set.
+Location, Neighborhood: Zebulon, Silver Lake
+Vibe: 🎉 Holiday & Seasonal
+Vibe Rank: 8/10
+Flyer Image: N/A
+Event Url: N/A
 ---
-Thursday
-9/10 NYD Hangover Brunch
-SLIDE LABEL: 🍹 Food & Drink
-VENUE: Benny Boy Brewing @ Lincoln Heights
-FLYER: null
-RAW DESCRIPTION: High on Joy (comforting post-party experience), Community (shared recovery), and Discovery (food/drinks to cure a hangover).
-IG CAPTION: cure that hangover with us! nyd hangover brunch at benny boy brewing.
-
+**Wednesday**
+Title: New Year's Eve at Dynasty Typewriter!
+Description: A strong lineup of established comedians for New Year's Eve.
+Location, Neighborhood: Dynasty Typewriter, Koreatown
+Vibe: 🎉 Holiday & Seasonal
+Vibe Rank: 9/10
+Flyer Image: N/A
+Event Url: N/A
 ---
-Thursday
-9/10 Discötecä
-SLIDE LABEL: 🎶 Music
-VENUE: Gold-Diggers @ East Hollywood
-FLYER: null
-RAW DESCRIPTION: 'Discötecä' clearly indicates a disco/dance event, aligning perfectly with the 'disco-ball chandeliers' and 'sweaty all-vinyl DJ sets' descriptions.
-IG CAPTION: get your groove on! discötecä is bringing the disco vibes to gold-diggers.
-
+**Wednesday**
+Title: New Year’s Eve Concert with The Egyptian Lover
+Description: An iconic electro-funk artist headlining New Year's Eve.
+Location, Neighborhood: Zebulon, Silver Lake
+Vibe: 🎉 Holiday & Seasonal
+Vibe Rank: 9/10
+Flyer Image: N/A
+Event Url: N/A
 ---
-Thursday
-8/10 New Year's Day Brunch & Mellow Beats
-SLIDE LABEL: 🍹 Food & Drink
-VENUE: Revenge Of @ Glassell Park
-FLYER: null
-RAW DESCRIPTION: Mellow Beats from a DJ suggests a curated musical atmosphere, aligning with the brand's analog/chill vibe, combined with a community brunch aspect.
-IG CAPTION: start the new year right with brunch & mellow beats at revenge of.
-
+**Thursday**
+Title: NYD Hangover Brunch
+Description: A community-focused brunch event after the NYE party.
+Location, Neighborhood: Benny Boy Brewing, Lincoln Heights
+Vibe: 🍹 Food & Drink
+Vibe Rank: 7/10
+Flyer Image: https://szjwuelaiawmqpbdubtp.supabase.co/storage/v1/object/public/event-flyers/flyers/36600f5f-0e5d-4bf2-aba7-ff3ac1790596.jpg
+Event Url: https://bennyboybrewing.com/calendar
 ---
-Friday
-9/10 T.S.O.L. W/ THE ZEROS, THE PANDORAS, ROUND EYE, & RIVER RATTS
-SLIDE LABEL: 🎶 Music
-VENUE: The Regent Theater @ DTLA
-FLYER: null
-RAW DESCRIPTION: A legendary lineup of punk rock bands delivering intense, raw, and authentic performances, creating an immersive experience for the dedicated punk community.
-IG CAPTION: punk rock legends unite! tsol, the zeros, and more at the regent theater.
-
+**Thursday**
+Title: New Year's Day Brunch & Mellow Beats
+Description: A brunch event with curated musical atmosphere and chill vibes.
+Location, Neighborhood: Revenge Of, Glassell Park
+Vibe: 🎶 Music
+Vibe Rank: 8/10
+Flyer Image: N/A
+Event Url: https://revengeof.com/pages/events
 ---
-Friday
-8/10 Funk It Friday
-SLIDE LABEL: 🎶 Music
-VENUE: The Goldfish @ Highland Park
-FLYER: null
-RAW DESCRIPTION: Groovy and energetic, promising a night of dancing to funk music with a generally uplifting atmosphere.
-IG CAPTION: get your funk on this friday at the goldfish!
-
+**Thursday**
+Title: Discötecä
+Description:  A disco/dance event.
+Location, Neighborhood: Gold-Diggers, East Hollywood
+Vibe: 🎶 Music
+Vibe Rank: 9/10
+Flyer Image: N/A
+Event Url: https://gold-diggers.com/pages/drink
 ---
-Friday
-8/10 Dance Til Your Dead - Indie Sleaze Party
-SLIDE LABEL: 🎶 Music
-VENUE: Zebulon @ Silver Lake
-FLYER: null
-RAW DESCRIPTION: An energetic and nostalgic dance party focusing on the indie sleaze era, promising a fun, edgy, and high-energy night.
-IG CAPTION: relive the indie sleaze era! dance til you're dead at zebulon.
-
+**Friday**
+Title: Dance Til Your Dead - Indie Sleaze Party
+Description: An energetic and nostalgic dance party focusing on the indie sleaze era.
+Location, Neighborhood: Zebulon, Silver Lake
+Vibe: 🎶 Music
+Vibe Rank: 8/10
+Flyer Image: N/A
+Event Url: N/A
 ---
-Friday
-8/10 Two Point (Sharada Shashidhar + Caleb Buchanan), Human Error Club
-SLIDE LABEL: 🎶 Music
-VENUE: Gold-Diggers @ East Hollywood
-FLYER: null
-RAW DESCRIPTION: A lineup featuring multiple acts (Two Point, Human Error Club) suggests a diverse and curated live music experience, characteristic of the venue's programming.
-IG CAPTION: get your dose of live music with two point and human error club at gold-diggers.
-
+**Friday**
+Title: T.S.O.L. W/ THE ZEROS, THE PANDORAS, ROUND EYE, & RIVER RATTS
+Description: A legendary lineup of punk rock bands.
+Location, Neighborhood: The Regent Theater, DTLA
+Vibe: 🎶 Music
+Vibe Rank: 9/10
+Flyer Image: N/A
+Event Url: N/A
 ---
-Friday
-8/10 Jay Bachi Pop Up
-SLIDE LABEL: 🍹 Food & Drink
-VENUE: Benny Boy Brewing @ Lincoln Heights
-FLYER: null
-RAW DESCRIPTION: Good for Discovery (new food), Authenticity (local vendor), and Community (supporting small businesses).
-IG CAPTION: treat your tastebuds to a new cuisine! jay bachi pops up at benny boy brewing.
-
+**Friday**
+Title: Funk It Friday
+Description: Groovy and energetic, promising a night of dancing to funk music.
+Location, Neighborhood: The Goldfish, Highland Park
+Vibe: 🎶 Music
+Vibe Rank: 8/10
+Flyer Image: N/A
+Event Url: N/A
 ---
-Saturday
-10/10 The Hustle ~ First and Third Saturday Disco Party!
-SLIDE LABEL: 🎶 Music
-VENUE: Gold-Diggers @ East Hollywood
-FLYER: null
-RAW DESCRIPTION: A recurring 'Disco Party' called 'The Hustle' is a perfect fit for the 'disco-ball chandeliers' and 'part dance floor' vibe, promising a high-energy, consistent experience.
-IG CAPTION: it's time to hustle! disco party at gold-diggers all night long.
-
+**Friday**
+Title: Two Point (Sharada Shashidhar + Caleb Buchanan), Human Error Club
+Description:  A diverse and curated live music experience.
+Location, Neighborhood: Gold-Diggers, East Hollywood
+Vibe: 🎶 Music
+Vibe Rank: 8/10
+Flyer Image: N/A
+Event Url: https://gold-diggers.com/pages/drink
 ---
-Saturday
-8/10 Il Piacere Pizza Pop Up
-SLIDE LABEL: 🍹 Food & Drink
-VENUE: Benny Boy Brewing @ Lincoln Heights
-FLYER: null
-RAW DESCRIPTION: Good for Discovery (new food), Authenticity (local vendor), and Community (supporting small businesses).
-IG CAPTION: authentic italian pizza alert! il piacere is popping up at benny boy brewing.
-
+**Friday**
+Title: 3rd Annual Tribute to David Berman performed by Country Restroom
+Description:  A reverent and community-driven tribute to an influential artist.
+Location, Neighborhood: Zebulon, Silver Lake
+Vibe: 🎶 Music
+Vibe Rank: 7/10
+Flyer Image: N/A
+Event Url: N/A
 ---
-Saturday
-7/10 Ryan Sawyer Shaker Ensemble
-SLIDE LABEL: 🎶 Music
-VENUE: Zebulon @ Silver Lake
-FLYER: null
-RAW DESCRIPTION: An experimental and unique musical ensemble, suggesting an artistic and thought-provoking sonic experience.
-IG CAPTION: explore experimental sounds with ryan sawyer shaker ensemble at zebulon.
-
+**Saturday**
+Title: Ryan Sawyer Shaker Ensemble
+Description: An experimental and unique musical ensemble.
+Location, Neighborhood: Zebulon, Silver Lake
+Vibe: 🎶 Music
+Vibe Rank: 7/10
+Flyer Image: N/A
+Event Url: N/A
 ---
-Saturday
-7/10 R E L live: EVOCAPOP for Cancer Research
-SLIDE LABEL: 💛 Charity & Benefit
-VENUE: Gold-Diggers @ East Hollywood
-FLYER: null
-RAW DESCRIPTION: Live music for a cause (Cancer Research) indicates a quality performance, fitting 'showcase-quality performances,' though 'EVOCAPOP' hints at a possibly softer genre.
-IG CAPTION: groove for a good cause! rel live for cancer research at gold-diggers.
-
+**Saturday**
+Title: Dance Party with DJ Ryan Sawyer
+Description: A solid dance party led by a named DJ.
+Location, Neighborhood: Zebulon, Silver Lake
+Vibe: 🎶 Nightlife
+Vibe Rank: 7/10
+Flyer Image: N/A
+Event Url: N/A
 ---
-Saturday
-7/10 Eat Your Wave Pop Up
-SLIDE LABEL: 🍹 Food & Drink
-VENUE: Benny Boy Brewing @ Lincoln Heights
-FLYER: null
-RAW DESCRIPTION: Good for Discovery (new food), Authenticity (local vendor), and Community (supporting small businesses).
-IG CAPTION: catch the wave of deliciousness! eat your wave pop-up at benny boy brewing.
-
+**Saturday**
+Title: R E L live: EVOCAPOP for Cancer Research
+Description: Live music for a cause.
+Location, Neighborhood: Gold-Diggers, East Hollywood
+Vibe: 💛 Charity & Benefit
+Vibe Rank: 7/10
+Flyer Image: N/A
+Event Url: https://gold-diggers.com/pages/drink
 ---
-Saturday
-7/10 Dance Party with DJ Ryan Sawyer
-SLIDE LABEL: 🎶 Music
-VENUE: Zebulon @ Silver Lake
-FLYER: null
-RAW DESCRIPTION: A solid dance party led by a named DJ, promising good beats and an engaging atmosphere for late-night revelry.
-IG CAPTION: dance the night away with dj ryan sawyer at zebulon!
-
+**Saturday**
+Title: The Hustle ~ First and Third Saturday Disco Party!
+Description: A recurring 'Disco Party'.
+Location, Neighborhood: Gold-Diggers, East Hollywood
+Vibe: 🎶 Music
+Vibe Rank: 10/10
+Flyer Image: N/A
+Event Url: https://gold-diggers.com/pages/drink
 ---
-Sunday
-8/10 Twin Peaks Season 1 Screenings
-SLIDE LABEL: 🎥 Film Screenings & Movie Nights
-VENUE: Zebulon @ Silver Lake
-FLYER: null
-RAW DESCRIPTION: An immersive screening of a cult classic, offering a mysterious and nostalgic experience for fans of the show.
-IG CAPTION: dive into the mysteries of twin peaks! season 1 screenings at zebulon.
-
+**Sunday**
+Title: Twin Peaks Season 1 Screenings
+Description: An immersive screening of a cult classic.
+Location, Neighborhood: Zebulon, Silver Lake
+Vibe: 🎥 Film Screenings & Movie Nights
+Vibe Rank: 8/10
+Flyer Image: N/A
+Event Url: N/A
 ---
-Sunday
-8/10 Wingman’s Kitchen Pop-Up
-SLIDE LABEL: 🍹 Food & Drink
-VENUE: Benny Boy Brewing @ Lincoln Heights
-FLYER: null
-RAW DESCRIPTION: Good for Discovery (new food), Authenticity (local vendor), and Community (supporting small businesses).
-IG CAPTION: wings and brews, anyone? wingman's kitchen is at benny boy brewing.
-
+**Sunday**
+Title: Blessed: A Comedy Show hosted by Clare O'Kane, Alison Stevenson & Megan Koester
+Description: A dynamic, engaging, and fresh take on stand-up comedy.
+Location, Neighborhood: Zebulon, Silver Lake
+Vibe: 🎭 improv & comedy
+Vibe Rank: 8/10
+Flyer Image: N/A
+Event Url: N/A
 ---
-Sunday
-8/10 LA FIGHTS BACK BENEFIT W/ SEXTILE, AUTOMATIC, CHOIR BOY, MONDO MUNDO & MORE
-SLIDE LABEL: 💛 Charity & Benefit
-VENUE: The Regent Theater @ DTLA
-FLYER: null
-RAW DESCRIPTION: A purposeful benefit concert featuring diverse indie and post-punk artists, fostering strong connection through shared artistic expression and a transformative communal cause.
-IG CAPTION: la fights back with a benefit concert featuring sextile, automatic, and more at the regent theater.
-
----
-Sunday
-8/10 Blessed: A Comedy Show hosted by Clare O'Kane, Alison Stevenson & Megan Koester
-SLIDE LABEL: 🎭 improv & comedy
-VENUE: Zebulon @ Silver Lake
-FLYER: null
-RAW DESCRIPTION: A comedy show featuring multiple hosts, suggesting a dynamic, engaging, and fresh take on stand-up.
-IG CAPTION: get ready to laugh! blessed comedy show with clare o'kane, alison stevenson, & megan koester at zebulon.
+**Sunday**
+Title: LA FIGHTS BACK BENEFIT W/ SEXTILE, AUTOMATIC, CHOIR BOY, MONDO MUNDO & MORE
+Description: A purposeful benefit concert featuring diverse indie and post-punk artists.
+Location, Neighborhood: The Regent Theater, DTLA
+Vibe: 💛 Charity & Benefit
+Vibe Rank: 8/10
+Flyer Image: N/A
+Event Url: N/A

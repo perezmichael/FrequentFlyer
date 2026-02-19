@@ -44,9 +44,11 @@ export default async function AdminPage() {
     const events = await getAdminEvents();
 
     return (
-        <div style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto' }}>
-            <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '8px' }}>Admin Dashboard</h1>
-            <p style={{ marginBottom: '32px', color: '#666' }}>Curate events from the scout runner.</p>
+        <div className="container mx-auto py-10 px-4 md:px-8 max-w-7xl">
+            <div className="mb-8">
+                <h1 className="text-3xl font-bold tracking-tight mb-2">Admin Dashboard</h1>
+                <p className="text-muted-foreground">Curate events from the scout runner.</p>
+            </div>
 
             <AdminEventList events={events} />
         </div>

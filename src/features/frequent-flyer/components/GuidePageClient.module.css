@@ -1,0 +1,45 @@
+.container {
+    height: calc(100vh - 64px);
+    /* Adjust for navbar */
+    overflow: hidden;
+}
+
+.splitLayout {
+    display: flex;
+    height: 100%;
+    width: 100%;
+}
+
+.contentColumn {
+    flex: 1;
+    overflow: hidden;
+    /* GuideDetail handles its own scrolling */
+    border-right: 1px solid #e2e8f0;
+}
+
+.mapColumn {
+    flex: 1;
+    position: relative;
+    display: none;
+    /* Hidden on mobile by default */
+}
+
+@media (min-width: 1024px) {
+    .mapColumn {
+        display: block;
+    }
+}
+
+.mapWrapper {
+    width: 100%;
+    height: 100%;
+}
+
+.mapLoading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    background: #f3f4f6;
+    color: #6b7280;
+}

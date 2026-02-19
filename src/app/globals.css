@@ -175,6 +175,9 @@ h6 {
 
 @theme inline {
 
+  --font-space-mono: var(--font-space-mono);
+  --font-space-grotesk: var(--font-space-grotesk);
+
   --radius-sm: calc(var(--radius) - 4px);
 
   --radius-md: calc(var(--radius) - 2px);
@@ -384,4 +387,50 @@ h6 {
   .h-\[1lh\] {
     height: 1lh;
   }
+
+  .font-serif {
+    font-family: var(--font-eb-garamond), serif;
+  }
+}
+
+/* Leaflet Overrides */
+.leaflet-popup-content-wrapper {
+  padding: 0 !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12) !important;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  width: 250px !important;
+}
+
+.leaflet-popup-close-button {
+  top: 12px !important;
+  right: 12px !important;
+  background: white !important;
+  border-radius: 50% !important;
+  width: 32px !important;
+  height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #222 !important;
+  font-size: 18px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  opacity: 1 !important;
+  z-index: 20 !important;
+}
+
+.leaflet-popup-tip {
+  display: none !important;
+}
+
+/* Smart Positioning: Open Below */
+.leaflet-popup.popup-below {
+  bottom: auto !important;
+  top: 0 !important;
+  margin-bottom: 0 !important;
+  margin-top: 48px !important;
 }

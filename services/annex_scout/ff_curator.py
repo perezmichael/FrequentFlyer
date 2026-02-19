@@ -24,7 +24,7 @@ def get_weekly_exploration():
 
     # 1. Pull data including the flyer_url column
     res = supabase.table("events") \
-        .select("event_name, event_date, flyer_url, metadata, venues(name, neighborhood)") \
+        .select("event_name, event_date, flyer_url, metadata, venues(name, neighborhood, url)") \
         .gte("metadata->vibe_score", 7) \
         .gte("event_date", start_date) \
         .lte("event_date", end_date) \
@@ -47,13 +47,14 @@ def get_weekly_exploration():
     
     FOR EACH EVENT, OUTPUT THIS EXACT BLOCK:
     ---
-    [Day Name]
-    [Score/10] [Event Name]
-    SLIDE LABEL: [Emoji from list above] [Category Name]
-    VENUE: [Venue Name] @ [Neighborhood]
-    FLYER: [The 'flyer_url' field provided in data]
-    RAW DESCRIPTION: [1-sentence summary of what's happening]
-    IG CAPTION: [Punchy, lowercase draft]
+    **[Day of Week]**
+    Title: [Event Name]
+    Description: [1-sentence summary]
+    Location, Neighborhood: [Venue Name], [Neighborhood]
+    Vibe: [Emoji] [Category Name]
+    Vibe Rank: [Score/10]
+    Flyer Image: [The 'flyer_url' field provided in data, or 'N/A' if None]
+    Event Url: [The 'venues.url' field provided in data]
     ---
 
     DATA: {json.dumps(events)}

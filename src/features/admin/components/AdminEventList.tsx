@@ -8,37 +8,41 @@ interface AdminEventListProps {
     events: (Event & { status?: string, vibe_score?: number })[];
 }
 
+import { Button } from '@/components/ui/button';
+
 export default function AdminEventList({ events }: AdminEventListProps) {
     const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected'>('pending');
 
     const filteredEvents = events.filter(e => (e.status || 'pending') === filter);
 
     return (
-        <div>
-            <div className="flex gap-4 mb-6">
+        <div className="space-y-6">
+            <div className="flex gap-2 p-1 bg-muted w-fit rounded-lg">
                 {(['pending', 'approved', 'rejected'] as const).map(status => (
-                    <button
+                    <Button
                         key={status}
+                        variant={filter === status ? 'default' : 'ghost'}
+                        size="sm"
                         onClick={() => setFilter(status)}
-                        className={`px-4 py-2 rounded font-bold capitalize ${filter === status
-                                ? 'bg-black text-white'
-                                : 'bg-gray-200 text-gray-700'
-                            }`}
+                        className="capitalize"
                     >
-                        {status} ({events.filter(e => (e.status || 'pending') === status).length})
-                    </button>
+                        {status}
+                        <span className="ml-2 bg-primary-foreground/20 text-xs px-1.5 py-0.5 rounded-full">
+                            {events.filter(e => (e.status || 'pending') === status).length}
+                        </span>
+                    </Button>
                 ))}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {filteredEvents.map(event => (
                     <AdminEventCard key={event.id} event={event} />
                 ))}
             </div>
 
             {filteredEvents.length === 0 && (
-                <div className="text-gray-500 py-10 text-center">
-                    No {filter} events found.
+                <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border-2 border-dashed rounded-xl">
+                    <p>No {filter} events found.</p>
                 </div>
             )}
         </div>

@@ -1,10 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Event } from '@/features/frequent-flyer/data/events'; // Reuse Type
-import styles from '@/features/frequent-flyer/components/EventCard.module.css'; // Reuse styles
+import { Event } from '@/features/frequent-flyer/data/events';
 import { approveEvent, rejectEvent, updateEvent } from '@/app/actions';
 import { VIBES, VIBE_KEYS } from '@/features/frequent-flyer/data/vibes';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'; // Not strictly needed but available
+import { Check, X, Edit2, Save, XCircle } from 'lucide-react'; // Assuming lucide-react is installed, if not will fallback to text
 
 interface AdminEventCardProps {
     event: Event & { status?: string, vibe_score?: number };
@@ -21,12 +25,11 @@ export default function AdminEventCard({ event }: AdminEventCardProps) {
     });
 
     const handleSave = async () => {
-        // Optimistic update could go here
         await updateEvent(event.id, {
             event_name: formData.title,
             event_date: formData.date,
             flyer_url: formData.image,
-            event_vibe: formData.vibe // Update database
+            event_vibe: formData.vibe
         });
         setIsEditing(false);
     };
@@ -43,84 +46,139 @@ export default function AdminEventCard({ event }: AdminEventCardProps) {
         }
     };
 
+    const inputClass = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
+
     return (
-        <div className={styles.card} style={{ border: event.status === 'approved' ? '2px solid #4caf50' : '1px solid #ccc', padding: '10px' }}>
-            <div className={styles.imageContainer}>
+        <Card className={`overflow-hidden transition-all duration-200 hover:shadow-md ${event.status === 'approved' ? 'border-green-500/50' : ''}`}>
+            {/* Image Header */}
+            <div className="relative aspect-video w-full overflow-hidden bg-muted">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={formData.image} alt={formData.title} className={styles.image} />
-                <span style={{
-                    position: 'absolute', top: 10, left: 10,
-                    background: 'black', color: 'white', padding: '4px 8px', borderRadius: 4, fontWeight: 'bold'
-                }}>
-                    {event.vibe_score ? `${event.vibe_score}/10` : '?'}
-                </span>
+                <img
+                    src={formData.image || '/placeholder.jpg'}
+                    alt={formData.title}
+                    className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                />
+                <div className="absolute top-2 left-2 flex gap-2">
+                    <Badge variant={event.status === 'approved' ? 'default' : 'secondary'} className="shadow-lg backdrop-blur-md">
+                        {event.status || 'pending'}
+                    </Badge>
+                    {event.vibe_score && (
+                        <Badge variant="outline" className="bg-black/50 text-white border-none backdrop-blur-md">
+                            {event.vibe_score}/10
+                        </Badge>
+                    )}
+                </div>
             </div>
 
-            <div className={styles.content}>
+            <CardContent className="p-4 space-y-3">
                 {isEditing ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        <input
-                            value={formData.title}
-                            onChange={e => setFormData({ ...formData, title: e.target.value })}
-                            className="border p-1 rounded"
-                        />
-                        <input
-                            value={formData.date}
-                            onChange={e => setFormData({ ...formData, date: e.target.value })}
-                            className="border p-1 rounded"
-                        />
-                        <input
-                            onChange={e => setFormData({ ...formData, image: e.target.value })}
-                            placeholder="Image URL"
-                            className="border p-1 rounded"
-                        />
+                    <div className="space-y-3 pt-2">
+                        <div className="space-y-1">
+                            <label className="text-xs font-medium text-muted-foreground">Title</label>
+                            <input
+                                value={formData.title}
+                                onChange={e => setFormData({ ...formData, title: e.target.value })}
+                                className={inputClass}
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-medium text-muted-foreground">Date</label>
+                            <input
+                                value={formData.date}
+                                onChange={e => setFormData({ ...formData, date: e.target.value })}
+                                className={inputClass}
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-medium text-muted-foreground">Image URL</label>
+                            <input
+                                value={formData.image}
+                                onChange={e => setFormData({ ...formData, image: e.target.value })}
+                                className={inputClass}
+                                placeholder="https://..."
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-medium text-muted-foreground">Vibe</label>
+                            <select
+                                value={formData.vibe}
+                                onChange={e => setFormData({ ...formData, vibe: e.target.value })}
+                                className={inputClass}
+                            >
+                                <option value="">Select Vibe...</option>
+                                {VIBE_KEYS.map(key => (
+                                    <option key={key} value={key}>
+                                        {VIBES[key]}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
 
-                        {/* Vibe Dropdown */}
-                        <select
-                            value={formData.vibe}
-                            onChange={e => setFormData({ ...formData, vibe: e.target.value })}
-                            className="border p-1 rounded"
-                        >
-                            <option value="">Select Vibe...</option>
-                            {VIBE_KEYS.map(key => (
-                                <option key={key} value={key}>
-                                    {VIBES[key]}
-                                </option>
-                            ))}
-                        </select>
-
-
-                        <div style={{ display: 'flex', gap: 4 }}>
-                            <button onClick={handleSave} className="bg-blue-500 text-white px-2 py-1 rounded">Save</button>
-                            <button onClick={() => setIsEditing(false)} className="text-gray-500 px-2 py-1">Cancel</button>
+                        <div className="flex gap-2 pt-2">
+                            <Button size="sm" onClick={handleSave} className="flex-1">
+                                <Save className="w-3 h-3 mr-2" />
+                                Save
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => setIsEditing(false)} className="flex-1">
+                                <XCircle className="w-3 h-3 mr-2" />
+                                Cancel
+                            </Button>
                         </div>
                     </div>
                 ) : (
                     <>
-                        <div className={styles.header}>
-                            <h3 className={styles.title}>{event.title}</h3>
-                            <button onClick={() => setIsEditing(true)} className="text-xs text-blue-500 underline">Edit</button>
+                        <div className="flex justify-between items-start gap-2">
+                            <div>
+                                <h3 className="font-semibold text-lg leading-tight line-clamp-1">{event.title}</h3>
+                                <p className="text-sm text-muted-foreground line-clamp-1">{event.location}</p>
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setIsEditing(true)}>
+                                <Edit2 className="w-3.5 h-3.5" />
+                            </Button>
                         </div>
-                        <div className={styles.info}>{event.location}</div>
-                        <div className={styles.info}>{new Date(event.date).toLocaleString()}</div>
+
+                        <div className="flex items-center text-xs text-muted-foreground">
+                            <span>{new Date(event.date).toLocaleDateString()}</span>
+                            <span className="mx-2">•</span>
+                            <span>{new Date(event.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+
+                        {event.vibe && event.vibe.length > 0 && (
+                            <div className="flex flex-wrap gap-1 pt-1">
+                                {event.vibe.map(v => (
+                                    <Badge key={v} variant="secondary" className="text-[10px] px-1.5 h-5">
+                                        {v}
+                                    </Badge>
+                                ))}
+                            </div>
+                        )}
                     </>
                 )}
+            </CardContent>
 
-                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                    <button
+            {!isEditing && (
+                <CardFooter className="p-4 pt-0 gap-2">
+                    <Button
                         onClick={handleApprove}
-                        className="flex-1 bg-green-600 text-white py-2 rounded font-bold hover:bg-green-700 transition"
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                        size="sm"
+                        disabled={event.status === 'approved'}
                     >
+                        <Check className="w-4 h-4 mr-2" />
                         Approve
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         onClick={handleReject}
-                        className="flex-1 bg-red-500 text-white py-2 rounded font-bold hover:bg-red-600 transition"
+                        variant="destructive"
+                        className="flex-1"
+                        size="sm"
+                        disabled={event.status === 'rejected'}
                     >
+                        <X className="w-4 h-4 mr-2" />
                         Dismiss
-                    </button>
-                </div>
-            </div>
-        </div>
+                    </Button>
+                </CardFooter>
+            )}
+        </Card>
     );
 }

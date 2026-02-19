@@ -164,12 +164,12 @@ def run_master_scout():
             prompt = f"""
             {VIBE_MANIFESTO}
 
-            TASK: Extract EVERY event from the provided text into a JSON list. 
+            TASK: Extract EVERY event from the provided text that falls between 2026-01-19 and 2026-01-25 (inclusive).
             CURRENT DATE: {today}
             VENUE: {v['name']}
 
             RULES:
-            1. Use YYYY-MM-DD. Assume 2025/2026 logic.
+            1. Use YYYY-MM-DD. ONLY include events from Jan 19 to Jan 25, 2026. Ignore others.
             2. Split multi-day events into separate entries.
             3. SCORING: Use the Aesthetic Pillars in the Manifesto above to score 1-10.
             
@@ -194,7 +194,7 @@ def run_master_scout():
 
             # ACT (Supabase)
             venue_id = supabase.table("venues").upsert({
-                "name": v['name'], "neighborhood": v['neighborhood']
+                "name": v['name'], "neighborhood": v['neighborhood'], "url": v['url']
             }, on_conflict="name").execute().data[0]['id']
 
             for event in events:
