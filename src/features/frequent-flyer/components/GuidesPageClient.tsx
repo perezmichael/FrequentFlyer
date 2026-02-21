@@ -17,19 +17,19 @@ export default function GuidesPageClient({ guides }: GuidesPageClientProps) {
     };
 
     return (
-        <div className="min-h-screen bg-[#FFFAEB]">
+        <div className="min-h-screen bg-[#FFFAEB]" style={{ paddingTop: '160px' }}>
             {/* Header */}
-            <div className="px-[48px]  pt-[100px] pb-[32px] border-b border-black/10">
-                <h1 className="font-space-grotesk font-bold leading-[1.2] text-[48px] text-black tracking-[-1.44px] uppercase">
+            <div className="page-container" style={{ paddingBottom: '32px', borderBottom: '1px solid rgba(0,0,0,0.1)' }}>
+                <h1 style={{ fontFamily: 'var(--font-space-grotesk)', fontWeight: 700, fontSize: '48px', lineHeight: 1.2, textTransform: 'uppercase', letterSpacing: '-1.44px', color: '#000' }}>
                     Los Angeles Guides
                 </h1>
-                <p className="font-space-grotesk font-normal text-[18px] text-black/70 mt-[12px]">
+                <p style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: '18px', color: 'rgba(0,0,0,0.7)', marginTop: '12px' }}>
                     Curated neighborhood guides and insider tips for exploring LA
                 </p>
             </div>
 
             {/* Guides Grid */}
-            <div className="px-[48px] py-[48px]">
+            <div className="page-container" style={{ paddingTop: '48px', paddingBottom: '48px' }}>
                 <GuidesGrid guides={guides} onSelectGuide={handleSelectGuide} />
             </div>
         </div>

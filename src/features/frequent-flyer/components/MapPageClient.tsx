@@ -98,29 +98,10 @@ export default function MapPageClient({ initialEvents, guides, venues }: MapPage
 
     return (
         <div className={styles.container}>
-            {/* Prototype Header */}
-            <div className="absolute top-0 left-0 right-0 z-[1000] bg-white shadow-md">
-                <div className="flex items-center justify-between px-[48px] py-[24px]">
-                    <Link
-                        href="/"
-                        className="font-space-grotesk font-bold leading-[1.25] not-italic text-[32px] text-black tracking-[-0.96px] uppercase"
-                    >
-                        Flyer Board
-                    </Link>
-                    <Link
-                        href="/"
-                        className="font-space-mono leading-[1.25] not-italic text-[14px] text-black tracking-[-0.56px] uppercase hover:underline"
-                    >
-                        ← Back to Events
-                    </Link>
-                </div>
-            </div>
+            {/* Header removed in favor of main Navbar */}
 
-            {/* Filter Overlay - Shifted down or styled slightly different to not overlap header? 
-                Actually the header covers top. Filters should be relative or absolute below.
-                MapPageClient.module.css positioning is likely relative to container.
-            */}
-            <div className={styles.filters} style={{ top: '100px' }}>
+            {/* Filter Overlay */}
+            <div className={styles.filters}>
                 <button
                     className={`${styles.filterButton} ${showEvents ? styles.active : ''}`}
                     onClick={() => setShowEvents(!showEvents)}
@@ -141,7 +122,7 @@ export default function MapPageClient({ initialEvents, guides, venues }: MapPage
                 </button>
             </div>
 
-            <div className={styles.mapWrapper} style={{ paddingTop: '88px' }}>
+            <div className={styles.mapWrapper}>
                 <Map
                     events={mapItems}
                     selectedEventId={selectedEventId}

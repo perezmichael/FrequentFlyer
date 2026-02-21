@@ -75,9 +75,9 @@ export default function EventsPageClient({ initialEvents }: HomeClientProps) {
     }, [initialEvents, neighborhoodFilter, vibeFilter, fromDate, toDate]);
 
     return (
-        <div className="bg-[#e5e5e2] relative min-h-screen w-full font-sans" style={{ paddingTop: '160px' }}>
+        <div className="bg-[#FFFAEB] relative min-h-screen w-full font-sans" style={{ paddingTop: '160px' }}>
             {/* Tabs / Filter Status */}
-            <div className="px-[40px]">
+            <div className="page-container">
                 <div className="flex gap-[16px]">
                     <p className="decoration-solid font-space-mono leading-[1.25] not-italic text-[16px] text-black tracking-[-0.64px] underline uppercase cursor-pointer">
                         Upcoming
@@ -92,7 +92,7 @@ export default function EventsPageClient({ initialEvents }: HomeClientProps) {
             </div>
 
             {/* Flyers Grid */}
-            <div className="px-[40px] mt-[24px] pb-[80px]">
+            <div className="page-container mt-[24px] pb-[80px]">
                 {filteredEvents.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[32px] w-full">
                         {filteredEvents.map((event) => (

@@ -65,7 +65,7 @@ export default function FlyerCard({ image, event }: FlyerCardProps) {
 
   return (
     <motion.div
-      className="relative w-full aspect-square shadow-[0px_19px_46.7px_-14px_rgba(0,0,0,0.45)] cursor-pointer bg-black/5"
+      className="relative w-full aspect-[389/483] shadow-[0px_19px_46.7px_-14px_rgba(0,0,0,0.45)] cursor-pointer bg-black/5"
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
       whileHover={{ scale: 1.02 }}
@@ -141,7 +141,7 @@ export default function FlyerCard({ image, event }: FlyerCardProps) {
               <div className="content-stretch flex gap-[8px] items-center w-full">
                 <Calendar />
                 <p className="font-space-grotesk font-normal leading-[18px] text-[#efede1] text-[14px] tracking-[-0.21px] uppercase flex-1 whitespace-pre-wrap">
-                  {new Date(event.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric' })}
+                  {event.date}
                 </p>
               </div>
 

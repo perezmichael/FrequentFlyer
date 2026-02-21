@@ -40,7 +40,7 @@
   --radius-lg: 24px;
   --radius-full: 9999px;
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
+  --background: #FFFAEB;
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -77,12 +77,6 @@
   --border: #333333;
   --card-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
 } */
-
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
-}
 
 html {
   overflow-y: scroll;
@@ -316,6 +310,12 @@ h6 {
 
 @layer base {
   * {
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+  }
+
+  * {
     @apply border-border outline-ring/50;
   }
 
@@ -326,6 +326,14 @@ h6 {
 
 /* Custom utilities for fancy components */
 @layer utilities {
+  .page-container {
+    max-width: 1600px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
   .inline-box {
     display: inline-block;
   }

@@ -1,8 +1,10 @@
 .container {
     position: relative;
     width: 100vw;
-    height: calc(100vh - 64px);
-    /* Subtract Navbar height approx */
+    height: 100vh;
+    padding-top: 100px;
+    /* Navbar height */
+    box-sizing: border-box;
     overflow: hidden;
 }
 
@@ -22,7 +24,8 @@
 
 .filters {
     position: absolute;
-    top: 24px;
+    top: 124px;
+    /* Navbar (100px) + 24px padding */
     left: 50%;
     transform: translateX(-50%);
     z-index: 1000;

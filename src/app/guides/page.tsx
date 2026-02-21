@@ -15,8 +15,7 @@ async function getGuides(): Promise<GuideWithItems[]> {
                 *,
                 venues(*)
             )
-        `)
-        .eq('is_published', true);
+        `);
 
     if (error) {
         console.error('Error fetching guides:', error);

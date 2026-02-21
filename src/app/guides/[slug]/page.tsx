@@ -23,7 +23,6 @@ async function getGuide(slug: string): Promise<GuideWithItems | null> {
             )
         `)
         .eq('slug', slug)
-        .eq('is_published', true)
         .single();
 
     if (error) {
