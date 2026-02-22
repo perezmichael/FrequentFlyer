@@ -1,0 +1,40 @@
+.desktopNav {
+    display: none;
+    gap: 32px;
+    align-items: center;
+}
+
+.hamburgerButton {
+    display: flex;
+    font-family: var(--font-space-mono), monospace;
+    font-size: 20px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    color: black;
+    line-height: 1;
+}
+
+.mobileDropdown {
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background: #FFFAEB;
+}
+
+@media (min-width: 768px) {
+    .desktopNav {
+        display: flex;
+    }
+
+    .hamburgerButton {
+        display: none;
+    }
+
+    .mobileDropdown {
+        display: none;
+    }
+}

@@ -75,7 +75,7 @@ export default function EventsPageClient({ initialEvents }: HomeClientProps) {
     }, [initialEvents, neighborhoodFilter, vibeFilter, fromDate, toDate]);
 
     return (
-        <div className="bg-[#FFFAEB] relative min-h-screen w-full font-sans" style={{ paddingTop: '160px' }}>
+        <div className="bg-[#FFFAEB] relative min-h-screen w-full font-sans pt-[100px] md:pt-[160px]">
             {/* Tabs / Filter Status */}
             <div className="page-container">
                 <div className="flex gap-[16px]">
@@ -87,7 +87,7 @@ export default function EventsPageClient({ initialEvents }: HomeClientProps) {
                     </p>
                 </div>
                 <p className="font-space-grotesk font-normal leading-[1.25] text-[16px] text-black tracking-[-0.64px] mt-[21px]">
-                    *Hover over a flyer for details
+                    *Tap or hover a flyer for details
                 </p>
             </div>
 

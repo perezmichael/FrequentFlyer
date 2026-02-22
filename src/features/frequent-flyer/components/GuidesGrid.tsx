@@ -12,11 +12,7 @@ function calculateReadTime(itemCount: number): string {
 
 export default function GuidesGrid({ guides, onSelectGuide }: GuidesGridProps) {
     return (
-        <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: '64px 48px',
-        }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-[48px] gap-y-[40px] md:gap-y-[64px]">
             {guides.map((guide) => (
                 <div
                     key={guide.id}
@@ -37,11 +33,10 @@ export default function GuidesGrid({ guides, onSelectGuide }: GuidesGridProps) {
                     </div>
 
                     {/* Content */}
-                    <div style={{ padding: '28px 32px 28px 32px', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-                        <h2 style={{
+                    <div className="p-[20px] md:p-[28px]" style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+                        <h2 className="text-[24px] md:text-[36px]" style={{
                             fontFamily: 'var(--font-space-grotesk)',
                             fontWeight: 700,
-                            fontSize: '36px',
                             lineHeight: 1.1,
                             textTransform: 'uppercase',
                             letterSpacing: '-0.72px',

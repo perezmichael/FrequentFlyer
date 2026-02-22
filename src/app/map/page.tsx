@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import MapPageClient from '@/features/frequent-flyer/components/MapPageClient';
+import PageLoader from '@/components/PageLoader';
 import { supabase } from '@/lib/supabase';
 import { Event } from '@/features/frequent-flyer/data/events';
 import { GuideWithItems } from '@/features/frequent-flyer/types/guides';
@@ -88,7 +89,7 @@ export default async function MapPage() {
     ]);
 
     return (
-        <Suspense fallback={<div>Loading map...</div>}>
+        <Suspense fallback={<PageLoader />}>
             <MapPageClient initialEvents={events} venues={venues} guides={guides} />
         </Suspense>
     );

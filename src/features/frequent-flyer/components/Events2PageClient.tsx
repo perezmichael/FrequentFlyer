@@ -3,12 +3,13 @@
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import EventCard2 from './EventCard2';
+import MapLoader from '@/components/MapLoader';
 import styles from './Events2PageClient.module.css';
 import { Event } from '@/features/frequent-flyer/data/events';
 
 const Map = dynamic(() => import('@/features/frequent-flyer/components/Map'), {
     ssr: false,
-    loading: () => <div className={styles.mapLoading}>Loading Map...</div>,
+    loading: () => <MapLoader />,
 });
 
 interface Events2PageClientProps {
@@ -17,6 +18,7 @@ interface Events2PageClientProps {
 
 export default function Events2PageClient({ events }: Events2PageClientProps) {
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+    const [mobileTab, setMobileTab] = useState<'list' | 'map'>('list');
 
     const handleEventClick = (id: string) => {
         setSelectedEventId(id);
@@ -34,9 +36,25 @@ export default function Events2PageClient({ events }: Events2PageClientProps) {
 
     return (
         <div className={styles.main}>
+            {/* Mobile tab bar */}
+            <div className={styles.tabBar}>
+                <button
+                    className={`${styles.tabButton} ${mobileTab === 'list' ? styles.tabActive : ''}`}
+                    onClick={() => setMobileTab('list')}
+                >
+                    Events
+                </button>
+                <button
+                    className={`${styles.tabButton} ${mobileTab === 'map' ? styles.tabActive : ''}`}
+                    onClick={() => setMobileTab('map')}
+                >
+                    Map
+                </button>
+            </div>
+
             <div className={styles.splitLayout}>
                 {/* Left: Event card list */}
-                <div className={styles.listContainer}>
+                <div className={`${styles.listContainer} ${mobileTab !== 'list' ? styles.hiddenMobile : ''}`}>
                     <header className={styles.header}>
                         <h1 className={styles.title}>
                             Over {events.length} events in Los Angeles
@@ -64,7 +82,7 @@ export default function Events2PageClient({ events }: Events2PageClientProps) {
                 </div>
 
                 {/* Right: Map with clickable markers + flyer popups */}
-                <div className={styles.mapContainer}>
+                <div className={`${styles.mapContainer} ${mobileTab !== 'map' ? styles.hiddenMobile : ''}`}>
                     <div className={styles.mapWrapper}>
                         <Map
                             events={events}

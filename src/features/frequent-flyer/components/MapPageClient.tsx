@@ -5,12 +5,13 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { Event } from '@/features/frequent-flyer/data/events';
 import { GuideWithItems } from '@/features/frequent-flyer/types/guides';
+import MapLoader from '@/components/MapLoader';
 import styles from './MapPageClient.module.css';
 
 // Dynamically import Map to avoid SSR issues with Leaflet
 const Map = dynamic(() => import('@/features/frequent-flyer/components/Map'), {
     ssr: false,
-    loading: () => <div className={styles.mapLoading}>Loading Map...</div>
+    loading: () => <MapLoader />,
 });
 
 interface Venue {

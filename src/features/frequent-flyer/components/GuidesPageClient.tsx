@@ -17,10 +17,10 @@ export default function GuidesPageClient({ guides }: GuidesPageClientProps) {
     };
 
     return (
-        <div className="min-h-screen bg-[#FFFAEB]" style={{ paddingTop: '160px' }}>
+        <div className="min-h-screen bg-[#FFFAEB] pt-[100px] md:pt-[160px]">
             {/* Header */}
             <div className="page-container" style={{ paddingBottom: '32px', borderBottom: '1px solid rgba(0,0,0,0.1)' }}>
-                <h1 style={{ fontFamily: 'var(--font-space-grotesk)', fontWeight: 700, fontSize: '48px', lineHeight: 1.2, textTransform: 'uppercase', letterSpacing: '-1.44px', color: '#000' }}>
+                <h1 className="text-[28px] md:text-[48px]" style={{ fontFamily: 'var(--font-space-grotesk)', fontWeight: 700, lineHeight: 1.2, textTransform: 'uppercase', letterSpacing: '-1.44px', color: '#000' }}>
                     Los Angeles Guides
                 </h1>
                 <p style={{ fontFamily: 'var(--font-space-grotesk)', fontSize: '18px', color: 'rgba(0,0,0,0.7)', marginTop: '12px' }}>

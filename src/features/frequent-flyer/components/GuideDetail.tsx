@@ -12,7 +12,7 @@ export default function GuideDetail({ guide, onBack }: GuideDetailProps) {
     return (
         <div className="w-full">
             {/* Hero Image */}
-            <div className="relative w-full h-[500px] overflow-hidden">
+            <div className="relative w-full h-[240px] md:h-[500px] overflow-hidden">
                 <img
                     src={guide.cover_image || '/placeholder-guide.jpg'}
                     alt={guide.title}
@@ -26,7 +26,7 @@ export default function GuideDetail({ guide, onBack }: GuideDetailProps) {
 
                 {/* Title Block */}
                 <div className="mb-[64px]">
-                    <h1 className="font-space-grotesk font-bold leading-[1.1] text-[48px] md:text-[64px] text-black tracking-[-1.92px] uppercase mb-[24px]">
+                    <h1 className="font-space-grotesk font-bold leading-[1.1] text-[28px] md:text-[64px] text-black tracking-[-1.92px] uppercase mb-[24px]">
                         {guide.title}
                     </h1>
                     <p className="font-space-grotesk font-normal text-[20px] md:text-[24px] text-black/70 leading-[1.4]">
@@ -46,11 +46,11 @@ export default function GuideDetail({ guide, onBack }: GuideDetailProps) {
                 </div>
 
                 {/* Content / Venues List */}
-                <div className="space-y-[64px]">
+                <div className="space-y-[40px] md:space-y-[64px]">
                     {guide.items.sort((a, b) => a.order_index - b.order_index).map((item, index) => (
                         <div key={item.id} className="venue-block">
                             <div className="flex items-baseline justify-between mb-[16px] border-b border-black/10 pb-[8px]">
-                                <h2 className="font-space-grotesk font-bold text-[32px] text-black tracking-[-0.96px] uppercase">
+                                <h2 className="font-space-grotesk font-bold text-[20px] md:text-[32px] text-black tracking-[-0.96px] uppercase">
                                     {index + 1}. {item.venues?.name}
                                 </h2>
                                 <span className="font-space-mono text-[14px] text-black/50 uppercase">
@@ -89,7 +89,7 @@ export default function GuideDetail({ guide, onBack }: GuideDetailProps) {
                 </div>
 
                 {/* Footer */}
-                <div className="mt-[120px] border-t border-black/10 pt-[32px] text-center">
+                <div className="mt-[60px] md:mt-[120px] border-t border-black/10 pt-[32px] text-center">
                     <Link
                         href="/guides"
                         className="font-space-mono text-[16px] text-black tracking-[-0.64px] uppercase hover:underline"

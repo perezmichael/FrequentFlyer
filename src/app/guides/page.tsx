@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import GuidesPageClient from '@/features/frequent-flyer/components/GuidesPageClient';
+import PageLoader from '@/components/PageLoader';
 import { supabase } from '@/lib/supabase';
 import { GuideWithItems } from '@/features/frequent-flyer/types/guides';
 
@@ -28,7 +29,7 @@ export default async function GuidesPage() {
     const guides = await getGuides();
 
     return (
-        <Suspense fallback={<div>Loading guides...</div>}>
+        <Suspense fallback={<PageLoader />}>
             <GuidesPageClient guides={guides} />
         </Suspense>
     );

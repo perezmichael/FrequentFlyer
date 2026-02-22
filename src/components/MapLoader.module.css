@@ -1,0 +1,93 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+    background: #FFFAEB;
+    gap: 28px;
+}
+
+.crosshair {
+    position: relative;
+    width: 120px;
+    height: 120px;
+}
+
+/* Slow outer ring — rotates counter-clockwise */
+.ringOuter {
+    position: absolute;
+    inset: 0;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 50%;
+    border-right-color: transparent;
+    animation: spinReverse 3s linear infinite;
+}
+
+/* Bold inner ring — rotates clockwise */
+.ring {
+    position: absolute;
+    inset: 15px;
+    border: 1.5px solid black;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 1.6s linear infinite;
+}
+
+/* Crosshair lines span full container */
+.horizontal {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background: black;
+    transform: translateY(-50%);
+}
+
+.vertical {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 1px;
+    height: 100%;
+    background: black;
+    transform: translateX(-50%);
+}
+
+.dot {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 6px;
+    height: 6px;
+    background: black;
+    border-radius: 50%;
+}
+
+.label {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: black;
+    margin: 0;
+}
+
+.cursor {
+    animation: blink 1s step-end infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes spinReverse {
+    to { transform: rotate(-360deg); }
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}

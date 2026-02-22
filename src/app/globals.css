@@ -334,6 +334,10 @@ h6 {
     padding-right: 24px;
   }
 
+  @media (max-width: 767px) {
+    .page-container { padding-left: 16px; padding-right: 16px; }
+  }
+
   .inline-box {
     display: inline-block;
   }
@@ -411,7 +415,7 @@ h6 {
 
 .leaflet-popup-content {
   margin: 0 !important;
-  width: 250px !important;
+  width: min(250px, 85vw) !important;
 }
 
 .leaflet-popup-close-button {

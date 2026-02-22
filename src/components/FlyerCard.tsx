@@ -68,6 +68,7 @@ export default function FlyerCard({ image, event }: FlyerCardProps) {
       className="relative w-full aspect-[389/483] shadow-[0px_19px_46.7px_-14px_rgba(0,0,0,0.45)] cursor-pointer bg-black/5"
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
+      onClick={() => setIsHovered(prev => !prev)}
       whileHover={{ scale: 1.02 }}
       transition={{ duration: 0.3 }}
     >

@@ -26,20 +26,46 @@ export async function getVibeCheck(eventTitle: string, eventVibes: string[]) {
 import { supabase } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
 
+// Fields the admin UI is allowed to write. Anything outside this set is dropped.
+const ALLOWED_EVENT_UPDATE_FIELDS = new Set([
+    'event_name',
+    'event_date',
+    'flyer_url',
+    'event_vibe',
+] as const);
+
+type AllowedEventField = typeof ALLOWED_EVENT_UPDATE_FIELDS extends Set<infer T> ? T : never;
+
+function isNonEmptyString(v: unknown): v is string {
+    return typeof v === 'string' && v.trim().length > 0;
+}
+
 export async function approveEvent(id: string) {
+    if (!isNonEmptyString(id)) throw new Error('Invalid event id');
     await supabase.from('events').update({ status: 'approved' }).eq('id', id);
     revalidatePath('/');
     revalidatePath('/admin');
 }
 
 export async function rejectEvent(id: string) {
+    if (!isNonEmptyString(id)) throw new Error('Invalid event id');
     await supabase.from('events').update({ status: 'rejected' }).eq('id', id);
     revalidatePath('/');
     revalidatePath('/admin');
 }
 
-export async function updateEvent(id: string, updates: any) {
-    await supabase.from('events').update(updates).eq('id', id);
+export async function updateEvent(id: string, updates: Record<string, unknown>) {
+    if (!isNonEmptyString(id)) throw new Error('Invalid event id');
+
+    // Strip any keys not in the allowlist before touching the DB.
+    const safeUpdates: Partial<Record<AllowedEventField, unknown>> = {};
+    for (const key of ALLOWED_EVENT_UPDATE_FIELDS) {
+        if (key in updates) safeUpdates[key] = updates[key];
+    }
+
+    if (Object.keys(safeUpdates).length === 0) return;
+
+    await supabase.from('events').update(safeUpdates).eq('id', id);
     revalidatePath('/');
     revalidatePath('/admin');
 }
@@ -88,7 +114,29 @@ export async function generateVibeStyle(prompt: string) {
     }
 }
 
-export async function publishEvent(formData: any, flyerBase64: string) {
+interface PublishEventFormData {
+    title: string;
+    date: string;
+    venue: string;
+    vibe: string;
+}
+
+function validatePublishFormData(formData: unknown): asserts formData is PublishEventFormData {
+    if (!formData || typeof formData !== 'object') throw new Error('Invalid form data');
+    const f = formData as Record<string, unknown>;
+    if (!isNonEmptyString(f.title)) throw new Error('title is required');
+    if (!isNonEmptyString(f.date)) throw new Error('date is required');
+    if (!isNonEmptyString(f.venue)) throw new Error('venue is required');
+    if (!isNonEmptyString(f.vibe)) throw new Error('vibe is required');
+}
+
+export async function publishEvent(formData: unknown, flyerBase64: string) {
+    validatePublishFormData(formData);
+
+    if (!isNonEmptyString(flyerBase64) || !flyerBase64.startsWith('data:image/')) {
+        throw new Error('Invalid flyer image');
+    }
+
     // 1. Upload Flyer
     // Convert base64 to buffer
     const buffer = Buffer.from(flyerBase64.replace(/^data:image\/\w+;base64,/, ""), 'base64');

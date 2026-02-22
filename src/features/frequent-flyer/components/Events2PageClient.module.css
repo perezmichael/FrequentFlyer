@@ -1,5 +1,7 @@
 .main {
     height: 100vh;
+    /* Safari < 15.4 fallback */
+    height: 100dvh;
     padding-top: 100px;
     box-sizing: border-box;
     overflow: hidden;
@@ -82,4 +84,61 @@
     height: 100%;
     background: #f0f0f0;
     color: var(--secondary-foreground);
+}
+
+/* Tab bar — hidden on desktop, shown on mobile */
+.tabBar {
+    display: none;
+}
+
+@media (max-width: 767px) {
+    .main {
+        height: auto;
+        overflow: visible;
+        padding-top: 100px;
+    }
+
+    .splitLayout {
+        grid-template-columns: 1fr;
+        height: auto;
+        padding: 0 16px;
+    }
+
+    .listContainer,
+    .mapContainer {
+        height: auto;
+        overflow: visible;
+        padding-top: 0;
+        padding-bottom: 0;
+    }
+
+    .mapContainer {
+        height: 60vh;
+        margin-bottom: 1rem;
+    }
+
+    .tabBar {
+        display: flex;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        margin-bottom: 16px;
+    }
+
+    .tabButton {
+        flex: 1;
+        padding: 14px;
+        font-family: 'Space Mono', monospace;
+        font-size: 13px;
+        text-transform: uppercase;
+        background: none;
+        border: none;
+        cursor: pointer;
+    }
+
+    .tabActive {
+        border-bottom: 2px solid black;
+    }
+
+    .hiddenMobile {
+        display: none;
+    }
 }

@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import AdminEventList from '@/features/admin/components/AdminEventList';
+import { adminLogout } from './login/actions';
 
 // Helper to deduce image if missing
 const ensureImage = (url: string) => {
@@ -45,9 +46,19 @@ export default async function AdminPage() {
 
     return (
         <div className="container mx-auto py-10 px-4 md:px-8 max-w-7xl">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold tracking-tight mb-2">Admin Dashboard</h1>
-                <p className="text-muted-foreground">Curate events from the scout runner.</p>
+            <div className="mb-8 flex items-start justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight mb-2">Admin Dashboard</h1>
+                    <p className="text-muted-foreground">Curate events from the scout runner.</p>
+                </div>
+                <form action={adminLogout}>
+                    <button
+                        type="submit"
+                        className="text-sm font-space-mono uppercase tracking-wide text-black/50 hover:text-black transition-colors"
+                    >
+                        Log out
+                    </button>
+                </form>
             </div>
 
             <AdminEventList events={events} />

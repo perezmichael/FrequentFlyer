@@ -8,11 +8,12 @@ import FlyerCard, { FlyerEvent } from '@/components/FlyerCard';
 import TipsBill from '@/components/TipsBill';
 import styles from './HomeClient.module.css';
 import dynamic from 'next/dynamic';
+import MapLoader from '@/components/MapLoader';
 
 // Dynamically import Map to avoid SSR issues with Leaflet
 const Map = dynamic(() => import('@/features/frequent-flyer/components/Map'), {
     ssr: false,
-    loading: () => <div className={styles.mapLoading}>Loading Map...</div>
+    loading: () => <MapLoader />,
 });
 
 import { Event } from '@/features/frequent-flyer/data/events';
@@ -23,6 +24,7 @@ interface HomeClientProps {
 
 export default function HomeClient({ initialEvents }: HomeClientProps) {
     const searchParams = useSearchParams();
+    const [mobileTab, setMobileTab] = useState<'list' | 'map'>('list');
 
     // Read Filters
     const neighborhoodFilter = searchParams.get('neighborhood');
@@ -37,7 +39,7 @@ export default function HomeClient({ initialEvents }: HomeClientProps) {
         let targetToDate: Date | null = toDate ? new Date(toDate) : null;
 
         // If no date filter is provided, default to "This Week" (Today -> +7 days)
-        /* 
+        /*
         if (!fromDate && !toDate) {
             const today = new Date();
             targetFromDate = today;
@@ -45,7 +47,7 @@ export default function HomeClient({ initialEvents }: HomeClientProps) {
             const nextWeek = new Date(today);
             nextWeek.setDate(today.getDate() + 7);
             targetToDate = nextWeek;
-        } 
+        }
         */
 
         return initialEvents.filter(event => {
@@ -85,9 +87,25 @@ export default function HomeClient({ initialEvents }: HomeClientProps) {
 
     return (
         <div className={styles.main} style={{ paddingTop: '80px' }}>
+            {/* Mobile tab bar */}
+            <div className={styles.tabBar}>
+                <button
+                    className={`${styles.tabButton} ${mobileTab === 'list' ? styles.tabActive : ''}`}
+                    onClick={() => setMobileTab('list')}
+                >
+                    Events
+                </button>
+                <button
+                    className={`${styles.tabButton} ${mobileTab === 'map' ? styles.tabActive : ''}`}
+                    onClick={() => setMobileTab('map')}
+                >
+                    Map
+                </button>
+            </div>
+
             <div className={styles.splitLayout}>
                 {/* Left Column: Events Grid */}
-                <div className={styles.listContainer}>
+                <div className={`${styles.listContainer} ${mobileTab !== 'list' ? styles.hiddenMobile : ''}`}>
                     <div className={styles.header}>
                         <h1 className="font-space-grotesk font-bold leading-[1.25] text-[32px] text-black tracking-[-0.96px] uppercase mb-[8px]">
                             Active Dashboard
@@ -115,7 +133,7 @@ export default function HomeClient({ initialEvents }: HomeClientProps) {
                 </div>
 
                 {/* Right Column: Map */}
-                <div className={styles.mapContainer}>
+                <div className={`${styles.mapContainer} ${mobileTab !== 'map' ? styles.hiddenMobile : ''}`}>
                     <div className={styles.mapWrapper}>
                         <Map
                             events={filteredEvents}

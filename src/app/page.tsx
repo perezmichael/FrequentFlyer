@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import HomeClient from '@/features/frequent-flyer/components/HomeClient';
+import PageLoader from '@/components/PageLoader';
 import { supabase } from '@/lib/supabase';
 import { Event } from '@/features/frequent-flyer/data/events';
 
@@ -52,7 +53,7 @@ export default async function Page() {
     const events = await getEvents();
 
     return (
-        <Suspense fallback={<div>Loading events...</div>}>
+        <Suspense fallback={<PageLoader />}>
             <HomeClient initialEvents={events} />
         </Suspense>
     );

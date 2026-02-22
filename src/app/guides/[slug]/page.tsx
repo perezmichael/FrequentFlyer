@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import GuidePageClient from '@/features/frequent-flyer/components/GuidePageClient';
+import PageLoader from '@/components/PageLoader';
 import { supabase } from '@/lib/supabase';
 import { notFound } from 'next/navigation';
 import { GuideWithItems } from '@/features/frequent-flyer/types/guides';
@@ -57,7 +58,7 @@ export default async function GuideDetailPage({ params }: PageProps) {
     }
 
     return (
-        <Suspense fallback={<div>Loading guide...</div>}>
+        <Suspense fallback={<PageLoader />}>
             <GuidePageClient guide={guide} />
         </Suspense>
     );
