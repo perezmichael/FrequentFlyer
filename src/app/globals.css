@@ -367,6 +367,15 @@ h6 {
     white-space: pre;
   }
 
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Additional utilities for Letter3DSwap */
   .inline-flex {
     display: inline-flex;
