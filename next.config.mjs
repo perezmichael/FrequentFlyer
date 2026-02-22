@@ -3,8 +3,10 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
+        // Supabase storage for event flyers, guide covers, and venue images
         protocol: 'https',
-        hostname: '**',
+        hostname: 'szjwuelaiawmqpbdubtp.supabase.co',
+        pathname: '/storage/v1/object/public/**',
       },
     ],
   },
