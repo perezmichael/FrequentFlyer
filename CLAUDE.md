@@ -32,7 +32,7 @@ token and pattern as it actually ships. The code source is
 
 ## The look in one line
 
-Cream paper, near-black ink, a single purple accent, monospace type set in
+Cream paper, near-black ink, a single warm brick accent, monospace type set in
 UPPERCASE with tight negative letter-spacing, and fully-rounded "pill" controls
 with hairline borders. Editorial, zine-like, high-contrast.
 
@@ -44,8 +44,12 @@ Defined in `src/app/globals.css` (`--ff-*`) and exposed as Tailwind utilities.
 |---------|-----------|---------------|-----|
 | Cream   | `#FFFAEB` | `bg-cream`    | App background; inverse text on dark fills |
 | Ink     | `#1a1a1a` | `text-ink`    | Primary text & solid (black) fills |
-| Accent  | `#5d39ac` | `text-accent` | Links, active/secondary states |
+| Accent  | `#C2371B` | `text-brand`  | Links, active/secondary states (warm brick) |
 | Flyer   | `#efede1` | `text-flyer`  | Text on dark flyer artwork |
+
+> The accent utility is `brand` (`text-brand` / `bg-brand`), **not** `accent` —
+> shadcn already owns `--color-accent` (a near-white surface) for the admin
+> `ui/` components, so the brand color lives in its own namespace.
 
 Borders are ink at low opacity: `border-black/40` (strong / pill outline),
 `border-black/30` (inactive control), `border-black/5` (section divider).
@@ -88,7 +92,7 @@ import { navLink, createPill, filterPill } from '@/features/frequent-flyer/desig
 - **Reuse before reinvent.** If a nav link / CTA / filter pill already exists in
   `patterns.ts`, import it. Add a new export there when you create a primitive
   that will repeat — don't inline a one-off variant.
-- **Use brand tokens, not raw hex.** Prefer `bg-cream` / `text-ink` / `text-accent`
+- **Use brand tokens, not raw hex.** Prefer `bg-cream` / `text-ink` / `text-brand`
   over `bg-[#FFFAEB]` in new code. (Existing inline hex is being migrated.)
 - **Labels are UPPERCASE mono with negative tracking.** That tightness is the
   signature — don't drop it on new controls.

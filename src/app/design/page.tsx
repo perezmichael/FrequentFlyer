@@ -42,7 +42,7 @@ function Demo({ code, children }: { code: string; children: React.ReactNode }) {
     return (
         <div className="flex flex-col gap-3 border border-black/10 rounded-2xl p-5 bg-cream">
             <div className="flex flex-wrap items-center gap-4">{children}</div>
-            <code className="font-space-mono text-[11px] text-accent tracking-[-0.44px]">{code}</code>
+            <code className="font-space-mono text-[11px] text-brand tracking-[-0.44px]">{code}</code>
         </div>
     );
 }
@@ -126,11 +126,11 @@ export default function DesignPage() {
                         Design DNA
                     </h1>
                     <p className="font-space-grotesk text-[16px] text-black/70 max-w-[560px] leading-relaxed">
-                        Cream paper, near-black ink, one purple accent, monospace type in
+                        Cream paper, near-black ink, one warm brick accent, monospace type in
                         UPPERCASE with tight tracking, and fully-rounded pill controls. This
                         page renders straight from{' '}
-                        <code className="text-accent">design/tokens.ts</code> and{' '}
-                        <code className="text-accent">design/patterns.ts</code>, so it can&apos;t
+                        <code className="text-brand">design/tokens.ts</code> and{' '}
+                        <code className="text-brand">design/patterns.ts</code>, so it can&apos;t
                         drift from what ships.
                     </p>
                 </header>
@@ -141,7 +141,7 @@ export default function DesignPage() {
                         Candidates for the brand accent, shown on the real cream with the actual
                         link + pill patterns. Contrast is measured against cream — small UI labels
                         need <strong>4.5:1 (AA)</strong>; large text / fills only need 3:1. Nothing
-                        below ships until one is promoted to <code className="text-accent">--ff-accent</code>.
+                        below ships until one is promoted to <code className="text-brand">--ff-accent</code>.
                     </p>
                     <div className="flex flex-col gap-4">
                         {ACCENT_CANDIDATES.map((c) => (
@@ -168,7 +168,7 @@ export default function DesignPage() {
                                 </div>
                                 <div>
                                     <p className="font-space-mono text-[13px] uppercase tracking-[-0.44px] text-ink">
-                                        {c.name} · <span className="text-accent">{c.token}</span>
+                                        {c.name} · <span className="text-brand">{c.token}</span>
                                     </p>
                                     <p className="font-space-grotesk text-[12px] text-black/60 leading-snug">{c.usage}</p>
                                 </div>
@@ -193,7 +193,7 @@ export default function DesignPage() {
                         {FONTS.map((f) => (
                             <div key={f.name} className="border border-black/10 rounded-2xl p-5 bg-cream">
                                 <p className={`${f.className} text-[28px] uppercase tracking-[-0.64px] text-ink`}>{f.sample}</p>
-                                <p className="font-space-mono text-[12px] uppercase tracking-[-0.44px] text-accent mt-2">
+                                <p className="font-space-mono text-[12px] uppercase tracking-[-0.44px] text-brand mt-2">
                                     {f.name} · {f.className}
                                 </p>
                                 <p className="font-space-grotesk text-[13px] text-black/60 mt-1">{f.role}</p>
@@ -206,7 +206,7 @@ export default function DesignPage() {
                         {TYPE_SCALE.map((t) => (
                             <div key={t.className} className="flex items-baseline gap-4 py-2">
                                 <span className={`${t.className} font-space-mono text-ink leading-none`}>Aa</span>
-                                <span className="font-space-mono text-[12px] text-accent tracking-[-0.44px] w-[110px] shrink-0">
+                                <span className="font-space-mono text-[12px] text-brand tracking-[-0.44px] w-[110px] shrink-0">
                                     {t.className}
                                 </span>
                                 <span className="font-space-grotesk text-[13px] text-black/60">{t.usage}</span>
@@ -214,8 +214,8 @@ export default function DesignPage() {
                         ))}
                     </div>
                     <p className="font-space-grotesk text-[13px] text-black/60 mt-4">
-                        Label tracking: <code className="text-accent">{TRACKING.label}</code> ·
-                        Small-pill tracking: <code className="text-accent">{TRACKING.pill}</code>
+                        Label tracking: <code className="text-brand">{TRACKING.label}</code> ·
+                        Small-pill tracking: <code className="text-brand">{TRACKING.pill}</code>
                     </p>
                 </Section>
 
@@ -223,7 +223,7 @@ export default function DesignPage() {
                 <Section kicker="03" title="Patterns">
                     <p className="font-space-grotesk text-[14px] text-black/70 mb-6 max-w-[560px]">
                         Import these from{' '}
-                        <code className="text-accent">@/features/frequent-flyer/design/patterns</code>{' '}
+                        <code className="text-brand">@/features/frequent-flyer/design/patterns</code>{' '}
                         instead of re-typing class strings. Each demo below is the live element.
                     </p>
 
@@ -256,20 +256,20 @@ export default function DesignPage() {
                     <ul className="flex flex-col gap-3 font-space-grotesk text-[14px] text-black/80 leading-relaxed">
                         {[
                             'Reuse before reinvent — import an existing pattern; add a new export to patterns.ts when a primitive will repeat.',
-                            'Use brand tokens (bg-cream, text-ink, text-accent) over raw hex in new code.',
+                            'Use brand tokens (bg-cream, text-ink, text-brand) over raw hex in new code.',
                             'Labels are UPPERCASE monospace with negative tracking — that tightness is the signature.',
                             'Controls are pills: fully rounded, hairline ink border; selected = solid black with cream text.',
                             "Don't touch the shadcn scaffold (src/components/ui/*, oklch tokens) unless you're in /admin.",
                             'Change a token? Update globals.css and tokens.ts, then eyeball this page.',
                         ].map((rule, i) => (
                             <li key={i} className="flex gap-3">
-                                <span className="font-space-mono text-accent text-[14px] shrink-0">{String(i + 1).padStart(2, '0')}</span>
+                                <span className="font-space-mono text-brand text-[14px] shrink-0">{String(i + 1).padStart(2, '0')}</span>
                                 <span>{rule}</span>
                             </li>
                         ))}
                     </ul>
                     <p className="font-space-grotesk text-[13px] text-black/50 mt-6">
-                        Full written reference lives in <code className="text-accent">CLAUDE.md</code> at the repo root.
+                        Full written reference lives in <code className="text-brand">CLAUDE.md</code> at the repo root.
                     </p>
                 </Section>
             </div>

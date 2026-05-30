@@ -12,7 +12,7 @@
      ───────────────────────────────────────────────────────────────────── */
   --ff-cream: #FFFAEB;        /* app background / inverse text on dark */
   --ff-ink: #1a1a1a;          /* primary text & solid fills (near-black) */
-  --ff-accent: #5d39ac;       /* purple accent — links/active states */
+  --ff-accent: #C2371B;       /* brick accent — links/active states */
   --ff-flyer-cream: #efede1;  /* text on dark flyer artwork */
 
   /* Hairline borders are the ink at low opacity */
@@ -194,10 +194,12 @@ h6 {
   --font-space-mono: var(--font-space-mono);
   --font-space-grotesk: var(--font-space-grotesk);
 
-  /* Brand color utilities: bg-cream, text-ink, text-accent, text-flyer, etc. */
+  /* Brand color utilities: bg-cream, text-ink, text-brand, text-flyer, etc.
+     NB: the accent uses the `brand` namespace, NOT `accent`, because shadcn
+     already owns --color-accent (a near-white surface) for src/components/ui/*. */
   --color-cream: var(--ff-cream);
   --color-ink: var(--ff-ink);
-  --color-accent: var(--ff-accent);
+  --color-brand: var(--ff-accent);
   --color-flyer: var(--ff-flyer-cream);
 
   --radius-sm: calc(var(--radius) - 4px);

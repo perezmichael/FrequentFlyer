@@ -153,19 +153,19 @@ export default function EventsPageClient({ initialEvents, recurringEvents = [] }
                 <div className="flex gap-[16px] mb-[24px]">
                     <button
                         onClick={() => setParam('tab', null)}
-                        className={`font-space-mono leading-[1.25] not-italic text-[16px] tracking-[-0.64px] uppercase ${tab !== 'archive' && tab !== 'regulars' ? 'underline decoration-solid text-black' : 'text-[#5d39ac] hover:text-black transition-colors'}`}
+                        className={`font-space-mono leading-[1.25] not-italic text-[16px] tracking-[-0.64px] uppercase ${tab !== 'archive' && tab !== 'regulars' ? 'underline decoration-solid text-black' : 'text-brand hover:text-black transition-colors'}`}
                     >
                         Upcoming
                     </button>
                     <button
                         onClick={() => setParam('tab', 'regulars')}
-                        className={`font-space-mono leading-[1.25] not-italic text-[16px] tracking-[-0.64px] uppercase ${tab === 'regulars' ? 'underline decoration-solid text-black' : 'text-[#5d39ac] hover:text-black transition-colors'}`}
+                        className={`font-space-mono leading-[1.25] not-italic text-[16px] tracking-[-0.64px] uppercase ${tab === 'regulars' ? 'underline decoration-solid text-black' : 'text-brand hover:text-black transition-colors'}`}
                     >
                         Regulars
                     </button>
                     <button
                         onClick={() => setParam('tab', 'archive')}
-                        className={`font-space-mono leading-[1.25] not-italic text-[16px] tracking-[-0.64px] uppercase ${tab === 'archive' ? 'underline decoration-solid text-black' : 'text-[#5d39ac] hover:text-black transition-colors'}`}
+                        className={`font-space-mono leading-[1.25] not-italic text-[16px] tracking-[-0.64px] uppercase ${tab === 'archive' ? 'underline decoration-solid text-black' : 'text-brand hover:text-black transition-colors'}`}
                     >
                         Archive
                     </button>
@@ -263,7 +263,7 @@ export default function EventsPageClient({ initialEvents, recurringEvents = [] }
                             ))}
                         </div>
                     ) : (
-                        <div className="min-h-[400px] flex items-center justify-center font-['Space_Mono'] text-[#5d39ac]">
+                        <div className="min-h-[400px] flex items-center justify-center font-['Space_Mono'] text-brand">
                             No events found.
                         </div>
                     )}

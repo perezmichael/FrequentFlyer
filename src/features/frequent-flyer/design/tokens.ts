@@ -22,7 +22,7 @@ export interface ColorToken {
 export const COLORS: ColorToken[] = [
     { name: 'Cream', token: 'cream', hex: '#FFFAEB', usage: 'App background; inverse text on dark fills' },
     { name: 'Ink', token: 'ink', hex: '#1a1a1a', usage: 'Primary text & solid (black) fills', darkBg: true },
-    { name: 'Accent', token: 'accent', hex: '#5d39ac', usage: 'Links, active/secondary states', darkBg: true },
+    { name: 'Accent (Brick)', token: 'brand', hex: '#C2371B', usage: 'Links, active/secondary states', darkBg: true },
     { name: 'Flyer cream', token: 'flyer', hex: '#efede1', usage: 'Text on dark flyer artwork' },
 ];
 
@@ -99,10 +99,10 @@ export interface AccentCandidate {
 }
 
 export const ACCENT_CANDIDATES: AccentCandidate[] = [
-    { name: 'Iris', hex: '#5d39ac', note: 'Current. Creative / nightlife; cool against cream.', current: true },
-    { name: 'Deep Violet', hex: '#4C1D95', note: 'A confident, richer purple — intentional, not default.' },
-    { name: 'Brick', hex: '#C2371B', note: 'Warm vermillion — energetic, inviting, LA-flyer.' },
+    { name: 'Brick', hex: '#C2371B', note: 'Current. Warm vermillion — energetic, inviting, LA-flyer.', current: true },
     { name: 'Terracotta', hex: '#B5502E', note: 'Earthy warm clay — communal, harmonizes with cream.' },
+    { name: 'Deep Violet', hex: '#4C1D95', note: 'A confident, richer purple — intentional, not default.' },
+    { name: 'Iris', hex: '#5d39ac', note: 'The previous accent — cool, creative / nightlife.' },
 ];
 
 /** WCAG relative luminance of a #rrggbb hex. */
