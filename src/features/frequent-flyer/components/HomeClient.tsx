@@ -6,7 +6,7 @@ import EventCard2 from './EventCard2';
 import RecurringEventCard from './RecurringEventCard';
 import MapLoader from '@/components/MapLoader';
 import styles from './HomeClient.module.css';
-import { filterPill } from '@/features/frequent-flyer/design/patterns';
+import FilterPillRow from './FilterPillRow';
 import { Event } from '@/features/frequent-flyer/data/events';
 import { RecurringEvent, DAY_NAMES_SHORT, formatRecurringSchedule } from '@/features/frequent-flyer/data/recurringEvents';
 
@@ -159,43 +159,36 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                         </h1>
 
                         {/* Day-of-week pills */}
-                        <div className="flex gap-[6px] overflow-x-auto pb-[2px] mt-[12px]" style={{ scrollbarWidth: 'none' }}>
-                            <button
-                                onClick={() => setDayFilter(null)}
-                                className={filterPill(dayFilter === null)}
-                            >
-                                All
-                            </button>
-                            {DAY_NAMES_SHORT.map((name, i) => (
-                                <button
-                                    key={i}
-                                    onClick={() => setDayFilter(dayFilter === i ? null : i)}
-                                    className={`${filterPill(dayFilter === i)} ${i === today ? 'font-bold' : ''}`}
-                                >
-                                    {i === today ? `${name} ·` : name}
-                                </button>
-                            ))}
-                        </div>
+                        <FilterPillRow
+                            className="mt-[12px]"
+                            aria-label="Filter by day"
+                            pills={[
+                                { key: '__all', label: 'All', active: dayFilter === null, onClick: () => setDayFilter(null) },
+                                ...DAY_NAMES_SHORT.map((name, i) => ({
+                                    key: String(i),
+                                    label: i === today ? `${name} ·` : name,
+                                    active: dayFilter === i,
+                                    emphasize: i === today,
+                                    onClick: () => setDayFilter(dayFilter === i ? null : i),
+                                })),
+                            ]}
+                        />
 
                         {/* Neighborhood pills */}
                         {neighborhoods.length > 0 && (
-                            <div className="flex gap-[6px] overflow-x-auto pb-[2px] mt-[8px]" style={{ scrollbarWidth: 'none' }}>
-                                <button
-                                    onClick={() => setNeighborhoodFilter(null)}
-                                    className={filterPill(!neighborhoodFilter)}
-                                >
-                                    All Areas
-                                </button>
-                                {neighborhoods.map(n => (
-                                    <button
-                                        key={n}
-                                        onClick={() => setNeighborhoodFilter(neighborhoodFilter === n ? null : n)}
-                                        className={filterPill(neighborhoodFilter === n)}
-                                    >
-                                        {n}
-                                    </button>
-                                ))}
-                            </div>
+                            <FilterPillRow
+                                className="mt-[8px]"
+                                aria-label="Filter by neighborhood"
+                                pills={[
+                                    { key: '__all', label: 'All Areas', active: !neighborhoodFilter, onClick: () => setNeighborhoodFilter(null) },
+                                    ...neighborhoods.map(n => ({
+                                        key: n,
+                                        label: n,
+                                        active: neighborhoodFilter === n,
+                                        onClick: () => setNeighborhoodFilter(neighborhoodFilter === n ? null : n),
+                                    })),
+                                ]}
+                            />
                         )}
                     </header>
 
