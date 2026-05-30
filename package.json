@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed": "ts-node --transpile-only --project scripts/tsconfig.json scripts/seed.ts",
+    "seed:culver": "ts-node --transpile-only --project scripts/tsconfig.json scripts/culverHappyHours.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
