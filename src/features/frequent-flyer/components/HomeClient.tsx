@@ -246,6 +246,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                             events={mapEvents}
                             selectedEventId={selectedEventId}
                             onMarkerClick={handleMarkerClick}
+                            resizeSignal={mobileTab}
                         />
                     </div>
                 </div>

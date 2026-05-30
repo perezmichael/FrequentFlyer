@@ -24,6 +24,9 @@ interface MapProps {
         coordinates: [number, number][];
         color?: string;
     };
+    // Changes whenever the map's container visibility changes (e.g. mobile tab
+    // switch) so the map can recalc its size and load tiles.
+    resizeSignal?: string | number;
 }
 
 function MapUpdater({ center }: { center: [number, number] }) {
@@ -94,10 +97,13 @@ function CustomControls({ isFullscreen, onToggleFullscreen }: { isFullscreen: bo
 
 // Vibe to Emoji Mapping
 import { VIBES } from '@/features/frequent-flyer/data/vibes';
+import { RECURRING_CATEGORIES } from '@/features/frequent-flyer/data/recurringCategories';
 
-// Extract just the emoji from a vibe label like "🎶 Music" → "🎶"
+// Extract just the emoji from a label like "🎶 Music" → "🎶". One-off events
+// use VIBES keys ("Nightlife"); recurring events use their own category
+// vocabulary ("Dance Night"), so we check both before falling back to 📍.
 const getVibeEmoji = (vibe: string): string => {
-    const label = VIBES[vibe] || '';
+    const label = VIBES[vibe] || RECURRING_CATEGORIES[vibe] || '';
     return label.split(' ')[0] || '📍';
 };
 
@@ -148,16 +154,19 @@ const createClusterIcon = (count: number) => {
 };
 
 // Component to handle map resizing when layout changes
-function MapResizer({ isFullscreen }: { isFullscreen: boolean }) {
+function MapResizer({ isFullscreen, resizeSignal }: { isFullscreen: boolean; resizeSignal?: string | number }) {
     const map = useMap();
 
     useEffect(() => {
-        // Wait for CSS transition/render to finish
+        // Wait for CSS transition/render to finish. This also recovers from the
+        // Leaflet "mounted while display:none" case (e.g. the mobile Map tab):
+        // when the container becomes visible the map still thinks it's 0×0 and
+        // renders grey, so we recalc its size once it's on screen.
         const timer = setTimeout(() => {
             map.invalidateSize();
         }, 100);
         return () => clearTimeout(timer);
-    }, [map, isFullscreen]);
+    }, [map, isFullscreen, resizeSignal]);
 
     return null;
 }
@@ -260,7 +269,7 @@ function EventPopup({
     );
 }
 
-export default function Map({ events = [], selectedEventId, onMarkerClick, route }: MapProps) {
+export default function Map({ events = [], selectedEventId, onMarkerClick, route, resizeSignal }: MapProps) {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [activeGroup, setActiveGroup] = useState<Event[] | null>(null);
     const [activeGroupIndex, setActiveGroupIndex] = useState(0);
@@ -313,7 +322,7 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, route
                     url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
                 />
 
-                <MapResizer isFullscreen={isFullscreen} />
+                <MapResizer isFullscreen={isFullscreen} resizeSignal={resizeSignal} />
                 <CustomControls isFullscreen={isFullscreen} onToggleFullscreen={toggleFullscreen} />
 
                 {/* Event Logic (Events Mode) */}
