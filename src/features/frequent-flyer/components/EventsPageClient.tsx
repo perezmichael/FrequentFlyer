@@ -4,6 +4,8 @@ import { useMemo } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import FlyerCard from '@/components/FlyerCard';
 import { Event } from '@/features/frequent-flyer/data/events';
+import { RecurringEvent } from '@/features/frequent-flyer/data/recurringEvents';
+import RecurringEventsTab from './RecurringEventsTab';
 
 const DATE_PRESETS = [
     { label: 'Today', value: 'today' },
@@ -64,9 +66,10 @@ function toLocalMidnight(dateStr: string): Date {
 
 interface Props {
     initialEvents: Event[];
+    recurringEvents?: RecurringEvent[];
 }
 
-export default function EventsPageClient({ initialEvents }: Props) {
+export default function EventsPageClient({ initialEvents, recurringEvents = [] }: Props) {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
@@ -146,13 +149,19 @@ export default function EventsPageClient({ initialEvents }: Props) {
         <div className="bg-[#FFFAEB] relative min-h-screen w-full font-sans pt-[100px] md:pt-[160px]">
             <div className="page-container">
 
-                {/* Upcoming / Archive tabs */}
+                {/* Upcoming / Regulars / Archive tabs */}
                 <div className="flex gap-[16px] mb-[24px]">
                     <button
                         onClick={() => setParam('tab', null)}
-                        className={`font-space-mono leading-[1.25] not-italic text-[16px] tracking-[-0.64px] uppercase ${tab !== 'archive' ? 'underline decoration-solid text-black' : 'text-[#5d39ac] hover:text-black transition-colors'}`}
+                        className={`font-space-mono leading-[1.25] not-italic text-[16px] tracking-[-0.64px] uppercase ${tab !== 'archive' && tab !== 'regulars' ? 'underline decoration-solid text-black' : 'text-[#5d39ac] hover:text-black transition-colors'}`}
                     >
                         Upcoming
+                    </button>
+                    <button
+                        onClick={() => setParam('tab', 'regulars')}
+                        className={`font-space-mono leading-[1.25] not-italic text-[16px] tracking-[-0.64px] uppercase ${tab === 'regulars' ? 'underline decoration-solid text-black' : 'text-[#5d39ac] hover:text-black transition-colors'}`}
+                    >
+                        Regulars
                     </button>
                     <button
                         onClick={() => setParam('tab', 'archive')}
@@ -162,8 +171,18 @@ export default function EventsPageClient({ initialEvents }: Props) {
                     </button>
                 </div>
 
+                {/* Regulars tab content */}
+                {tab === 'regulars' && (
+                    <RecurringEventsTab
+                        events={recurringEvents}
+                        pillBase={pillBase}
+                        pillActive={pillActive}
+                        pillInactive={pillInactive}
+                    />
+                )}
+
                 {/* Filter pills — Upcoming only */}
-                {tab !== 'archive' && (
+                {tab !== 'archive' && tab !== 'regulars' && (
                     <div className="flex flex-col gap-[10px] mb-[28px]">
 
                         {/* Date presets */}
@@ -223,29 +242,33 @@ export default function EventsPageClient({ initialEvents }: Props) {
                     </div>
                 )}
 
-                <p className="font-space-grotesk font-normal leading-[1.25] text-[14px] text-black/50 tracking-[-0.64px] mb-[24px]">
-                    {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''} · tap or hover a flyer for details
-                </p>
-            </div>
-
-            {/* Flyers Grid */}
-            <div className="page-container pb-[80px]">
-                {filteredEvents.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[32px] w-full">
-                        {filteredEvents.map((event) => (
-                            <FlyerCard
-                                key={event.id}
-                                image={event.image || '/nanobanana_placeholder.png'}
-                                event={event}
-                            />
-                        ))}
-                    </div>
-                ) : (
-                    <div className="min-h-[400px] flex items-center justify-center font-['Space_Mono'] text-[#5d39ac]">
-                        No events found.
-                    </div>
+                {tab !== 'regulars' && (
+                    <p className="font-space-grotesk font-normal leading-[1.25] text-[14px] text-black/50 tracking-[-0.64px] mb-[24px]">
+                        {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''} · tap or hover a flyer for details
+                    </p>
                 )}
             </div>
+
+            {/* Flyers Grid — only for Upcoming/Archive */}
+            {tab !== 'regulars' && (
+                <div className="page-container pb-[80px]">
+                    {filteredEvents.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[32px] w-full">
+                            {filteredEvents.map((event) => (
+                                <FlyerCard
+                                    key={event.id}
+                                    image={event.image || '/nanobanana_placeholder.png'}
+                                    event={event}
+                                />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="min-h-[400px] flex items-center justify-center font-['Space_Mono'] text-[#5d39ac]">
+                            No events found.
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { EB_Garamond, Space_Grotesk, Space_Mono } from "next/font/google";
 import { Suspense } from "react";
 import "./globals.css";
-import Navbar from "@/features/frequent-flyer/components/Navbar";
+import NavbarWrapper from "@/components/NavbarWrapper";
 
 const ebGaramond = EB_Garamond({
   subsets: ["latin"],
@@ -36,7 +36,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${ebGaramond.variable} ${spaceGrotesk.variable} ${spaceMono.variable} font-sans`}>
         <Suspense fallback={<div style={{ height: '60px' }} />}>
-          <Navbar />
+          <NavbarWrapper />
         </Suspense>
         <main>{children}</main>
       </body>

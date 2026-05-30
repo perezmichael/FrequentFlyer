@@ -1,6 +1,7 @@
 'use client';
 
-import { Event } from '@/features/frequent-flyer/data/events';
+import { Event, formatEventDateTime } from '@/features/frequent-flyer/data/events';
+import { hasRealImage, getVibePlaceholder } from '@/features/frequent-flyer/data/vibePlaceholders';
 import styles from './EventCard2.module.css';
 
 interface EventCard2Props {
@@ -11,6 +12,9 @@ interface EventCard2Props {
 }
 
 export default function EventCard2({ event, isActive, onClick, id }: EventCard2Props) {
+    const showImage = hasRealImage(event.image);
+    const placeholder = getVibePlaceholder(event.vibe?.[0]);
+
     return (
         <div id={id} className={styles.card} onClick={onClick}>
             <div className={styles.imageContainer}>
@@ -19,8 +23,16 @@ export default function EventCard2({ event, isActive, onClick, id }: EventCard2P
                         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
                     </svg>
                 </button>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={event.image} alt={event.title} className={styles.image} />
+                {showImage ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={event.image} alt={event.title} className={styles.image} />
+                ) : (
+                    <div className={styles.placeholder} style={{ background: placeholder.bg }}>
+                        <span className={styles.placeholderEmoji}>{placeholder.emoji}</span>
+                        <span className={styles.placeholderVibe}>{event.vibe?.[0] || 'Event'}</span>
+                        <span className={styles.placeholderNeighborhood}>{event.neighborhood}</span>
+                    </div>
+                )}
             </div>
 
             <div className={styles.content}>
@@ -34,7 +46,7 @@ export default function EventCard2({ event, isActive, onClick, id }: EventCard2P
                     </div>
                 </div>
                 <div className={styles.info}>{event.location}</div>
-                <div className={styles.info}>{event.date}</div>
+                <div className={styles.info}>{formatEventDateTime(event.date, event.startTime, event.endTime)}</div>
                 <div className={styles.price}>
                     <span className={styles.priceValue}>Free</span>
                     <span style={{ fontWeight: 400 }}>entry</span>

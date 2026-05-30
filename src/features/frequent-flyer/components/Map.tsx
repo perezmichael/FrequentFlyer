@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-
 import 'leaflet/dist/leaflet.css';
 import { Event } from '@/features/frequent-flyer/data/events';
 import L from 'leaflet';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 
 // Fix for default marker icon in Next.js
 // @ts-ignore
@@ -95,33 +95,55 @@ function CustomControls({ isFullscreen, onToggleFullscreen }: { isFullscreen: bo
 // Vibe to Emoji Mapping
 import { VIBES } from '@/features/frequent-flyer/data/vibes';
 
-// Custom Price/Pill Icon
-const createCustomIcon = (vibes: string[]) => {
-    // Get the first vibe that has a mapping, or default to the first vibe or "Event"
-    const primaryVibe = vibes[0];
-    const label = VIBES[primaryVibe] || primaryVibe || "Free";
+// Extract just the emoji from a vibe label like "🎶 Music" → "🎶"
+const getVibeEmoji = (vibe: string): string => {
+    const label = VIBES[vibe] || '';
+    return label.split(' ')[0] || '📍';
+};
 
+// Single event at a location — small emoji dot
+const createSingleIcon = (vibes: string[]) => {
+    const emoji = getVibeEmoji(vibes[0]);
     return L.divIcon({
         className: 'custom-map-marker',
         html: `<div style="
             background: white;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-weight: 700;
-            font-size: 12px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            border: 1px solid rgba(0,0,0,0.1);
-            white-space: nowrap;
-            transform: translate(-50%, -50%);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-size: 14px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+            border: 1.5px solid rgba(0,0,0,0.08);
             display: flex;
             align-items: center;
             justify-content: center;
-            color: black;
-        ">
-            ${label}
-        </div>`,
-        iconSize: [100, 24], // Increased width to fit text
-        iconAnchor: [50, 12],
+        ">${emoji}</div>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+    });
+};
+
+// Multiple events at the same location — count badge
+const createClusterIcon = (count: number) => {
+    return L.divIcon({
+        className: 'custom-map-marker',
+        html: `<div style="
+            background: #111;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            font-size: 13px;
+            font-weight: 700;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+            border: 2px solid white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Space Grotesk', sans-serif;
+        ">${count}</div>`,
+        iconSize: [36, 36],
+        iconAnchor: [18, 18],
     });
 };
 
@@ -140,48 +162,91 @@ function MapResizer({ isFullscreen }: { isFullscreen: boolean }) {
     return null;
 }
 
-// Standalone Popup Component
-function EventPopup({ event, onClose }: { event: Event, onClose: () => void }) {
+import { hasRealImage, getVibePlaceholder } from '@/features/frequent-flyer/data/vibePlaceholders';
+
+// Popup that supports cycling through multiple events at the same venue
+function EventPopup({
+    group,
+    index,
+    onIndexChange,
+    onClose,
+}: {
+    group: Event[];
+    index: number;
+    onIndexChange: (i: number) => void;
+    onClose: () => void;
+}) {
     const map = useMap();
+    const event = group[index];
+    const total = group.length;
     const [positionClass, setPositionClass] = useState('');
+    const showImage = hasRealImage(event.image);
+    const placeholder = getVibePlaceholder(event.vibe?.[0]);
 
     useEffect(() => {
         if (!event) return;
-
         const containerPoint = map.latLngToContainerPoint([event.lat, event.lng]);
         const mapHeight = map.getSize().y;
-
-        // If in top half, open below
-        if (containerPoint.y < mapHeight / 2) {
-            setPositionClass('popup-below');
-        } else {
-            setPositionClass('');
-        }
+        setPositionClass(containerPoint.y < mapHeight / 2 ? 'popup-below' : '');
     }, [event, map]);
 
     return (
         <Popup
             position={[event.lat, event.lng]}
             className={positionClass}
-            autoPan={true} // Enable autoPan for extra safety, but our positioning should handle most cases
+            autoPan={true}
             autoPanPadding={[50, 50]}
-            eventHandlers={{
-                remove: onClose
-            }}
+            eventHandlers={{ remove: onClose }}
         >
             <div className="w-[250px] font-space-grotesk font-sans">
-                <div className="relative w-full h-auto rounded-t-2xl overflow-hidden leading-[0]">
-                    <img
-                        src={event.image}
-                        alt={event.title}
-                        className="w-full h-auto block"
-                    />
-                    <button className="absolute top-3 right-12 bg-transparent border-none cursor-pointer text-white z-10 p-0 drop-shadow-md">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="rgba(0,0,0,0.5)" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                        </svg>
-                    </button>
+                {/* Image or gradient placeholder */}
+                <div className="relative w-full rounded-t-2xl overflow-hidden leading-[0]" style={{ aspectRatio: '4/3' }}>
+                    {showImage ? (
+                        <img
+                            src={event.image}
+                            alt={event.title}
+                            className="w-full h-full object-cover block"
+                        />
+                    ) : (
+                        <div
+                            className="w-full h-full flex flex-col items-center justify-center gap-1"
+                            style={{ background: placeholder.bg }}
+                        >
+                            <span style={{ fontSize: '2rem', lineHeight: 1 }}>{placeholder.emoji}</span>
+                            <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.9)' }}>
+                                {event.vibe?.[0] || 'Event'}
+                            </span>
+                        </div>
+                    )}
+
+                    {/* Cycle controls — only shown when multiple events at this venue */}
+                    {total > 1 && (
+                        <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-2 py-1.5"
+                            style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)' }}>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onIndexChange((index - 1 + total) % total); }}
+                                className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+                            >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="15 18 9 12 15 6"></polyline>
+                                </svg>
+                            </button>
+                            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'white', letterSpacing: '0.05em' }}>
+                                {index + 1} of {total}
+                            </span>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onIndexChange((index + 1) % total); }}
+                                className="w-7 h-7 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+                            >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+                    )}
                 </div>
+
+                {/* Event info */}
                 <div className="p-4">
                     <div className="text-base font-semibold mb-1 text-gray-900 leading-tight">{event.title}</div>
                     <div className="text-sm text-gray-500 mb-2">{event.location}</div>
@@ -197,14 +262,37 @@ function EventPopup({ event, onClose }: { event: Event, onClose: () => void }) {
 
 export default function Map({ events = [], selectedEventId, onMarkerClick, route }: MapProps) {
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [activeGroup, setActiveGroup] = useState<Event[] | null>(null);
+    const [activeGroupIndex, setActiveGroupIndex] = useState(0);
 
     const selectedEvent = events.find(e => e.id === selectedEventId);
 
+    // Group events by venue location to avoid overlapping markers
+    const locationGroups = useMemo(() => {
+        const groups: Record<string, Event[]> = {};
+        for (const event of events) {
+            const key = `${event.lat.toFixed(4)},${event.lng.toFixed(4)}`;
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(event);
+        }
+        return Object.values(groups);
+    }, [events]);
+
+    const handleMarkerClick = (group: Event[]) => {
+        setActiveGroup(group);
+        setActiveGroupIndex(0);
+        onMarkerClick && onMarkerClick(group[0].id);
+    };
+
+    const handleCycleIndex = (i: number) => {
+        setActiveGroupIndex(i);
+        if (activeGroup) onMarkerClick && onMarkerClick(activeGroup[i].id);
+    };
+
     // Determine center: 1. Selected Event, 2. First Event, 3. Default LA
-    // If we have a route, we rely on RouteUpdater to fit bounds, but need initial center.
     const center: [number, number] = selectedEvent
         ? [selectedEvent.lat, selectedEvent.lng]
-        : (events.length > 0 ? [events[0].lat, events[0].lng] : [34.0782, -118.2606]); // Default to LA (Echo Park)
+        : (events.length > 0 ? [events[0].lat, events[0].lng] : [34.0782, -118.2606]);
 
     const toggleFullscreen = () => {
         setIsFullscreen(!isFullscreen);
@@ -231,23 +319,34 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, route
                 {/* Event Logic (Events Mode) */}
                 {selectedEvent && <MapUpdater center={[selectedEvent.lat, selectedEvent.lng]} />}
 
-                {/* Render Markers without nested Popups */}
-                {events.map((event) => (
-                    <Marker
-                        key={event.id}
-                        position={[event.lat, event.lng]}
-                        icon={createCustomIcon(event.vibe)}
-                        eventHandlers={{
-                            click: () => onMarkerClick && onMarkerClick(event.id),
-                        }}
-                    />
-                ))}
+                {/* One marker per unique venue location */}
+                {locationGroups.map((group) => {
+                    const first = group[0];
+                    const icon = group.length === 1
+                        ? createSingleIcon(first.vibe)
+                        : createClusterIcon(group.length);
+                    return (
+                        <Marker
+                            key={`${first.lat},${first.lng}`}
+                            position={[first.lat, first.lng]}
+                            icon={icon}
+                            eventHandlers={{
+                                click: () => handleMarkerClick(group),
+                            }}
+                        />
+                    );
+                })}
 
-                {/* Render Standalone Popup if an event is selected */}
-                {selectedEvent && (
+                {/* Popup with cycling support for grouped venues */}
+                {activeGroup && (
                     <EventPopup
-                        event={selectedEvent}
-                        onClose={() => onMarkerClick && onMarkerClick('')} // Close by clearing selection
+                        group={activeGroup}
+                        index={activeGroupIndex}
+                        onIndexChange={handleCycleIndex}
+                        onClose={() => {
+                            setActiveGroup(null);
+                            onMarkerClick && onMarkerClick('');
+                        }}
                     />
                 )}
 

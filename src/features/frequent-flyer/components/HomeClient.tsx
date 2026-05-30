@@ -1,92 +1,143 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { useSearchParams } from 'next/navigation';
-import FlyerCard, { FlyerEvent } from '@/components/FlyerCard';
-import TipsBill from '@/components/TipsBill';
-import styles from './HomeClient.module.css';
 import dynamic from 'next/dynamic';
+import EventCard2 from './EventCard2';
+import RecurringEventCard from './RecurringEventCard';
 import MapLoader from '@/components/MapLoader';
+import styles from './HomeClient.module.css';
+import { Event } from '@/features/frequent-flyer/data/events';
+import { RecurringEvent, DAY_NAMES_SHORT, formatRecurringSchedule } from '@/features/frequent-flyer/data/recurringEvents';
 
-// Dynamically import Map to avoid SSR issues with Leaflet
 const Map = dynamic(() => import('@/features/frequent-flyer/components/Map'), {
     ssr: false,
     loading: () => <MapLoader />,
 });
 
-import { Event } from '@/features/frequent-flyer/data/events';
-
 interface HomeClientProps {
     initialEvents: Event[];
+    recurringEvents?: RecurringEvent[];
 }
 
-export default function HomeClient({ initialEvents }: HomeClientProps) {
-    const searchParams = useSearchParams();
+// A unified item that can be either a one-off event or a recurring one
+type UnifiedItem =
+    | { kind: 'event'; data: Event; sortDay: number }
+    | { kind: 'recurring'; data: RecurringEvent; sortDay: number };
+
+// Get the current week's Monday–Sunday dates
+function getCurrentWeekDates(): Date[] {
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0=Sun
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - ((dayOfWeek + 6) % 7)); // back to Monday
+    monday.setHours(0, 0, 0, 0);
+
+    const dates: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        dates.push(d);
+    }
+    return dates;
+}
+
+export default function HomeClient({ initialEvents, recurringEvents = [] }: HomeClientProps) {
+    const today = new Date().getDay(); // 0=Sun
+    const [dayFilter, setDayFilter] = useState<number | null>(today);
+    const [neighborhoodFilter, setNeighborhoodFilter] = useState<string | null>(null);
+    const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
     const [mobileTab, setMobileTab] = useState<'list' | 'map'>('list');
 
-    // Read Filters
-    const neighborhoodFilter = searchParams.get('neighborhood');
-    const vibeFilter = searchParams.get('vibe');
-    const fromDate = searchParams.get('from');
-    const toDate = searchParams.get('to');
+    const weekDates = useMemo(() => getCurrentWeekDates(), []);
 
-    // Filter Logic (Events)
-    const filteredEvents = useMemo(() => {
-        // Default to Current Week if no filters are present
-        let targetFromDate: Date | null = fromDate ? new Date(fromDate) : null;
-        let targetToDate: Date | null = toDate ? new Date(toDate) : null;
+    // Build the unified list: one-off events for this week + recurring events expanded to their day
+    const unifiedItems = useMemo(() => {
+        const items: UnifiedItem[] = [];
 
-        // If no date filter is provided, default to "This Week" (Today -> +7 days)
-        /*
-        if (!fromDate && !toDate) {
-            const today = new Date();
-            targetFromDate = today;
+        // One-off events that fall within this week
+        const weekStart = new Date(weekDates[0]);
+        weekStart.setHours(0, 0, 0, 0);
+        const weekEnd = new Date(weekDates[6]);
+        weekEnd.setHours(23, 59, 59, 999);
 
-            const nextWeek = new Date(today);
-            nextWeek.setDate(today.getDate() + 7);
-            targetToDate = nextWeek;
+        for (const event of initialEvents) {
+            const eventDate = new Date(event.date);
+            if (eventDate >= weekStart && eventDate <= weekEnd) {
+                items.push({ kind: 'event', data: event, sortDay: eventDate.getDay() });
+            }
         }
-        */
 
-        return initialEvents.filter(event => {
-            // Neighborhood Filter
-            if (neighborhoodFilter && event.neighborhood !== neighborhoodFilter) {
-                return false;
-            }
+        // Recurring events — each maps to its day_of_week
+        for (const re of recurringEvents) {
+            items.push({ kind: 'recurring', data: re, sortDay: re.day_of_week });
+        }
 
-            // Vibe Filter
-            if (vibeFilter && !event.vibe.includes(vibeFilter)) {
-                return false;
-            }
+        return items;
+    }, [initialEvents, recurringEvents, weekDates]);
 
-            // Date Range Filter
-            // Skip complex parsing for now to ensure events show up
-            /*
-            const eventDate = new Date(event.date); // Ensure date string is parsable
+    // Filter by day + neighborhood
+    const filteredItems = useMemo(() => {
+        return unifiedItems.filter(item => {
+            if (dayFilter !== null && item.sortDay !== dayFilter) return false;
 
-            if (targetFromDate) {
-                // Reset time for fair comparison
-                const from = new Date(targetFromDate);
-                from.setHours(0, 0, 0, 0);
-                if (eventDate < from) return false;
-            }
-
-            if (targetToDate) {
-                const to = new Date(targetToDate);
-                // Set to end of day for inclusive filtering
-                to.setHours(23, 59, 59, 999);
-                if (eventDate > to) return false;
-            }
-            */
+            const neighborhood = item.kind === 'event'
+                ? item.data.neighborhood
+                : item.data.neighborhood;
+            if (neighborhoodFilter && neighborhood !== neighborhoodFilter) return false;
 
             return true;
         });
-    }, [initialEvents, neighborhoodFilter, vibeFilter, fromDate, toDate]);
+    }, [unifiedItems, dayFilter, neighborhoodFilter]);
+
+    // Derive neighborhoods from all items
+    const neighborhoods = useMemo(() => {
+        const set = new Set<string>();
+        for (const item of unifiedItems) {
+            const n = item.kind === 'event' ? item.data.neighborhood : item.data.neighborhood;
+            if (n && n !== 'Unknown') set.add(n);
+        }
+        return Array.from(set).sort();
+    }, [unifiedItems]);
+
+    // Convert filtered items to Event[] shape for the Map
+    const mapEvents: Event[] = useMemo(() => {
+        return filteredItems.map(item => {
+            if (item.kind === 'event') return item.data;
+            const re = item.data;
+            return {
+                id: `recurring-${re.id}`,
+                title: re.event_name,
+                date: formatRecurringSchedule(re.day_of_week, re.start_time, re.end_time),
+                location: `${re.venue_name}, ${re.neighborhood}`,
+                description: re.description || re.category,
+                lat: re.lat,
+                lng: re.lng,
+                image: re.venue_image || '/placeholder.jpg',
+                neighborhood: re.neighborhood,
+                vibe: [re.category],
+            };
+        });
+    }, [filteredItems]);
+
+    const handleEventClick = (id: string) => {
+        setSelectedEventId(id);
+    };
+
+    const handleMarkerClick = (id: string) => {
+        setSelectedEventId(id);
+        const element = document.getElementById(`home-${id}`);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    };
+
+    const pillBase =
+        'font-space-mono text-[11px] uppercase tracking-[-0.44px] px-[12px] py-[6px] rounded-full border transition-colors whitespace-nowrap cursor-pointer';
+    const pillActive = 'bg-black text-[#FFFAEB] border-black';
+    const pillInactive = 'bg-transparent text-black border-black/30 hover:border-black';
 
     return (
-        <div className={styles.main} style={{ paddingTop: '80px' }}>
+        <div className={styles.main}>
             {/* Mobile tab bar */}
             <div className={styles.tabBar}>
                 <button
@@ -104,39 +155,97 @@ export default function HomeClient({ initialEvents }: HomeClientProps) {
             </div>
 
             <div className={styles.splitLayout}>
-                {/* Left Column: Events Grid */}
+                {/* Left: Unified event list */}
                 <div className={`${styles.listContainer} ${mobileTab !== 'list' ? styles.hiddenMobile : ''}`}>
-                    <div className={styles.header}>
-                        <h1 className="font-space-grotesk font-bold leading-[1.25] text-[32px] text-black tracking-[-0.96px] uppercase mb-[8px]">
-                            Active Dashboard
+                    <header className={styles.header}>
+                        <h1 className={styles.title}>
+                            What&apos;s happening this week
                         </h1>
-                        <p className="font-space-mono text-[14px] text-black/60 uppercase">
-                            {filteredEvents.length} Upcoming Events
-                        </p>
-                    </div>
 
-                    {filteredEvents.length > 0 ? (
-                        <div className={styles.grid}>
-                            {filteredEvents.map((event) => (
-                                <FlyerCard
-                                    key={event.id}
-                                    image={event.image || '/nanobanana_placeholder.png'}
-                                    event={event}
-                                />
+                        {/* Day-of-week pills */}
+                        <div className="flex gap-[6px] overflow-x-auto pb-[2px] mt-[12px]" style={{ scrollbarWidth: 'none' }}>
+                            <button
+                                onClick={() => setDayFilter(null)}
+                                className={`${pillBase} ${dayFilter === null ? pillActive : pillInactive}`}
+                            >
+                                All
+                            </button>
+                            {DAY_NAMES_SHORT.map((name, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => setDayFilter(dayFilter === i ? null : i)}
+                                    className={`${pillBase} ${dayFilter === i ? pillActive : pillInactive} ${i === today ? 'font-bold' : ''}`}
+                                >
+                                    {i === today ? `${name} ·` : name}
+                                </button>
                             ))}
+                        </div>
+
+                        {/* Neighborhood pills */}
+                        {neighborhoods.length > 0 && (
+                            <div className="flex gap-[6px] overflow-x-auto pb-[2px] mt-[8px]" style={{ scrollbarWidth: 'none' }}>
+                                <button
+                                    onClick={() => setNeighborhoodFilter(null)}
+                                    className={`${pillBase} ${!neighborhoodFilter ? pillActive : pillInactive}`}
+                                >
+                                    All Areas
+                                </button>
+                                {neighborhoods.map(n => (
+                                    <button
+                                        key={n}
+                                        onClick={() => setNeighborhoodFilter(neighborhoodFilter === n ? null : n)}
+                                        className={`${pillBase} ${neighborhoodFilter === n ? pillActive : pillInactive}`}
+                                    >
+                                        {n}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </header>
+
+                    {filteredItems.length > 0 ? (
+                        <div className={styles.grid}>
+                            {filteredItems.map((item) => {
+                                if (item.kind === 'event') {
+                                    const event = item.data;
+                                    return (
+                                        <EventCard2
+                                            key={event.id}
+                                            id={`home-${event.id}`}
+                                            event={event}
+                                            isActive={selectedEventId === event.id}
+                                            onClick={() => handleEventClick(event.id)}
+                                        />
+                                    );
+                                } else {
+                                    const re = item.data;
+                                    const mapId = `recurring-${re.id}`;
+                                    return (
+                                        <RecurringEventCard
+                                            key={mapId}
+                                            id={`home-${mapId}`}
+                                            event={re}
+                                            onClick={() => handleEventClick(mapId)}
+                                        />
+                                    );
+                                }
+                            })}
                         </div>
                     ) : (
                         <div className={styles.noResults}>
-                            No events found for this filter.
+                            <h3>No events found</h3>
+                            <p>Check back soon for upcoming events.</p>
                         </div>
                     )}
                 </div>
 
-                {/* Right Column: Map */}
+                {/* Right: Map */}
                 <div className={`${styles.mapContainer} ${mobileTab !== 'map' ? styles.hiddenMobile : ''}`}>
                     <div className={styles.mapWrapper}>
                         <Map
-                            events={filteredEvents}
+                            events={mapEvents}
+                            selectedEventId={selectedEventId}
+                            onMarkerClick={handleMarkerClick}
                         />
                     </div>
                 </div>

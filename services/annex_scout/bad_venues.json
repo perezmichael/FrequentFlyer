@@ -1,0 +1,192 @@
+[
+  {
+    "name": "Spaceland",
+    "url": "https://www.spaceland.com/events",
+    "neighborhood": "Silver Lake",
+    "ok": false,
+    "status": "SSL",
+    "detail": "SSL: HTTPSConnectionPool(host='www.spaceland.com', port=443): Max retries exceeded wi",
+    "bytes": 0,
+    "final_url": "https://www.spaceland.com/events"
+  },
+  {
+    "name": "Silverlake Lounge",
+    "url": "https://www.silverlakelounge.com",
+    "neighborhood": "Silver Lake",
+    "ok": false,
+    "status": 200,
+    "detail": "Empty body (114 chars)",
+    "bytes": 114,
+    "final_url": "https://www.silverlakelounge.com/"
+  },
+  {
+    "name": "The Virgil",
+    "url": "https://www.thevirgil.com/shows",
+    "neighborhood": "Silver Lake",
+    "ok": false,
+    "status": 404,
+    "detail": "HTTP 404",
+    "bytes": 53439,
+    "final_url": "https://www.thevirgil.com/shows"
+  },
+  {
+    "name": "Lodge Room",
+    "url": "https://www.lodgeroomhp.com",
+    "neighborhood": "Highland Park",
+    "ok": false,
+    "status": 200,
+    "detail": "Empty body (114 chars)",
+    "bytes": 114,
+    "final_url": "https://www.lodgeroomhp.com/"
+  },
+  {
+    "name": "The Hi Hat",
+    "url": "https://www.hihatbar.com",
+    "neighborhood": "Highland Park",
+    "ok": false,
+    "status": "DNS",
+    "detail": "CONN: HTTPSConnectionPool(host='www.hihatbar.com', port=443): Max retries exceeded wit",
+    "bytes": 0,
+    "final_url": "https://www.hihatbar.com"
+  },
+  {
+    "name": "Avenue 50 Studio",
+    "url": "https://www.avenue50studio.org/events",
+    "neighborhood": "Highland Park",
+    "ok": false,
+    "status": 500,
+    "detail": "HTTP 500",
+    "bytes": 100981,
+    "final_url": "https://avenue50studio.org/events"
+  },
+  {
+    "name": "Resident DTLA",
+    "url": "https://www.residentdtla.com",
+    "neighborhood": "DTLA",
+    "ok": false,
+    "status": "DNS",
+    "detail": "CONN: HTTPSConnectionPool(host='www.residentdtla.com', port=443): Max retries exceeded",
+    "bytes": 0,
+    "final_url": "https://www.residentdtla.com"
+  },
+  {
+    "name": "Skylight Books",
+    "url": "https://www.skylightbooks.com/events",
+    "neighborhood": "Los Feliz",
+    "ok": false,
+    "status": 500,
+    "detail": "HTTP 500",
+    "bytes": 25,
+    "final_url": "https://www.skylightbooks.com/events"
+  },
+  {
+    "name": "Gold Line",
+    "url": "https://www.goldlinebar.com",
+    "neighborhood": "Highland Park",
+    "ok": false,
+    "status": "TIMEOUT",
+    "detail": "TIMEOUT: HTTPSConnectionPool(host='www.goldlinebar.com', port=443): R",
+    "bytes": 0,
+    "final_url": "https://www.goldlinebar.com"
+  },
+  {
+    "name": "Non Plus Ultra",
+    "url": "https://npuevents.com",
+    "neighborhood": "Chinatown",
+    "ok": false,
+    "status": 522,
+    "detail": "HTTP 522",
+    "bytes": 7260,
+    "final_url": "https://npuevents.com/"
+  },
+  {
+    "name": "Footsies",
+    "url": "https://www.footsieslosangeles.com",
+    "neighborhood": "Cypress Park",
+    "ok": false,
+    "status": "DNS",
+    "detail": "CONN: HTTPSConnectionPool(host='www.footsieslosangeles.com', port=443): Max retries ex",
+    "bytes": 0,
+    "final_url": "https://www.footsieslosangeles.com"
+  },
+  {
+    "name": "Book Show",
+    "url": "https://www.bookshowla.com",
+    "neighborhood": "Highland Park",
+    "ok": false,
+    "status": 522,
+    "detail": "HTTP 522",
+    "bytes": 7286,
+    "final_url": "https://www.bookshowla.com/"
+  },
+  {
+    "name": "Bar Flores",
+    "url": "https://barfloresla.com",
+    "neighborhood": "Echo Park",
+    "ok": false,
+    "status": "DNS",
+    "detail": "CONN: HTTPSConnectionPool(host='barfloresla.com', port=443): Max retries exceeded with",
+    "bytes": 0,
+    "final_url": "https://barfloresla.com"
+  },
+  {
+    "name": "Tenants of the Trees",
+    "url": "https://www.tenantsofthetrees.com",
+    "neighborhood": "Silver Lake",
+    "ok": false,
+    "status": "DNS",
+    "detail": "CONN: HTTPSConnectionPool(host='www.tenantsofthetrees.com', port=443): Max retries exc",
+    "bytes": 0,
+    "final_url": "https://www.tenantsofthetrees.com"
+  },
+  {
+    "name": "Capri Club",
+    "url": "https://www.capriclub.la",
+    "neighborhood": "Eagle Rock",
+    "ok": false,
+    "status": "DNS",
+    "detail": "CONN: HTTPSConnectionPool(host='www.capriclub.la', port=443): Max retries exceeded wit",
+    "bytes": 0,
+    "final_url": "https://www.capriclub.la"
+  },
+  {
+    "name": "General Lee's",
+    "url": "https://www.generalleesla.com",
+    "neighborhood": "Chinatown",
+    "ok": false,
+    "status": "DNS",
+    "detail": "CONN: HTTPSConnectionPool(host='www.generalleesla.com', port=443): Max retries exceede",
+    "bytes": 0,
+    "final_url": "https://www.generalleesla.com"
+  },
+  {
+    "name": "Melody Lounge",
+    "url": "https://www.melodyloungela.com",
+    "neighborhood": "Chinatown",
+    "ok": false,
+    "status": "DNS",
+    "detail": "CONN: HTTPSConnectionPool(host='www.melodyloungela.com', port=443): Max retries exceed",
+    "bytes": 0,
+    "final_url": "https://www.melodyloungela.com"
+  },
+  {
+    "name": "Grandstar Jazz Club",
+    "url": "https://www.grandstarjazzclub.com",
+    "neighborhood": "Chinatown",
+    "ok": false,
+    "status": "SSL",
+    "detail": "SSL: HTTPSConnectionPool(host='www.grandstarjazzclub.com', port=443): Max retries exc",
+    "bytes": 0,
+    "final_url": "https://www.grandstarjazzclub.com"
+  },
+  {
+    "name": "Jameson's",
+    "url": "https://www.jamesonspubculvercity.com",
+    "neighborhood": "Culver City",
+    "ok": false,
+    "status": "DNS",
+    "detail": "CONN: HTTPSConnectionPool(host='www.jamesonspubculvercity.com', port=443): Max retries",
+    "bytes": 0,
+    "final_url": "https://www.jamesonspubculvercity.com"
+  }
+]

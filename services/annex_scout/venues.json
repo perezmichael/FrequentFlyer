@@ -61,5 +61,208 @@
     "neighborhood": "Highland Park",
     "lat": 34.1116,
     "lng": -118.1966
+  },
+  {
+    "name": "The Echo",
+    "url": "https://www.theecho.com/calendar",
+    "neighborhood": "Echo Park",
+    "lat": 34.0778,
+    "lng": -118.2608
+  },
+  {
+    "name": "Bar Bandini",
+    "url": "https://www.barbandini.com",
+    "neighborhood": "Echo Park",
+    "lat": 34.0784,
+    "lng": -118.2553
+  },
+  {
+    "name": "Stories Books and Cafe",
+    "url": "https://www.storiesla.com/events",
+    "neighborhood": "Echo Park",
+    "lat": 34.0784,
+    "lng": -118.2620
+  },
+  {
+    "name": "Akbar",
+    "url": "https://www.akbarsilverlake.com",
+    "neighborhood": "Silver Lake",
+    "lat": 34.0902,
+    "lng": -118.2894
+  },
+  {
+    "name": "Black Cat",
+    "url": "https://www.theblackcatla.com",
+    "neighborhood": "Silver Lake",
+    "lat": 34.0891,
+    "lng": -118.2851
+  },
+  {
+    "name": "Avenue 50 Studio",
+    "url": "https://www.avenue50studio.org/events",
+    "neighborhood": "Highland Park",
+    "lat": 34.1120,
+    "lng": -118.1994
+  },
+  {
+    "name": "The Smell",
+    "url": "https://www.thesmell.org",
+    "neighborhood": "DTLA",
+    "lat": 34.0480,
+    "lng": -118.2478
+  },
+  {
+    "name": "Resident DTLA",
+    "url": "https://www.residentla.com/events",
+    "neighborhood": "DTLA",
+    "lat": 34.0398,
+    "lng": -118.2334
+  },
+  {
+    "name": "Human Resources",
+    "url": "https://www.humanresourcesla.com",
+    "neighborhood": "DTLA",
+    "lat": 34.0617,
+    "lng": -118.2346
+  },
+  {
+    "name": "Angel City Brewery",
+    "url": "https://www.angelcitybrewery.com/events",
+    "neighborhood": "DTLA",
+    "lat": 34.0453,
+    "lng": -118.2326
+  },
+  {
+    "name": "Skylight Books",
+    "url": "https://www.skylightbooks.com/events",
+    "neighborhood": "Los Feliz",
+    "lat": 34.1074,
+    "lng": -118.2906
+  },
+  {
+    "name": "The Dresden",
+    "url": "https://www.thedresden.com",
+    "neighborhood": "Los Feliz",
+    "lat": 34.1067,
+    "lng": -118.2906
+  },
+  {
+    "name": "The Wiltern",
+    "url": "https://www.wiltern.com",
+    "neighborhood": "Koreatown",
+    "lat": 34.0612,
+    "lng": -118.3085
+  },
+  {
+    "name": "2220 Arts + Archives",
+    "url": "https://2220arts.org/events",
+    "neighborhood": "Historic Filipinotown",
+    "lat": 34.0612,
+    "lng": -118.2687
+  },
+  {
+    "name": "Gold Line",
+    "url": "https://www.goldlinebar.com",
+    "neighborhood": "Highland Park",
+    "lat": 34.1079,
+    "lng": -118.1975
+  },
+  {
+    "name": "Permanent Records Roadhouse",
+    "url": "https://www.permanentrecordsroadhouse.com",
+    "neighborhood": "Cypress Park",
+    "lat": 34.0904,
+    "lng": -118.2327
+  },
+  {
+    "name": "El Cid",
+    "url": "https://www.elcidla.com",
+    "neighborhood": "Silver Lake",
+    "lat": 34.0915,
+    "lng": -118.2818
+  },
+  {
+    "name": "Non Plus Ultra",
+    "url": "https://npuevents.com",
+    "neighborhood": "Chinatown",
+    "lat": 34.0625,
+    "lng": -118.2390
+  },
+  {
+    "name": "Tabula Rasa Bar",
+    "url": "https://www.tabularasabar.com",
+    "neighborhood": "East Hollywood",
+    "lat": 34.1018,
+    "lng": -118.3019
+  },
+  {
+    "name": "The York",
+    "url": "https://www.theyorkonyork.com",
+    "neighborhood": "Highland Park",
+    "lat": 34.1123,
+    "lng": -118.1962
+  },
+  {
+    "name": "Book Show",
+    "url": "https://www.bookshowla.com",
+    "neighborhood": "Highland Park",
+    "lat": 34.1064,
+    "lng": -118.1981
+  },
+  {
+    "name": "Thirsty Crow",
+    "url": "https://www.thirstycrowbar.com",
+    "neighborhood": "Silver Lake",
+    "lat": 34.0873,
+    "lng": -118.2620
+  },
+  {
+    "name": "Cafe Tondo",
+    "url": "https://www.cafetondo.com",
+    "neighborhood": "Chinatown",
+    "lat": 34.0635,
+    "lng": -118.2390
+  },
+  {
+    "name": "Homage Brewing",
+    "url": "https://www.homagebrewing.com",
+    "neighborhood": "Chinatown",
+    "lat": 34.0607,
+    "lng": -118.2356
+  },
+  {
+    "name": "Club Disintegration",
+    "url": "https://www.clubdisintegration.com",
+    "neighborhood": "Chinatown",
+    "lat": 34.0625,
+    "lng": -118.2390
+  },
+  {
+    "name": "Cafe Triste",
+    "url": "https://www.cafetriste.com",
+    "neighborhood": "Chinatown",
+    "lat": 34.0623,
+    "lng": -118.2388
+  },
+  {
+    "name": "Treehouse",
+    "url": "https://www.treehousela.com",
+    "neighborhood": "Chinatown",
+    "lat": 34.0630,
+    "lng": -118.2380
+  },
+  {
+    "name": "No Smoking Bar",
+    "url": "https://www.nosmokingbar.com",
+    "neighborhood": "Culver City",
+    "lat": 34.0211,
+    "lng": -118.3965
+  },
+  {
+    "name": "Jameson's Pub",
+    "url": "https://culvercity.jamesonsirishpub.com/culver-city-jameson-s-pub-culver-city-events",
+    "neighborhood": "Culver City",
+    "lat": 34.0228,
+    "lng": -118.3968
   }
 ]

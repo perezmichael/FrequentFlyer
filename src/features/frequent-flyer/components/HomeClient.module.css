@@ -1,9 +1,10 @@
 .main {
-    height: calc(100vh - 80px);
+    height: 100vh;
     /* Safari < 15.4 fallback */
-    height: calc(100dvh - 80px);
+    height: 100dvh;
+    padding-top: 100px;
+    box-sizing: border-box;
     overflow: hidden;
-    /* Prevent body scroll */
 }
 
 .splitLayout {
@@ -14,12 +15,9 @@
     max-width: 1600px;
     margin: 0 auto;
     height: 100%;
-    /* Fill the main container */
     align-items: stretch;
-    /* Stretch both columns to full height */
 }
 
-/* Adjust grid columns based on screen width */
 @media (min-width: 1100px) {
     .splitLayout {
         grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
@@ -29,12 +27,9 @@
 .listContainer {
     height: 100%;
     overflow-y: auto;
-    /* Independent scrolling */
     padding-right: 8px;
-    /* Space for scrollbar */
     padding-bottom: 4rem;
-    padding-top: 2rem;
-    /* Move padding from main to here */
+    padding-top: 1rem;
 }
 
 .header {
@@ -47,17 +42,12 @@
     margin-bottom: 8px;
 }
 
-.subtitle {
-    color: var(--secondary-foreground);
-}
-
 .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 24px;
 }
 
-/* Ensure 3 columns on larger screens if space permits */
 @media (min-width: 1400px) {
     .grid {
         grid-template-columns: repeat(3, 1fr);
@@ -66,22 +56,17 @@
 
 .mapContainer {
     height: 100%;
-    /* Fill the column */
     position: relative;
-    /* Reset sticky */
-    padding-top: 2rem;
-    /* Match list padding - keep padding for alignment but remove background */
+    padding-top: 1rem;
+    padding-bottom: 1.5rem;
 }
 
-/* Make map fill the container minus padding */
 .mapWrapper {
     height: 100%;
     width: 100%;
     border-radius: 16px;
     overflow: hidden;
-    /* Ensure map stays inside rounded corners */
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    /* Add shadow for depth */
 }
 
 .noResults {
@@ -90,15 +75,6 @@
     color: var(--secondary-foreground);
     background: var(--secondary);
     border-radius: 12px;
-}
-
-.mapLoading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    background: #f0f0f0;
-    color: var(--secondary-foreground);
 }
 
 /* Tab bar — hidden on desktop, shown on mobile */
@@ -110,6 +86,7 @@
     .main {
         height: auto;
         overflow: visible;
+        padding-top: 100px;
     }
 
     .splitLayout {
@@ -123,6 +100,7 @@
         height: auto;
         overflow: visible;
         padding-top: 0;
+        padding-bottom: 0;
     }
 
     .mapContainer {

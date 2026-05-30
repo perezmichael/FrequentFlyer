@@ -2,6 +2,8 @@ export interface Event {
     id: string;
     title: string;
     date: string;
+    startTime?: string | null;
+    endTime?: string | null;
     location: string;
     description: string;
     lat: number;
@@ -9,6 +11,33 @@ export interface Event {
     image: string;
     neighborhood: string;
     vibe: string[];
+}
+
+// "7 PM" / "7:30 PM" from a "HH:MM[:SS]" string.
+function formatTime(t: string): string {
+    const [h, m] = t.split(':').map(Number);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hour = h % 12 || 12;
+    return m === 0 ? `${hour} ${ampm}` : `${hour}:${m.toString().padStart(2, '0')} ${ampm}`;
+}
+
+// Combine an event's date and optional start/end times into a display string,
+// e.g. "Sat, Aug 1 · 7 PM – 2 AM". Falls back to the raw date if unparseable.
+export function formatEventDateTime(
+    date: string,
+    startTime?: string | null,
+    endTime?: string | null,
+): string {
+    const d = new Date(`${date}T00:00:00`);
+    const datePart = isNaN(d.getTime())
+        ? date
+        : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+    if (!startTime) return datePart;
+    const timePart = endTime
+        ? `${formatTime(startTime)} – ${formatTime(endTime)}`
+        : formatTime(startTime);
+    return `${datePart} · ${timePart}`;
 }
 
 export const events: Event[] = [

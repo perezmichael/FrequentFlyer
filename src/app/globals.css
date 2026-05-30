@@ -414,6 +414,18 @@ h6 {
   }
 }
 
+/* Flyer studio canvas: scale the display to fit narrow viewports while keeping
+   fabric.js's 400x500 backing resolution (export quality) intact. */
+.flyer-canvas-wrap .canvas-container {
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+.flyer-canvas-wrap .canvas-container canvas {
+  max-width: 100% !important;
+  height: auto !important;
+}
+
 /* Leaflet Overrides */
 .leaflet-popup-content-wrapper {
   padding: 0 !important;
