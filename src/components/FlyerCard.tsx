@@ -120,7 +120,7 @@ export default function FlyerCard({ image, event }: FlyerCardProps) {
             <div className="content-stretch flex flex-col gap-[12px] items-start max-w-full">
               {/* Title and description */}
               <div className="content-stretch flex flex-col gap-[6px] items-start w-full whitespace-pre-wrap">
-                <p className="font-space-grotesk font-bold leading-[32px] text-[#efede1] text-[32px] tracking-[-0.48px] uppercase w-full">
+                <p className="font-space-grotesk font-bold leading-[32px] text-flyer text-[32px] tracking-[-0.48px] uppercase w-full">
                   {event.title}
                 </p>
                 <p className="font-space-grotesk font-normal leading-[24px] text-[16px] text-white w-full line-clamp-3">
@@ -130,13 +130,13 @@ export default function FlyerCard({ image, event }: FlyerCardProps) {
 
               {/* Divider */}
               <div className="h-0 w-full relative">
-                <div className="absolute inset-x-0 h-px bg-[#EFEDE1] opacity-40 top-0.5"></div>
+                <div className="absolute inset-x-0 h-px bg-flyer opacity-40 top-0.5"></div>
               </div>
 
               {/* Location */}
               <div className="content-stretch flex gap-[8px] items-center w-full">
                 <MarkerPin />
-                <p className="font-space-grotesk font-normal leading-[18px] text-[#efede1] text-[14px] tracking-[-0.21px] uppercase flex-1 whitespace-pre-wrap">
+                <p className="font-space-grotesk font-normal leading-[18px] text-flyer text-[14px] tracking-[-0.21px] uppercase flex-1 whitespace-pre-wrap">
                   {event.location}
                 </p>
               </div>
@@ -144,22 +144,22 @@ export default function FlyerCard({ image, event }: FlyerCardProps) {
               {/* Date */}
               <div className="content-stretch flex gap-[8px] items-center w-full">
                 <Calendar />
-                <p className="font-space-grotesk font-normal leading-[18px] text-[#efede1] text-[14px] tracking-[-0.21px] uppercase flex-1 whitespace-pre-wrap">
+                <p className="font-space-grotesk font-normal leading-[18px] text-flyer text-[14px] tracking-[-0.21px] uppercase flex-1 whitespace-pre-wrap">
                   {formatEventDateTime(event.date, event.startTime, event.endTime)}
                 </p>
               </div>
 
               {/* Category, Price, Neighborhood */}
               <div className="content-stretch flex gap-[14px] items-center mt-2">
-                <p className="font-space-grotesk font-normal leading-[18px] text-[#efede1] text-[14px] tracking-[-0.21px] uppercase">
+                <p className="font-space-grotesk font-normal leading-[18px] text-flyer text-[14px] tracking-[-0.21px] uppercase">
                   {category}
                 </p>
                 <div className="w-px h-[14px] bg-[#A3A3A3]"></div>
-                <p className="font-space-grotesk font-normal leading-[18px] text-[#efede1] text-[14px] tracking-[-0.21px] uppercase">
+                <p className="font-space-grotesk font-normal leading-[18px] text-flyer text-[14px] tracking-[-0.21px] uppercase">
                   {price}
                 </p>
                 <div className="w-px h-[14px] bg-[#A3A3A3]"></div>
-                <p className="font-space-grotesk font-normal leading-[18px] text-[#efede1] text-[14px] tracking-[-0.21px] uppercase">
+                <p className="font-space-grotesk font-normal leading-[18px] text-flyer text-[14px] tracking-[-0.21px] uppercase">
                   {event.neighborhood}
                 </p>
               </div>

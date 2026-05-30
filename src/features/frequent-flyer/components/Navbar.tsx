@@ -28,7 +28,7 @@ export default function Navbar() {
     return (
         <nav
             style={{ zIndex: 1100 }}
-            className={`fixed top-0 left-0 right-0 transition-colors duration-200 ${isSolid ? 'bg-[#FFFAEB] border-b border-black/5' : 'bg-transparent'}`}
+            className={`fixed top-0 left-0 right-0 transition-colors duration-200 ${isSolid ? 'bg-cream border-b border-black/5' : 'bg-transparent'}`}
         >
             <div className="page-container w-full flex justify-between items-center h-[100px]">
                 {/* Logo and title */}

@@ -232,7 +232,7 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
                         setVenueQuery(''); setVenueId(null); setNewVenueName(''); setNewVenueNeighborhood('');
                         setHasFlyer(false);
                     }}
-                    className="font-space-mono uppercase text-[14px] tracking-[-0.5px] border border-black/40 rounded-full px-6 py-3 hover:bg-black hover:text-[#FFFAEB] transition-colors"
+                    className="font-space-mono uppercase text-[14px] tracking-[-0.5px] border border-black/40 rounded-full px-6 py-3 hover:bg-black hover:text-cream transition-colors"
                 >
                     + Create another
                 </button>
@@ -330,7 +330,7 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
                     <button
                         onClick={handleSubmit}
                         disabled={submitting}
-                        className="font-space-mono uppercase text-[15px] tracking-[-0.5px] bg-black text-[#FFFAEB] rounded-full px-8 py-4 hover:opacity-80 transition-opacity disabled:opacity-50 self-start"
+                        className="font-space-mono uppercase text-[15px] tracking-[-0.5px] bg-black text-cream rounded-full px-8 py-4 hover:opacity-80 transition-opacity disabled:opacity-50 self-start"
                     >
                         {submitting ? 'Submitting…' : 'Submit event'}
                     </button>
@@ -350,10 +350,10 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
                     />
                     <div className="flex gap-3">
                         <button onClick={handleGenerate} disabled={generating}
-                            className="flex-1 font-space-mono uppercase text-[13px] tracking-[-0.5px] border border-black/40 rounded-full px-4 py-3 hover:bg-black hover:text-[#FFFAEB] transition-colors disabled:opacity-50">
+                            className="flex-1 font-space-mono uppercase text-[13px] tracking-[-0.5px] border border-black/40 rounded-full px-4 py-3 hover:bg-black hover:text-cream transition-colors disabled:opacity-50">
                             {generating ? 'Generating…' : '✨ Generate design'}
                         </button>
-                        <label className="flex-1 cursor-pointer text-center font-space-mono uppercase text-[13px] tracking-[-0.5px] border border-black/40 rounded-full px-4 py-3 hover:bg-black hover:text-[#FFFAEB] transition-colors">
+                        <label className="flex-1 cursor-pointer text-center font-space-mono uppercase text-[13px] tracking-[-0.5px] border border-black/40 rounded-full px-4 py-3 hover:bg-black hover:text-cream transition-colors">
                             Upload image
                             <input type="file" accept="image/*" className="hidden" onChange={handleUpload} />
                         </label>

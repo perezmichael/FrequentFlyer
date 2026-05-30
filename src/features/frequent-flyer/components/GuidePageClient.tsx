@@ -16,7 +16,7 @@ export default function GuidePageClient({ guide }: GuidePageClientProps) {
     };
 
     return (
-        <div className="min-h-screen bg-[#FFFAEB]">
+        <div className="min-h-screen bg-cream">
             <GuideDetail guide={guide} onBack={handleBack} />
         </div>
     );

@@ -139,14 +139,14 @@ export default function EventsPageClient({ initialEvents, recurringEvents = [] }
 
     const pillBase =
         'font-space-mono text-[12px] uppercase tracking-[-0.48px] px-[14px] py-[7px] rounded-full border transition-colors whitespace-nowrap cursor-pointer';
-    const pillActive = 'bg-black text-[#FFFAEB] border-black';
+    const pillActive = 'bg-black text-cream border-black';
     const pillInactive = 'bg-transparent text-black border-black/30 hover:border-black';
 
     const isDateActive = (value: string) =>
         value === 'all' ? !searchParams.get('date') : datePreset === value;
 
     return (
-        <div className="bg-[#FFFAEB] relative min-h-screen w-full font-sans pt-[100px] md:pt-[160px]">
+        <div className="bg-cream relative min-h-screen w-full font-sans pt-[100px] md:pt-[160px]">
             <div className="page-container">
 
                 {/* Upcoming / Regulars / Archive tabs */}
