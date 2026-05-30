@@ -1,6 +1,15 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { COLORS, BORDERS, FONTS, TYPE_SCALE, TRACKING } from '@/features/frequent-flyer/design/tokens';
+import {
+    COLORS,
+    BORDERS,
+    FONTS,
+    TYPE_SCALE,
+    TRACKING,
+    ACCENT_CANDIDATES,
+    contrastRatio,
+    aaVerdict,
+} from '@/features/frequent-flyer/design/tokens';
 import {
     navLink,
     createPill,
@@ -38,6 +47,74 @@ function Demo({ code, children }: { code: string; children: React.ReactNode }) {
     );
 }
 
+const CREAM = '#FFFAEB';
+
+/** One accent candidate applied to the real patterns, with contrast verdict. */
+function AccentRow({
+    name,
+    hex,
+    note,
+    current,
+}: {
+    name: string;
+    hex: string;
+    note: string;
+    current?: boolean;
+}) {
+    const ratio = contrastRatio(hex, CREAM);
+    const verdict = aaVerdict(ratio);
+    const verdictColor = verdict === 'AA' ? '#1a7a3a' : verdict === 'AA Large' ? '#9a6b00' : '#b0241a';
+
+    return (
+        <div className="border border-black/10 rounded-2xl p-5 bg-cream flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-3">
+                    <span className="h-7 w-7 rounded-full border border-black/10 shrink-0" style={{ background: hex }} />
+                    <span className="font-space-mono text-[14px] uppercase tracking-[-0.44px] text-ink">
+                        {name}
+                        {current && <span className="text-black/40"> · current</span>}
+                    </span>
+                    <code className="font-space-mono text-[12px] text-black/50">{hex}</code>
+                </div>
+                <span
+                    className="font-space-mono text-[11px] uppercase tracking-[-0.44px] px-2 py-1 rounded-full border"
+                    style={{ color: verdictColor, borderColor: verdictColor }}
+                >
+                    {ratio.toFixed(1)}:1 · {verdict}
+                </span>
+            </div>
+
+            {/* Live samples against cream */}
+            <div className="flex flex-wrap items-center gap-4">
+                {/* link / active tab */}
+                <span className="font-space-mono text-[16px] uppercase tracking-[-0.64px]" style={{ color: hex }}>
+                    events
+                </span>
+                {/* solid pill, cream text */}
+                <span
+                    className="font-space-mono text-[11px] uppercase tracking-[-0.44px] px-[12px] py-[6px] rounded-full"
+                    style={{ background: hex, color: CREAM }}
+                >
+                    Friday
+                </span>
+                {/* outline pill */}
+                <span
+                    className="font-space-mono text-[11px] uppercase tracking-[-0.44px] px-[12px] py-[6px] rounded-full border bg-transparent"
+                    style={{ color: hex, borderColor: hex }}
+                >
+                    Echo Park
+                </span>
+                {/* smallest real use — the AA 4.5 test */}
+                <span className="font-space-mono text-[11px] uppercase tracking-[-0.44px]" style={{ color: hex }}>
+                    smallest label
+                </span>
+            </div>
+
+            <p className="font-space-grotesk text-[13px] text-black/60 leading-snug">{note}</p>
+        </div>
+    );
+}
+
 export default function DesignPage() {
     return (
         <main className="bg-cream min-h-screen">
@@ -57,6 +134,21 @@ export default function DesignPage() {
                         drift from what ships.
                     </p>
                 </header>
+
+                {/* Accent exploration */}
+                <Section kicker="00" title="Accent — in exploration">
+                    <p className="font-space-grotesk text-[14px] text-black/70 mb-6 max-w-[560px]">
+                        Candidates for the brand accent, shown on the real cream with the actual
+                        link + pill patterns. Contrast is measured against cream — small UI labels
+                        need <strong>4.5:1 (AA)</strong>; large text / fills only need 3:1. Nothing
+                        below ships until one is promoted to <code className="text-accent">--ff-accent</code>.
+                    </p>
+                    <div className="flex flex-col gap-4">
+                        {ACCENT_CANDIDATES.map((c) => (
+                            <AccentRow key={c.hex} name={c.name} hex={c.hex} note={c.note} current={c.current} />
+                        ))}
+                    </div>
+                </Section>
 
                 {/* Colors */}
                 <Section kicker="01" title="Colors">

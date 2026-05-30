@@ -81,3 +81,52 @@ export const TRACKING = {
 export const RADIUS = {
     pill: '9999px',
 } as const;
+
+/* ───────────────────────────────────────────────────────────────────────
+   Accent color exploration (NOT YET ADOPTED).
+   Candidates for the brand accent, compared live on /design against the real
+   cream + patterns. Nothing here is wired into the app until one is promoted
+   to --ff-accent in globals.css + COLORS above.
+   ─────────────────────────────────────────────────────────────────────── */
+
+export interface AccentCandidate {
+    name: string;
+    hex: string;
+    /** Why it's in the running. */
+    note: string;
+    /** Marks the currently-shipping accent. */
+    current?: boolean;
+}
+
+export const ACCENT_CANDIDATES: AccentCandidate[] = [
+    { name: 'Iris', hex: '#5d39ac', note: 'Current. Creative / nightlife; cool against cream.', current: true },
+    { name: 'Deep Violet', hex: '#4C1D95', note: 'A confident, richer purple — intentional, not default.' },
+    { name: 'Brick', hex: '#C2371B', note: 'Warm vermillion — energetic, inviting, LA-flyer.' },
+    { name: 'Terracotta', hex: '#B5502E', note: 'Earthy warm clay — communal, harmonizes with cream.' },
+];
+
+/** WCAG relative luminance of a #rrggbb hex. */
+export function luminance(hex: string): number {
+    const h = hex.replace('#', '');
+    const toLin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+    const r = toLin(parseInt(h.slice(0, 2), 16) / 255);
+    const g = toLin(parseInt(h.slice(2, 4), 16) / 255);
+    const b = toLin(parseInt(h.slice(4, 6), 16) / 255);
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** WCAG contrast ratio between two hex colors (1–21). */
+export function contrastRatio(a: string, b: string): number {
+    const la = luminance(a);
+    const lb = luminance(b);
+    const hi = Math.max(la, lb);
+    const lo = Math.min(la, lb);
+    return (hi + 0.05) / (lo + 0.05);
+}
+
+/** AA verdict for a contrast ratio: small text needs 4.5, large/UI needs 3. */
+export function aaVerdict(ratio: number): 'AA' | 'AA Large' | 'Fail' {
+    if (ratio >= 4.5) return 'AA';
+    if (ratio >= 3) return 'AA Large';
+    return 'Fail';
+}
