@@ -6,6 +6,7 @@ import FlyerCard from '@/components/FlyerCard';
 import { Event } from '@/features/frequent-flyer/data/events';
 import { RecurringEvent } from '@/features/frequent-flyer/data/recurringEvents';
 import RecurringEventsTab from './RecurringEventsTab';
+import FilterPillRow from './FilterPillRow';
 
 const DATE_PRESETS = [
     { label: 'Today', value: 'today' },
@@ -137,11 +138,6 @@ export default function EventsPageClient({ initialEvents, recurringEvents = [] }
         router.replace(qs ? `${pathname}?${qs}` : pathname);
     }
 
-    const pillBase =
-        'font-space-mono text-[12px] uppercase tracking-[-0.48px] px-[14px] py-[7px] rounded-full border transition-colors whitespace-nowrap cursor-pointer';
-    const pillActive = 'bg-black text-cream border-black';
-    const pillInactive = 'bg-transparent text-black border-black/30 hover:border-black';
-
     const isDateActive = (value: string) =>
         value === 'all' ? !searchParams.get('date') : datePreset === value;
 
@@ -173,12 +169,7 @@ export default function EventsPageClient({ initialEvents, recurringEvents = [] }
 
                 {/* Regulars tab content */}
                 {tab === 'regulars' && (
-                    <RecurringEventsTab
-                        events={recurringEvents}
-                        pillBase={pillBase}
-                        pillActive={pillActive}
-                        pillInactive={pillInactive}
-                    />
+                    <RecurringEventsTab events={recurringEvents} />
                 )}
 
                 {/* Filter pills — Upcoming only */}
@@ -186,58 +177,46 @@ export default function EventsPageClient({ initialEvents, recurringEvents = [] }
                     <div className="flex flex-col gap-[10px] mb-[28px]">
 
                         {/* Date presets */}
-                        <div className="no-scrollbar flex gap-[8px] overflow-x-auto pb-[2px]">
-                            {DATE_PRESETS.map(p => (
-                                <button
-                                    key={p.value}
-                                    onClick={() => setParam('date', p.value === 'all' ? null : p.value)}
-                                    className={`${pillBase} ${isDateActive(p.value) ? pillActive : pillInactive}`}
-                                >
-                                    {p.label}
-                                </button>
-                            ))}
-                        </div>
+                        <FilterPillRow
+                            aria-label="Filter by date"
+                            pills={DATE_PRESETS.map(p => ({
+                                key: p.value,
+                                label: p.label,
+                                active: isDateActive(p.value),
+                                onClick: () => setParam('date', p.value === 'all' ? null : p.value),
+                            }))}
+                        />
 
                         {/* Neighborhood pills */}
                         {neighborhoods.length > 0 && (
-                            <div className="no-scrollbar flex gap-[8px] overflow-x-auto pb-[2px]">
-                                <button
-                                    onClick={() => setParam('neighborhood', null)}
-                                    className={`${pillBase} ${!neighborhoodFilter ? pillActive : pillInactive}`}
-                                >
-                                    All Areas
-                                </button>
-                                {neighborhoods.map(n => (
-                                    <button
-                                        key={n}
-                                        onClick={() => setParam('neighborhood', neighborhoodFilter === n ? null : n)}
-                                        className={`${pillBase} ${neighborhoodFilter === n ? pillActive : pillInactive}`}
-                                    >
-                                        {n}
-                                    </button>
-                                ))}
-                            </div>
+                            <FilterPillRow
+                                aria-label="Filter by neighborhood"
+                                pills={[
+                                    { key: '__all', label: 'All Areas', active: !neighborhoodFilter, onClick: () => setParam('neighborhood', null) },
+                                    ...neighborhoods.map(n => ({
+                                        key: n,
+                                        label: n,
+                                        active: neighborhoodFilter === n,
+                                        onClick: () => setParam('neighborhood', neighborhoodFilter === n ? null : n),
+                                    })),
+                                ]}
+                            />
                         )}
 
                         {/* Vibe pills */}
                         {vibes.length > 0 && (
-                            <div className="no-scrollbar flex gap-[8px] overflow-x-auto pb-[2px]">
-                                <button
-                                    onClick={() => setParam('vibe', null)}
-                                    className={`${pillBase} ${!vibeFilter ? pillActive : pillInactive}`}
-                                >
-                                    All Vibes
-                                </button>
-                                {vibes.map(v => (
-                                    <button
-                                        key={v}
-                                        onClick={() => setParam('vibe', vibeFilter === v ? null : v)}
-                                        className={`${pillBase} ${vibeFilter === v ? pillActive : pillInactive}`}
-                                    >
-                                        {v}
-                                    </button>
-                                ))}
-                            </div>
+                            <FilterPillRow
+                                aria-label="Filter by vibe"
+                                pills={[
+                                    { key: '__all', label: 'All Vibes', active: !vibeFilter, onClick: () => setParam('vibe', null) },
+                                    ...vibes.map(v => ({
+                                        key: v,
+                                        label: v,
+                                        active: vibeFilter === v,
+                                        onClick: () => setParam('vibe', vibeFilter === v ? null : v),
+                                    })),
+                                ]}
+                            />
                         )}
                     </div>
                 )}

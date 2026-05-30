@@ -3,15 +3,13 @@
 import { useMemo, useState } from 'react';
 import { RecurringEvent, DAY_NAMES_SHORT } from '@/features/frequent-flyer/data/recurringEvents';
 import RecurringEventCard from './RecurringEventCard';
+import FilterPillRow from './FilterPillRow';
 
 interface RecurringEventsTabProps {
     events: RecurringEvent[];
-    pillBase: string;
-    pillActive: string;
-    pillInactive: string;
 }
 
-export default function RecurringEventsTab({ events, pillBase, pillActive, pillInactive }: RecurringEventsTabProps) {
+export default function RecurringEventsTab({ events }: RecurringEventsTabProps) {
     // Default to current day of week
     const today = new Date().getDay();
     const [dayFilter, setDayFilter] = useState<number | null>(today);
@@ -42,64 +40,49 @@ export default function RecurringEventsTab({ events, pillBase, pillActive, pillI
             {/* Filter pills */}
             <div className="flex flex-col gap-[10px] mb-[28px]">
                 {/* Day-of-week pills */}
-                <div className="no-scrollbar flex gap-[8px] overflow-x-auto pb-[2px]">
-                    <button
-                        onClick={() => setDayFilter(null)}
-                        className={`${pillBase} ${dayFilter === null ? pillActive : pillInactive}`}
-                    >
-                        All Days
-                    </button>
-                    {DAY_NAMES_SHORT.map((name, i) => (
-                        <button
-                            key={i}
-                            onClick={() => setDayFilter(dayFilter === i ? null : i)}
-                            className={`${pillBase} ${dayFilter === i ? pillActive : pillInactive}`}
-                        >
-                            {name}
-                        </button>
-                    ))}
-                </div>
+                <FilterPillRow
+                    aria-label="Filter by day"
+                    pills={[
+                        { key: '__all', label: 'All Days', active: dayFilter === null, onClick: () => setDayFilter(null) },
+                        ...DAY_NAMES_SHORT.map((name, i) => ({
+                            key: String(i),
+                            label: name,
+                            active: dayFilter === i,
+                            onClick: () => setDayFilter(dayFilter === i ? null : i),
+                        })),
+                    ]}
+                />
 
                 {/* Category pills */}
                 {categories.length > 0 && (
-                    <div className="no-scrollbar flex gap-[8px] overflow-x-auto pb-[2px]">
-                        <button
-                            onClick={() => setCategoryFilter(null)}
-                            className={`${pillBase} ${!categoryFilter ? pillActive : pillInactive}`}
-                        >
-                            All Types
-                        </button>
-                        {categories.map(c => (
-                            <button
-                                key={c}
-                                onClick={() => setCategoryFilter(categoryFilter === c ? null : c)}
-                                className={`${pillBase} ${categoryFilter === c ? pillActive : pillInactive}`}
-                            >
-                                {c}
-                            </button>
-                        ))}
-                    </div>
+                    <FilterPillRow
+                        aria-label="Filter by type"
+                        pills={[
+                            { key: '__all', label: 'All Types', active: !categoryFilter, onClick: () => setCategoryFilter(null) },
+                            ...categories.map(c => ({
+                                key: c,
+                                label: c,
+                                active: categoryFilter === c,
+                                onClick: () => setCategoryFilter(categoryFilter === c ? null : c),
+                            })),
+                        ]}
+                    />
                 )}
 
                 {/* Neighborhood pills */}
                 {neighborhoods.length > 0 && (
-                    <div className="no-scrollbar flex gap-[8px] overflow-x-auto pb-[2px]">
-                        <button
-                            onClick={() => setNeighborhoodFilter(null)}
-                            className={`${pillBase} ${!neighborhoodFilter ? pillActive : pillInactive}`}
-                        >
-                            All Areas
-                        </button>
-                        {neighborhoods.map(n => (
-                            <button
-                                key={n}
-                                onClick={() => setNeighborhoodFilter(neighborhoodFilter === n ? null : n)}
-                                className={`${pillBase} ${neighborhoodFilter === n ? pillActive : pillInactive}`}
-                            >
-                                {n}
-                            </button>
-                        ))}
-                    </div>
+                    <FilterPillRow
+                        aria-label="Filter by neighborhood"
+                        pills={[
+                            { key: '__all', label: 'All Areas', active: !neighborhoodFilter, onClick: () => setNeighborhoodFilter(null) },
+                            ...neighborhoods.map(n => ({
+                                key: n,
+                                label: n,
+                                active: neighborhoodFilter === n,
+                                onClick: () => setNeighborhoodFilter(neighborhoodFilter === n ? null : n),
+                            })),
+                        ]}
+                    />
                 )}
             </div>
 
