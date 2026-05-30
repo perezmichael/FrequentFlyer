@@ -4,7 +4,29 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Colors - Gemini/Airbnb Inspired */
+  /* ─────────────────────────────────────────────────────────────────────
+     FREQUENT FLYER BRAND TOKENS — use these for all product UI.
+     These are the real design DNA. See /design and CLAUDE.md.
+     (The shadcn/oklch tokens further below power src/components/ui/* used
+     only by the admin area — prefer the brand tokens for everything else.)
+     ───────────────────────────────────────────────────────────────────── */
+  --ff-cream: #FFFAEB;        /* app background / inverse text on dark */
+  --ff-ink: #1a1a1a;          /* primary text & solid fills (near-black) */
+  --ff-accent: #5d39ac;       /* purple accent — links/active states */
+  --ff-flyer-cream: #efede1;  /* text on dark flyer artwork */
+
+  /* Hairline borders are the ink at low opacity */
+  --ff-border-strong: rgba(0, 0, 0, 0.40);
+  --ff-border: rgba(0, 0, 0, 0.30);
+  --ff-border-faint: rgba(0, 0, 0, 0.05);
+
+  /* Type: Space Mono = UI/labels, Space Grotesk = flyer headings,
+     EB Garamond = serif accents. Labels use tight negative tracking. */
+  --ff-tracking-label: -0.64px;
+  --ff-tracking-pill: -0.44px;
+  --ff-radius-pill: 9999px;
+
+  /* Colors - Gemini/Airbnb Inspired (shadcn scaffold — used by admin ui only) */
 
   --primary: oklch(0.205 0 0);
   /* Gemini Blue-ish */
@@ -171,6 +193,12 @@ h6 {
 
   --font-space-mono: var(--font-space-mono);
   --font-space-grotesk: var(--font-space-grotesk);
+
+  /* Brand color utilities: bg-cream, text-ink, text-accent, text-flyer, etc. */
+  --color-cream: var(--ff-cream);
+  --color-ink: var(--ff-ink);
+  --color-accent: var(--ff-accent);
+  --color-flyer: var(--ff-flyer-cream);
 
   --radius-sm: calc(var(--radius) - 4px);
 

@@ -6,6 +6,7 @@ import EventCard2 from './EventCard2';
 import RecurringEventCard from './RecurringEventCard';
 import MapLoader from '@/components/MapLoader';
 import styles from './HomeClient.module.css';
+import { filterPill } from '@/features/frequent-flyer/design/patterns';
 import { Event } from '@/features/frequent-flyer/data/events';
 import { RecurringEvent, DAY_NAMES_SHORT, formatRecurringSchedule } from '@/features/frequent-flyer/data/recurringEvents';
 
@@ -131,11 +132,6 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
         }
     };
 
-    const pillBase =
-        'font-space-mono text-[11px] uppercase tracking-[-0.44px] px-[12px] py-[6px] rounded-full border transition-colors whitespace-nowrap cursor-pointer';
-    const pillActive = 'bg-black text-[#FFFAEB] border-black';
-    const pillInactive = 'bg-transparent text-black border-black/30 hover:border-black';
-
     return (
         <div className={styles.main}>
             {/* Mobile tab bar */}
@@ -166,7 +162,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                         <div className="flex gap-[6px] overflow-x-auto pb-[2px] mt-[12px]" style={{ scrollbarWidth: 'none' }}>
                             <button
                                 onClick={() => setDayFilter(null)}
-                                className={`${pillBase} ${dayFilter === null ? pillActive : pillInactive}`}
+                                className={filterPill(dayFilter === null)}
                             >
                                 All
                             </button>
@@ -174,7 +170,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                                 <button
                                     key={i}
                                     onClick={() => setDayFilter(dayFilter === i ? null : i)}
-                                    className={`${pillBase} ${dayFilter === i ? pillActive : pillInactive} ${i === today ? 'font-bold' : ''}`}
+                                    className={`${filterPill(dayFilter === i)} ${i === today ? 'font-bold' : ''}`}
                                 >
                                     {i === today ? `${name} ·` : name}
                                 </button>
@@ -186,7 +182,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                             <div className="flex gap-[6px] overflow-x-auto pb-[2px] mt-[8px]" style={{ scrollbarWidth: 'none' }}>
                                 <button
                                     onClick={() => setNeighborhoodFilter(null)}
-                                    className={`${pillBase} ${!neighborhoodFilter ? pillActive : pillInactive}`}
+                                    className={filterPill(!neighborhoodFilter)}
                                 >
                                     All Areas
                                 </button>
@@ -194,7 +190,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                                     <button
                                         key={n}
                                         onClick={() => setNeighborhoodFilter(neighborhoodFilter === n ? null : n)}
-                                        className={`${pillBase} ${neighborhoodFilter === n ? pillActive : pillInactive}`}
+                                        className={filterPill(neighborhoodFilter === n)}
                                     >
                                         {n}
                                     </button>

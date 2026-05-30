@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import TipsBill from '@/components/TipsBill';
+import { navLink as navLinkClass, createPill as createPillClass } from '@/features/frequent-flyer/design/patterns';
 import styles from './Navbar.module.css';
 
 export default function Navbar() {
@@ -23,9 +24,6 @@ export default function Navbar() {
     }, []);
 
     const isSolid = isGuideDetailPage || scrolled || isMenuOpen;
-
-    const navLinkClass = "font-space-mono leading-[1.25] not-italic text-[16px] text-black tracking-[-0.64px] uppercase hover:underline underline-offset-4 decoration-2";
-    const createPillClass = "font-space-mono leading-none not-italic text-[15px] text-black tracking-[-0.64px] uppercase border border-black/40 rounded-full px-5 py-2.5 hover:bg-black hover:text-[#FFFAEB] transition-colors no-underline whitespace-nowrap";
 
     return (
         <nav
