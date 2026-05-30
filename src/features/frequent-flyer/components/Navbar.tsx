@@ -40,6 +40,7 @@ export default function Navbar() {
                             alt="Frequent Flyer Logo"
                             className="object-contain"
                             fill
+                            sizes="123px"
                             src="/images/fflogo20.png"
                             priority
                         />
