@@ -28,7 +28,10 @@ export default function Navbar() {
     const createPillClass = "font-space-mono leading-none not-italic text-[15px] text-black tracking-[-0.64px] uppercase border border-black/40 rounded-full px-5 py-2.5 hover:bg-black hover:text-[#FFFAEB] transition-colors no-underline whitespace-nowrap";
 
     return (
-        <nav className={`fixed top-0 left-0 right-0 z-[100] transition-colors duration-200 ${isSolid ? 'bg-[#FFFAEB] border-b border-black/5' : 'bg-transparent'}`}>
+        <nav
+            style={{ zIndex: 1100 }}
+            className={`fixed top-0 left-0 right-0 transition-colors duration-200 ${isSolid ? 'bg-[#FFFAEB] border-b border-black/5' : 'bg-transparent'}`}
+        >
             <div className="page-container w-full flex justify-between items-center h-[100px]">
                 {/* Logo and title */}
                 <Link href="/" className="flex items-center gap-[16px] group no-underline">
