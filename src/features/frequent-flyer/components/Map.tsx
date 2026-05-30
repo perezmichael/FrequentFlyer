@@ -97,10 +97,13 @@ function CustomControls({ isFullscreen, onToggleFullscreen }: { isFullscreen: bo
 
 // Vibe to Emoji Mapping
 import { VIBES } from '@/features/frequent-flyer/data/vibes';
+import { RECURRING_CATEGORIES } from '@/features/frequent-flyer/data/recurringCategories';
 
-// Extract just the emoji from a vibe label like "🎶 Music" → "🎶"
+// Extract just the emoji from a label like "🎶 Music" → "🎶". One-off events
+// use VIBES keys ("Nightlife"); recurring events use their own category
+// vocabulary ("Dance Night"), so we check both before falling back to 📍.
 const getVibeEmoji = (vibe: string): string => {
-    const label = VIBES[vibe] || '';
+    const label = VIBES[vibe] || RECURRING_CATEGORIES[vibe] || '';
     return label.split(' ')[0] || '📍';
 };
 
