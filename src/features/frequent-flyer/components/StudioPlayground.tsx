@@ -179,6 +179,7 @@ function brandObject(obj: fabric.FabricObject) {
 
 export default function StudioPlayground() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const fileRef = useRef<HTMLInputElement>(null);
     const fcRef = useRef<fabric.Canvas | null>(null);
     const guidesRef = useRef<Guide[]>([]);
     const hoverRef = useRef<fabric.FabricObject | null>(null);
@@ -479,6 +480,40 @@ export default function StudioPlayground() {
         place(new fabric.IText('LABEL TEXT', { fontFamily: MONO, fontSize: 16, fill: INK, charSpacing: -20 }), 'Text');
     const addBox = () => place(new fabric.Rect({ width: 120, height: 120, fill: BRAND }), 'Box');
 
+    // Image layer: upload PNG/JPG/SVG, fit, center, and pop it in. A free
+    // element (no role) so templates leave it where the user puts it.
+    const addImage = useCallback((dataUrl: string) => {
+        const canvas = fcRef.current;
+        if (!canvas) return;
+        fabric.FabricImage.fromURL(dataUrl).then((img) => {
+            const fit = Math.min((CANVAS_W * 0.6) / (img.width || 1), (CANVAS_H * 0.55) / (img.height || 1), 1);
+            brandObject(img);
+            const so = img as StudioObject;
+            so.sid = nextId();
+            so.sname = freeName('Image');
+            img.set({ originX: 'center', originY: 'center', left: CANVAS_W / 2, top: CANVAS_H / 2, scaleX: fit * 0.9, scaleY: fit * 0.9, opacity: 0 });
+            canvas.add(img);
+            canvas.setActiveObject(img);
+            img.animate(
+                { scaleX: fit, scaleY: fit, opacity: 1 },
+                { duration: 240, easing: fabric.util.ease.easeOutCubic, onChange: () => canvas.requestRenderAll() },
+            );
+            refreshLayers();
+            setSelectedId(so.sid ?? null);
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [refreshLayers]);
+
+    const onPickImage = () => fileRef.current?.click();
+    const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const f = e.target.files?.[0];
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = () => addImage(reader.result as string);
+        reader.readAsDataURL(f);
+        e.target.value = '';
+    };
+
     const deleteActive = useCallback(() => {
         const canvas = fcRef.current;
         if (!canvas) return;
@@ -594,7 +629,9 @@ export default function StudioPlayground() {
                         <button className={toolBtn} onClick={addHeadline} disabled={!ready}>+ Headline</button>
                         <button className={toolBtn} onClick={addLabel} disabled={!ready}>+ Label</button>
                         <button className={toolBtn} onClick={addBox} disabled={!ready}>+ Box</button>
+                        <button className={toolBtn} onClick={onPickImage} disabled={!ready}>+ Image</button>
                         <button className={toolBtn} onClick={deleteActive} disabled={!ready}>Delete</button>
+                        <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" className="hidden" onChange={onFile} />
                     </div>
 
                     {/* Canvas stage */}
