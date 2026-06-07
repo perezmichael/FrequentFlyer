@@ -29,9 +29,13 @@ type Guide = { orient: 'v' | 'h'; pos: number };
 // An object can play a template "role" (slot) and carries a stable id + name
 // for the layers panel.
 type Role = 'headline' | 'accent' | 'date' | 'venue';
-type StudioObject = fabric.FabricObject & { role?: Role; sid?: string; sname?: string };
+// `sys` marks the background-fill / background-image / texture layers. They live
+// in the normal object stack (so they show in the panel and can be reordered)
+// but aren't directly selectable/draggable on the canvas.
+type SysKind = 'bgfill' | 'bgimage' | 'texture';
+type StudioObject = fabric.FabricObject & { role?: Role; sid?: string; sname?: string; sys?: SysKind };
 
-type LayerInfo = { id: string; name: string; type: string; visible: boolean; role?: Role };
+type LayerInfo = { id: string; name: string; type: string; visible: boolean; role?: Role; sys?: SysKind };
 
 // ---- Templates -------------------------------------------------------------
 interface RoleTarget {
@@ -136,6 +140,18 @@ function findById(canvas: fabric.Canvas, id: string): StudioObject | undefined {
     return canvas.getObjects().find((o) => (o as StudioObject).sid === id) as StudioObject | undefined;
 }
 
+function findSys(canvas: fabric.Canvas, sys: SysKind): StudioObject | undefined {
+    return canvas.getObjects().find((o) => (o as StudioObject).sys === sys) as StudioObject | undefined;
+}
+
+/** Move an object to a specific z-index within the canvas stack. */
+function moveToIndex(canvas: fabric.Canvas, obj: fabric.FabricObject, index: number) {
+    const arr = (canvas as unknown as { _objects: fabric.FabricObject[] })._objects;
+    const i = arr.indexOf(obj);
+    if (i >= 0) arr.splice(i, 1);
+    arr.splice(Math.max(0, Math.min(index, arr.length)), 0, obj);
+}
+
 function describeCanvas(canvas: fabric.Canvas): LayerInfo[] {
     // Front-most first (top of the list = top of the z-stack).
     return canvas
@@ -144,7 +160,7 @@ function describeCanvas(canvas: fabric.Canvas): LayerInfo[] {
         .reverse()
         .map((o) => {
             const so = o as StudioObject;
-            return { id: so.sid ?? '', name: so.sname ?? o.type ?? 'layer', type: o.type ?? '', visible: o.visible !== false, role: so.role };
+            return { id: so.sid ?? '', name: so.sname ?? o.type ?? 'layer', type: o.type ?? '', visible: o.visible !== false, role: so.role, sys: so.sys };
         });
 }
 
@@ -281,6 +297,18 @@ export default function StudioPlayground() {
             fontFamily: MONO, fontSize: 14, fill: INK, opacity: 0.65, charSpacing: -20,
         });
 
+        // Background fill is a real bottom layer (so it shows in the panel and
+        // can be reordered), not fabric's special backgroundColor slot.
+        const bgFill = new fabric.Rect({
+            left: 0, top: 0, originX: 'left', originY: 'top',
+            width: CANVAS_W, height: CANVAS_H, fill: CREAM,
+            selectable: false, evented: false, hoverCursor: 'default',
+        }) as StudioObject;
+        bgFill.sys = 'bgfill';
+        bgFill.sid = nextId();
+        bgFill.sname = 'Background';
+        canvas.add(bgFill);
+
         add(headline, 'headline');
         add(accent, 'accent');
         add(date, 'date');
@@ -396,11 +424,13 @@ export default function StudioPlayground() {
 
         canvas.discardActiveObject();
         guidesRef.current = [];
-        canvas.backgroundImage = undefined; // a template owns its background look
 
-        // Only animate the background color when it's a solid hex (a custom
-        // gradient/image background can't be color-lerped — snap it instead).
-        const startBgRaw = canvas.backgroundColor;
+        // A template recolors the background-fill *layer* (and morphs the text
+        // roles). It leaves the user's bg-image / texture layers alone.
+        const bgFill = findSys(canvas, 'bgfill');
+        // Only animate the fill when it's a solid hex (a gradient can't be
+        // color-lerped — snap it at the end instead).
+        const startBgRaw = bgFill?.fill;
         const bgIsHex = typeof startBgRaw === 'string' && startBgRaw.startsWith('#');
         const startBg = bgIsHex ? (startBgRaw as string) : CREAM;
         const endBg = tpl.bg;
@@ -451,7 +481,7 @@ export default function StudioPlayground() {
             duration: 480,
             easing: fabric.util.ease.easeOutCubic,
             onChange: (t: number) => {
-                if (bgIsHex) canvas.backgroundColor = hexLerp(startBg, endBg, t);
+                if (bgIsHex && bgFill) bgFill.set('fill', hexLerp(startBg, endBg, t));
                 for (const { obj, target, start } of plans) {
                     obj.set('top', lerp(start.top, target.top, t));
                     if (target.fontSize != null) obj.set('fontSize', lerp(start.fontSize, target.fontSize, t));
@@ -467,7 +497,7 @@ export default function StudioPlayground() {
                 canvas.requestRenderAll();
             },
             onComplete: () => {
-                canvas.backgroundColor = endBg;
+                if (bgFill) bgFill.set('fill', endBg);
                 setActiveBg(endBg);
                 for (const { obj, target } of plans) {
                     obj.set('top', target.top);
@@ -547,12 +577,13 @@ export default function StudioPlayground() {
     const onPickImage = () => { uploadModeRef.current = 'object'; fileRef.current?.click(); };
     const onPickBg = () => { uploadModeRef.current = 'bg'; fileRef.current?.click(); };
 
-    // ---- Background + texture ----------------------------------------------
+    // ---- Background + texture (all real, reorderable layers) ----------------
     const setBgColor = (hex: string) => {
         const canvas = fcRef.current;
         if (!canvas) return;
-        canvas.backgroundImage = undefined;
-        canvas.backgroundColor = hex;
+        const bgFill = findSys(canvas, 'bgfill');
+        if (!bgFill) return;
+        bgFill.set('fill', hex);
         canvas.requestRenderAll();
         setActiveBg(hex);
     };
@@ -560,12 +591,13 @@ export default function StudioPlayground() {
     const setBgGradient = (g: GradientPreset) => {
         const canvas = fcRef.current;
         if (!canvas) return;
-        canvas.backgroundImage = undefined;
-        canvas.backgroundColor = new fabric.Gradient({
+        const bgFill = findSys(canvas, 'bgfill');
+        if (!bgFill) return;
+        bgFill.set('fill', new fabric.Gradient({
             type: 'linear',
             coords: { x1: 0, y1: 0, x2: CANVAS_W, y2: CANVAS_H },
             colorStops: g.stops.map((color, i) => ({ offset: i / (g.stops.length - 1), color })),
-        }) as unknown as string;
+        }) as unknown as string);
         canvas.requestRenderAll();
         setActiveBg(g.id);
     };
@@ -575,20 +607,33 @@ export default function StudioPlayground() {
         if (!canvas) return;
         fabric.FabricImage.fromURL(dataUrl).then((img) => {
             const s = Math.max(CANVAS_W / (img.width || 1), CANVAS_H / (img.height || 1));
-            img.set({ originX: 'center', originY: 'center', left: CANVAS_W / 2, top: CANVAS_H / 2, scaleX: s, scaleY: s });
-            canvas.backgroundImage = img;
+            img.set({ originX: 'center', originY: 'center', left: CANVAS_W / 2, top: CANVAS_H / 2, scaleX: s, scaleY: s, selectable: false, evented: false, hoverCursor: 'default' });
+            const so = img as StudioObject;
+            so.sys = 'bgimage';
+            so.sid = nextId();
+            so.sname = 'Bg image';
+            const existing = findSys(canvas, 'bgimage');
+            if (existing) canvas.remove(existing);
+            canvas.add(img);
+            // Sit just above the background fill by default.
+            const bgFill = findSys(canvas, 'bgfill');
+            const idx = bgFill ? canvas.getObjects().indexOf(bgFill) + 1 : 0;
+            moveToIndex(canvas, img, idx);
             canvas.requestRenderAll();
             setActiveBg('image');
+            refreshLayers();
         });
     };
 
     const applyTexture = (kind: 'none' | 'grain' | 'paper') => {
         const canvas = fcRef.current;
         if (!canvas) return;
+        const existing = findSys(canvas, 'texture');
+        if (existing) canvas.remove(existing);
         if (kind === 'none') {
-            canvas.overlayImage = undefined;
             canvas.requestRenderAll();
             setActiveTexture('none');
+            refreshLayers();
             return;
         }
         const url = makeNoise(kind === 'grain' ? 38 : 24);
@@ -596,12 +641,17 @@ export default function StudioPlayground() {
             img.set({
                 originX: 'left', originY: 'top', left: 0, top: 0,
                 scaleX: CANVAS_W / (img.width || CANVAS_W), scaleY: CANVAS_H / (img.height || CANVAS_H),
-                opacity: kind === 'grain' ? 0.5 : 0.4, selectable: false, evented: false,
+                opacity: kind === 'grain' ? 0.5 : 0.4, selectable: false, evented: false, hoverCursor: 'default',
             });
             img.globalCompositeOperation = kind === 'grain' ? 'overlay' : 'multiply';
-            canvas.overlayImage = img;
+            const so = img as StudioObject;
+            so.sys = 'texture';
+            so.sid = nextId();
+            so.sname = kind === 'grain' ? 'Grain' : 'Paper';
+            canvas.add(img); // on top by default — drag it down to taste
             canvas.requestRenderAll();
             setActiveTexture(kind);
+            refreshLayers();
         });
     };
 
@@ -637,6 +687,8 @@ export default function StudioPlayground() {
         if (!canvas) return;
         const obj = findById(canvas, id);
         if (!obj) return;
+        // Background/texture layers aren't directly selectable; just highlight.
+        if ((obj as StudioObject).sys) { setSelectedId(id); return; }
         canvas.setActiveObject(obj);
         canvas.requestRenderAll();
         setSelectedId(id);
@@ -826,6 +878,7 @@ function LayerRow({
 }) {
     const controls = useDragControls();
     const isRole = !!layer.role;
+    const isSys = !!layer.sys;
     return (
         <Reorder.Item
             value={layer}
@@ -850,7 +903,8 @@ function LayerRow({
                 className="flex-1 text-left font-space-mono uppercase text-[11px] tracking-[-0.44px] text-ink truncate"
             >
                 {layer.name}
-                {!isRole && <span className="text-black/30 normal-case"> · free</span>}
+                {!isRole && !isSys && <span className="text-black/30 normal-case"> · free</span>}
+                {isSys && <span className="text-black/25 normal-case"> · bg</span>}
             </button>
             <button
                 type="button"
