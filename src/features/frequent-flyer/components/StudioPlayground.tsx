@@ -128,6 +128,33 @@ const STARTERS: Starter[] = [
 ];
 const starterSrc = (file: string) => `/studio/starters/${encodeURIComponent(file)}`;
 
+// ---- Typography ------------------------------------------------------------
+// Curated, opinionated set — each with a clear role (anti-slop > infinite list).
+const FONTS = [
+    { label: 'Grotesk', family: "'Space Grotesk', sans-serif" },
+    { label: 'Mono', family: MONO },
+    { label: 'Garamond', family: "'EB Garamond', serif" },
+    { label: 'Anton', family: "'Anton', sans-serif" },
+    { label: 'Fredoka', family: "'Fredoka', sans-serif" },
+    { label: 'Pacifico', family: "'Pacifico', cursive" },
+    { label: 'Marker', family: "'Permanent Marker', cursive" },
+    { label: 'Playfair', family: "'Playfair Display', serif" },
+];
+// Loaded on demand (the first three already ship with the app).
+const GOOGLE_FONTS_HREF =
+    'https://fonts.googleapis.com/css2?family=Anton&family=Fredoka:wght@400;600&family=Pacifico&family=Permanent+Marker&family=Playfair+Display:wght@400;700;900&display=swap';
+
+type TextProps = {
+    fontFamily: string;
+    fontSize: number;
+    charSpacing: number;
+    lineHeight: number;
+    textAlign: 'left' | 'center' | 'right';
+    fill: string;
+};
+
+const isTextType = (t?: string) => t === 'textbox' || t === 'i-text' || t === 'text';
+
 /** Procedural film-grain / paper noise as a data URL (no asset files). */
 function makeNoise(alpha: number): string {
     if (typeof document === 'undefined') return '';
@@ -198,6 +225,18 @@ function hexLerp(a: string, b: string, t: number): string {
     return `rgb(${Math.round(lerp(A[0], B[0], t))},${Math.round(lerp(A[1], B[1], t))},${Math.round(lerp(A[2], B[2], t))})`;
 }
 
+/** Normalize a fill (hex or rgb()) into a 6-digit hex for <input type=color>. */
+function toHexColor(c: string): string {
+    if (!c) return '#000000';
+    if (c.startsWith('#')) return c.length === 4 ? '#' + c.slice(1).split('').map((x) => x + x).join('') : c.slice(0, 7);
+    const m = c.match(/\d+/g);
+    if (m && m.length >= 3) {
+        const h = (n: string) => Number(n).toString(16).padStart(2, '0');
+        return `#${h(m[0])}${h(m[1])}${h(m[2])}`;
+    }
+    return '#000000';
+}
+
 /**
  * Draw the rotation grip as a small brand-brick disc with a cream rim — the
  * signature "designed control" detail that replaces fabric's default square.
@@ -258,7 +297,18 @@ export default function StudioPlayground() {
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [activeBg, setActiveBg] = useState<string>(CREAM);
     const [activeTexture, setActiveTexture] = useState<'none' | 'grain' | 'paper'>('none');
+    const [textProps, setTextProps] = useState<TextProps | null>(null);
     const uploadModeRef = useRef<'object' | 'bg'>('object');
+
+    // Load the curated Google fonts once (for the canvas + the panel preview).
+    useEffect(() => {
+        if (typeof document === 'undefined' || document.getElementById('studio-fonts')) return;
+        const link = document.createElement('link');
+        link.id = 'studio-fonts';
+        link.rel = 'stylesheet';
+        link.href = GOOGLE_FONTS_HREF;
+        document.head.appendChild(link);
+    }, []);
 
     const nextId = () => `o${++idRef.current}`;
     const freeName = (base: string) => {
@@ -417,6 +467,19 @@ export default function StudioPlayground() {
         const onSelect = () => {
             const a = canvas.getActiveObject() as StudioObject | undefined;
             setSelectedId(a?.sid ?? null);
+            if (a && isTextType(a.type)) {
+                const t = a as fabric.IText;
+                setTextProps({
+                    fontFamily: t.fontFamily ?? '',
+                    fontSize: t.fontSize ?? 0,
+                    charSpacing: t.charSpacing ?? 0,
+                    lineHeight: t.lineHeight ?? 1,
+                    textAlign: (t.textAlign as TextProps['textAlign']) ?? 'left',
+                    fill: (a.fill as string) || INK,
+                });
+            } else {
+                setTextProps(null);
+            }
         };
 
         canvas.on('object:moving', onMoving);
@@ -425,7 +488,7 @@ export default function StudioPlayground() {
         canvas.on('object:modified', clearGuides);
         canvas.on('selection:created', onSelect);
         canvas.on('selection:updated', onSelect);
-        canvas.on('selection:cleared', () => { clearGuides(); setSelectedId(null); });
+        canvas.on('selection:cleared', () => { clearGuides(); setSelectedId(null); setTextProps(null); });
 
         setReady(true);
 
@@ -710,6 +773,16 @@ export default function StudioPlayground() {
         canvas.setActiveObject(obj);
         canvas.requestRenderAll();
         setSelectedId(id);
+        // Populate the typography panel directly (don't depend on the event firing).
+        if (isTextType(obj.type)) {
+            const t = obj as fabric.IText;
+            setTextProps({
+                fontFamily: t.fontFamily ?? '', fontSize: t.fontSize ?? 0, charSpacing: t.charSpacing ?? 0,
+                lineHeight: t.lineHeight ?? 1, textAlign: (t.textAlign as TextProps['textAlign']) ?? 'left', fill: (obj.fill as string) || INK,
+            });
+        } else {
+            setTextProps(null);
+        }
     }, []);
 
     const toggleVisible = useCallback((id: string) => {
@@ -721,6 +794,25 @@ export default function StudioPlayground() {
         canvas.requestRenderAll();
         refreshLayers();
     }, [refreshLayers]);
+
+    // ---- Typography edits (operate on the active text object) --------------
+    const updateText = useCallback((patch: Partial<TextProps>) => {
+        const canvas = fcRef.current;
+        const o = canvas?.getActiveObject();
+        if (!canvas || !o || !isTextType(o.type)) return;
+        o.set(patch as Record<string, unknown>);
+        o.setCoords();
+        canvas.requestRenderAll();
+        setTextProps((p) => (p ? { ...p, ...patch } : p));
+    }, []);
+
+    const setFont = useCallback((family: string) => {
+        updateText({ fontFamily: family });
+        // Ensure the face is loaded, then re-render so metrics are correct.
+        if (typeof document !== 'undefined' && document.fonts) {
+            document.fonts.load(`24px ${family}`).then(() => fcRef.current?.requestRenderAll()).catch(() => {});
+        }
+    }, [updateText]);
 
     const hoverLayer = useCallback((id: string | null) => {
         const canvas = fcRef.current;
@@ -879,6 +971,49 @@ export default function StudioPlayground() {
                     {/* Layers panel — inline width: a few Tailwind v4 JIT width
                         utilities don't generate reliably in this setup. */}
                     <div className="shrink-0" style={{ width: 230, maxWidth: '100%' }}>
+                        {/* Typography — contextual: shows when a text layer is selected */}
+                        {textProps && (
+                            <div className="mb-6 flex flex-col gap-3 border-b border-black/10 pb-6">
+                                <p className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-black/50">Text</p>
+                                <select
+                                    value={textProps.fontFamily}
+                                    onChange={(e) => setFont(e.target.value)}
+                                    className="font-space-mono text-[12px] border border-black/30 rounded-md px-2 py-1.5 bg-cream"
+                                >
+                                    {FONTS.map((f) => <option key={f.label} value={f.family}>{f.label}</option>)}
+                                </select>
+                                <div className="flex items-center gap-2">
+                                    <label className="flex items-center gap-1.5 flex-1">
+                                        <span className="font-space-mono uppercase text-[10px] tracking-[-0.44px] text-black/40">Size</span>
+                                        <input type="number" min={6} max={200} value={Math.round(textProps.fontSize)}
+                                            onChange={(e) => updateText({ fontSize: Number(e.target.value) })}
+                                            className="w-full font-space-mono text-[12px] border border-black/30 rounded-md px-2 py-1" />
+                                    </label>
+                                    <input type="color" value={toHexColor(textProps.fill)}
+                                        onChange={(e) => updateText({ fill: e.target.value })}
+                                        className="w-[30px] h-[30px] rounded-md border border-black/20 cursor-pointer p-0 bg-transparent" title="Text color" />
+                                </div>
+                                <label className="flex flex-col gap-1">
+                                    <span className="font-space-mono uppercase text-[10px] tracking-[-0.44px] text-black/40">Tracking</span>
+                                    <input type="range" min={-80} max={200} value={textProps.charSpacing}
+                                        onChange={(e) => updateText({ charSpacing: Number(e.target.value) })} style={{ accentColor: BRAND }} />
+                                </label>
+                                <label className="flex flex-col gap-1">
+                                    <span className="font-space-mono uppercase text-[10px] tracking-[-0.44px] text-black/40">Leading</span>
+                                    <input type="range" min={0.8} max={2} step={0.05} value={textProps.lineHeight}
+                                        onChange={(e) => updateText({ lineHeight: Number(e.target.value) })} style={{ accentColor: BRAND }} />
+                                </label>
+                                <div className="flex gap-2">
+                                    {(['left', 'center', 'right'] as const).map((a) => (
+                                        <button key={a} type="button" onClick={() => updateText({ textAlign: a })}
+                                            className={`flex-1 font-space-mono uppercase text-[10px] tracking-[-0.44px] rounded-md border px-2 py-1.5 transition-colors ${textProps.textAlign === a ? 'bg-black text-[#FFFAEB] border-black' : 'border-black/30 hover:border-black'}`}>
+                                            {a[0]}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <p className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-black/50 mb-3">Layers</p>
                         <Reorder.Group axis="y" values={layers} onReorder={reorderLayers} className="flex flex-col gap-1.5 list-none m-0 p-0">
                             {layers.map((layer) => (
