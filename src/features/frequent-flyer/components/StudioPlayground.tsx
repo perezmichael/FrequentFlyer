@@ -94,6 +94,37 @@ const TEMPLATES: Template[] = [
 
 const ROLES: Role[] = ['headline', 'accent', 'date', 'venue'];
 
+// ---- Background presets ----------------------------------------------------
+const BG_SWATCHES = [CREAM, '#f0e6c8', INK, '#1f3a2e', '#1b2a4a', BRAND, '#e8907a', FLYER];
+
+type GradientPreset = { id: string; stops: string[] };
+const GRADIENTS: GradientPreset[] = [
+    { id: 'sunset', stops: ['#F5D8B0', '#E8907A', '#C2371B'] },
+    { id: 'dusk', stops: ['#2b2350', '#5a4b8a', '#c98fb0'] },
+    { id: 'ocean', stops: ['#0f2a3a', '#1f6f8b', '#8fd0c9'] },
+];
+
+const cssGradient = (g: GradientPreset) => `linear-gradient(135deg, ${g.stops.join(', ')})`;
+
+/** Procedural film-grain / paper noise as a data URL (no asset files). */
+function makeNoise(alpha: number): string {
+    if (typeof document === 'undefined') return '';
+    const c = document.createElement('canvas');
+    c.width = CANVAS_W;
+    c.height = CANVAS_H;
+    const ctx = c.getContext('2d');
+    if (!ctx) return '';
+    const id = ctx.createImageData(CANVAS_W, CANVAS_H);
+    const d = id.data;
+    for (let i = 0; i < d.length; i += 4) {
+        const v = Math.random() * 255;
+        d[i] = d[i + 1] = d[i + 2] = v;
+        d[i + 3] = Math.random() * alpha;
+    }
+    ctx.putImageData(id, 0, 0);
+    return c.toDataURL();
+}
+
 /** A template's foreground (text) color, used to keep free text readable. */
 const foreground = (bg: string) => (bg.toLowerCase() === CREAM.toLowerCase() ? INK : FLYER);
 
@@ -191,6 +222,9 @@ export default function StudioPlayground() {
     const [activeTpl, setActiveTpl] = useState<string>('stack');
     const [layers, setLayers] = useState<LayerInfo[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [activeBg, setActiveBg] = useState<string>(CREAM);
+    const [activeTexture, setActiveTexture] = useState<'none' | 'grain' | 'paper'>('none');
+    const uploadModeRef = useRef<'object' | 'bg'>('object');
 
     const nextId = () => `o${++idRef.current}`;
     const freeName = (base: string) => {
@@ -362,8 +396,13 @@ export default function StudioPlayground() {
 
         canvas.discardActiveObject();
         guidesRef.current = [];
+        canvas.backgroundImage = undefined; // a template owns its background look
 
-        const startBg = (canvas.backgroundColor as string) || CREAM;
+        // Only animate the background color when it's a solid hex (a custom
+        // gradient/image background can't be color-lerped — snap it instead).
+        const startBgRaw = canvas.backgroundColor;
+        const bgIsHex = typeof startBgRaw === 'string' && startBgRaw.startsWith('#');
+        const startBg = bgIsHex ? (startBgRaw as string) : CREAM;
         const endBg = tpl.bg;
 
         type Plan = {
@@ -393,7 +432,7 @@ export default function StudioPlayground() {
         const prevFg = foreground(startBg);
         const newFg = foreground(endBg);
         const freeRecolor: { obj: StudioObject; from: string; to: string }[] = [];
-        if (prevFg !== newFg) {
+        if (bgIsHex && prevFg !== newFg) {
             for (const o of canvas.getObjects()) {
                 const so = o as StudioObject;
                 const isText = o.type === 'textbox' || o.type === 'i-text' || o.type === 'text';
@@ -412,7 +451,7 @@ export default function StudioPlayground() {
             duration: 480,
             easing: fabric.util.ease.easeOutCubic,
             onChange: (t: number) => {
-                canvas.backgroundColor = hexLerp(startBg, endBg, t);
+                if (bgIsHex) canvas.backgroundColor = hexLerp(startBg, endBg, t);
                 for (const { obj, target, start } of plans) {
                     obj.set('top', lerp(start.top, target.top, t));
                     if (target.fontSize != null) obj.set('fontSize', lerp(start.fontSize, target.fontSize, t));
@@ -429,6 +468,7 @@ export default function StudioPlayground() {
             },
             onComplete: () => {
                 canvas.backgroundColor = endBg;
+                setActiveBg(endBg);
                 for (const { obj, target } of plans) {
                     obj.set('top', target.top);
                     if (target.fontSize != null) obj.set('fontSize', target.fontSize);
@@ -504,12 +544,77 @@ export default function StudioPlayground() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [refreshLayers]);
 
-    const onPickImage = () => fileRef.current?.click();
+    const onPickImage = () => { uploadModeRef.current = 'object'; fileRef.current?.click(); };
+    const onPickBg = () => { uploadModeRef.current = 'bg'; fileRef.current?.click(); };
+
+    // ---- Background + texture ----------------------------------------------
+    const setBgColor = (hex: string) => {
+        const canvas = fcRef.current;
+        if (!canvas) return;
+        canvas.backgroundImage = undefined;
+        canvas.backgroundColor = hex;
+        canvas.requestRenderAll();
+        setActiveBg(hex);
+    };
+
+    const setBgGradient = (g: GradientPreset) => {
+        const canvas = fcRef.current;
+        if (!canvas) return;
+        canvas.backgroundImage = undefined;
+        canvas.backgroundColor = new fabric.Gradient({
+            type: 'linear',
+            coords: { x1: 0, y1: 0, x2: CANVAS_W, y2: CANVAS_H },
+            colorStops: g.stops.map((color, i) => ({ offset: i / (g.stops.length - 1), color })),
+        }) as unknown as string;
+        canvas.requestRenderAll();
+        setActiveBg(g.id);
+    };
+
+    const setBgImage = (dataUrl: string) => {
+        const canvas = fcRef.current;
+        if (!canvas) return;
+        fabric.FabricImage.fromURL(dataUrl).then((img) => {
+            const s = Math.max(CANVAS_W / (img.width || 1), CANVAS_H / (img.height || 1));
+            img.set({ originX: 'center', originY: 'center', left: CANVAS_W / 2, top: CANVAS_H / 2, scaleX: s, scaleY: s });
+            canvas.backgroundImage = img;
+            canvas.requestRenderAll();
+            setActiveBg('image');
+        });
+    };
+
+    const applyTexture = (kind: 'none' | 'grain' | 'paper') => {
+        const canvas = fcRef.current;
+        if (!canvas) return;
+        if (kind === 'none') {
+            canvas.overlayImage = undefined;
+            canvas.requestRenderAll();
+            setActiveTexture('none');
+            return;
+        }
+        const url = makeNoise(kind === 'grain' ? 38 : 24);
+        fabric.FabricImage.fromURL(url).then((img) => {
+            img.set({
+                originX: 'left', originY: 'top', left: 0, top: 0,
+                scaleX: CANVAS_W / (img.width || CANVAS_W), scaleY: CANVAS_H / (img.height || CANVAS_H),
+                opacity: kind === 'grain' ? 0.5 : 0.4, selectable: false, evented: false,
+            });
+            img.globalCompositeOperation = kind === 'grain' ? 'overlay' : 'multiply';
+            canvas.overlayImage = img;
+            canvas.requestRenderAll();
+            setActiveTexture(kind);
+        });
+    };
+
     const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
         const f = e.target.files?.[0];
         if (!f) return;
+        const mode = uploadModeRef.current;
         const reader = new FileReader();
-        reader.onload = () => addImage(reader.result as string);
+        reader.onload = () => {
+            const url = reader.result as string;
+            if (mode === 'bg') setBgImage(url);
+            else addImage(url);
+        };
         reader.readAsDataURL(f);
         e.target.value = '';
     };
@@ -624,14 +729,56 @@ export default function StudioPlayground() {
                 </div>
 
                 <div className="flex flex-col lg:flex-row gap-8 items-start">
-                    {/* Toolbar */}
-                    <div className="flex flex-row lg:flex-col gap-3 flex-wrap">
-                        <button className={toolBtn} onClick={addHeadline} disabled={!ready}>+ Headline</button>
-                        <button className={toolBtn} onClick={addLabel} disabled={!ready}>+ Label</button>
-                        <button className={toolBtn} onClick={addBox} disabled={!ready}>+ Box</button>
-                        <button className={toolBtn} onClick={onPickImage} disabled={!ready}>+ Image</button>
-                        <button className={toolBtn} onClick={deleteActive} disabled={!ready}>Delete</button>
-                        <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" className="hidden" onChange={onFile} />
+                    {/* Left column: tools + background */}
+                    <div className="flex flex-col gap-7 w-full lg:w-auto">
+                        <div className="flex flex-row lg:flex-col gap-3 flex-wrap">
+                            <button className={toolBtn} onClick={addHeadline} disabled={!ready}>+ Headline</button>
+                            <button className={toolBtn} onClick={addLabel} disabled={!ready}>+ Label</button>
+                            <button className={toolBtn} onClick={addBox} disabled={!ready}>+ Box</button>
+                            <button className={toolBtn} onClick={onPickImage} disabled={!ready}>+ Image</button>
+                            <button className={toolBtn} onClick={deleteActive} disabled={!ready}>Delete</button>
+                            <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" className="hidden" onChange={onFile} />
+                        </div>
+
+                        {/* Background panel */}
+                        <div className="flex flex-col gap-3" style={{ width: 168, maxWidth: '100%' }}>
+                            <p className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-black/50">Background</p>
+                            <div className="flex flex-wrap gap-2">
+                                {BG_SWATCHES.map((c) => (
+                                    <button key={c} type="button" disabled={!ready} onClick={() => setBgColor(c)} title={c}
+                                        className="rounded-full border border-black/20"
+                                        style={{ width: 22, height: 22, background: c, outline: activeBg === c ? `2px solid ${BRAND}` : 'none', outlineOffset: 2 }} />
+                                ))}
+                                <label className="rounded-full border border-black/20 overflow-hidden relative cursor-pointer" style={{ width: 22, height: 22, background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)' }} title="Custom color">
+                                    <input type="color" onChange={(e) => setBgColor(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                </label>
+                            </div>
+
+                            <p className="font-space-mono uppercase text-[10px] tracking-[-0.44px] text-black/40">Gradient</p>
+                            <div className="flex flex-wrap gap-2">
+                                {GRADIENTS.map((g) => (
+                                    <button key={g.id} type="button" disabled={!ready} onClick={() => setBgGradient(g)} title={g.id}
+                                        className="rounded-md border border-black/20"
+                                        style={{ width: 34, height: 22, background: cssGradient(g), outline: activeBg === g.id ? `2px solid ${BRAND}` : 'none', outlineOffset: 2 }} />
+                                ))}
+                                <button type="button" disabled={!ready} onClick={onPickBg}
+                                    className="font-space-mono uppercase text-[10px] tracking-[-0.44px] border border-black/40 rounded-full px-3 py-1 hover:bg-black hover:text-[#FFFAEB] transition-colors disabled:opacity-40">
+                                    Image…
+                                </button>
+                            </div>
+
+                            <p className="font-space-mono uppercase text-[10px] tracking-[-0.44px] text-black/40">Texture</p>
+                            <div className="flex flex-wrap gap-2">
+                                {(['none', 'grain', 'paper'] as const).map((k) => (
+                                    <button key={k} type="button" disabled={!ready} onClick={() => applyTexture(k)}
+                                        className={`font-space-mono uppercase text-[10px] tracking-[-0.44px] rounded-full border px-3 py-1 transition-colors ${
+                                            activeTexture === k ? 'bg-black text-[#FFFAEB] border-black' : 'border-black/30 hover:border-black'
+                                        }`}>
+                                        {k}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
 
                     {/* Canvas stage */}
