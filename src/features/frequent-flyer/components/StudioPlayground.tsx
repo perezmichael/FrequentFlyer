@@ -687,12 +687,21 @@ export default function StudioPlayground() {
         setActiveBg(g.id);
     };
 
+    /** Cover-fit an image to the canvas (fills fully, crops overflow). */
+    const coverFit = (img: fabric.FabricImage) => {
+        const s = Math.max(CANVAS_W / (img.width || 1), CANVAS_H / (img.height || 1));
+        img.set({ originX: 'center', originY: 'center', left: CANVAS_W / 2, top: CANVAS_H / 2, scaleX: s, scaleY: s, angle: 0 });
+        img.setCoords();
+    };
+
     const setBgImage = (dataUrl: string) => {
         const canvas = fcRef.current;
         if (!canvas) return;
         fabric.FabricImage.fromURL(dataUrl).then((img) => {
-            const s = Math.max(CANVAS_W / (img.width || 1), CANVAS_H / (img.height || 1));
-            img.set({ originX: 'center', originY: 'center', left: CANVAS_W / 2, top: CANVAS_H / 2, scaleX: s, scaleY: s, selectable: false, evented: false, hoverCursor: 'default' });
+            // A real, selectable/resizable layer (drag a corner to push any baked
+            // borders off-canvas); enters cover-fit so it fills by default.
+            brandObject(img);
+            coverFit(img);
             const so = img as StudioObject;
             so.sys = 'bgimage';
             so.sid = nextId();
@@ -704,10 +713,22 @@ export default function StudioPlayground() {
             const bgFill = findSys(canvas, 'bgfill');
             const idx = bgFill ? canvas.getObjects().indexOf(bgFill) + 1 : 0;
             moveToIndex(canvas, img, idx);
+            canvas.setActiveObject(img);
             canvas.requestRenderAll();
             setActiveBg('image');
             refreshLayers();
+            setSelectedId(so.sid ?? null);
         });
+    };
+
+    /** Re-fit the current background image to cover the canvas. */
+    const fitBg = () => {
+        const canvas = fcRef.current;
+        if (!canvas) return;
+        const img = findSys(canvas, 'bgimage') as fabric.FabricImage | undefined;
+        if (!img) return;
+        coverFit(img);
+        canvas.requestRenderAll();
     };
 
     const applyTexture = (kind: 'none' | 'grain' | 'paper') => {
@@ -786,8 +807,10 @@ export default function StudioPlayground() {
         if (!canvas) return;
         const obj = findById(canvas, id);
         if (!obj) return;
-        // Background/texture layers aren't directly selectable; just highlight.
-        if ((obj as StudioObject).sys) { setSelectedId(id); return; }
+        // The fill + texture layers aren't directly selectable; just highlight.
+        // (The background *image* IS a normal selectable/resizable layer.)
+        const sys = (obj as StudioObject).sys;
+        if (sys === 'bgfill' || sys === 'texture') { setSelectedId(id); return; }
         canvas.setActiveObject(obj);
         canvas.requestRenderAll();
         setSelectedId(id);
@@ -973,6 +996,11 @@ export default function StudioPlayground() {
                                 <button type="button" disabled={!ready} onClick={onPickBg}
                                     className="font-space-mono uppercase text-[10px] tracking-[-0.44px] border border-black/40 rounded-full px-3 py-1 hover:bg-black hover:text-[#FFFAEB] transition-colors disabled:opacity-40">
                                     Image…
+                                </button>
+                                <button type="button" disabled={!ready} onClick={fitBg}
+                                    className="font-space-mono uppercase text-[10px] tracking-[-0.44px] border border-black/40 rounded-full px-3 py-1 hover:bg-black hover:text-[#FFFAEB] transition-colors disabled:opacity-40"
+                                    title="Re-fit the background image to cover the canvas">
+                                    Fit
                                 </button>
                             </div>
 
