@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Reorder, useDragControls } from 'framer-motion';
 import * as fabric from 'fabric';
+import { generateBackgroundPublic } from '@/app/actions';
 
 /**
  * Studio Playground — an interaction-craft sandbox for the flyer editor.
@@ -298,6 +299,9 @@ export default function StudioPlayground() {
     const [activeBg, setActiveBg] = useState<string>(CREAM);
     const [activeTexture, setActiveTexture] = useState<'none' | 'grain' | 'paper'>('none');
     const [textProps, setTextProps] = useState<TextProps | null>(null);
+    const [aiPrompt, setAiPrompt] = useState('');
+    const [aiLoading, setAiLoading] = useState(false);
+    const [aiError, setAiError] = useState<string | null>(null);
     const uploadModeRef = useRef<'object' | 'bg'>('object');
 
     // Load the curated Google fonts once (for the canvas + the panel preview).
@@ -736,6 +740,20 @@ export default function StudioPlayground() {
         });
     };
 
+    const generateAi = async () => {
+        if (!aiPrompt.trim() || aiLoading) return;
+        setAiError(null);
+        setAiLoading(true);
+        try {
+            const url = await generateBackgroundPublic(aiPrompt.trim());
+            setBgImage(url);
+        } catch (e) {
+            setAiError(e instanceof Error ? e.message : 'Generation failed');
+        } finally {
+            setAiLoading(false);
+        }
+    };
+
     const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
         const f = e.target.files?.[0];
         if (!f) return;
@@ -922,6 +940,17 @@ export default function StudioPlayground() {
 
                         {/* Background panel */}
                         <div className="flex flex-col gap-3" style={{ width: 168, maxWidth: '100%' }}>
+                            <p className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-black/50">AI background</p>
+                            <textarea value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} rows={2}
+                                placeholder="moody neon synthwave city at night…"
+                                className="font-space-mono text-[11px] border border-black/30 rounded-md px-2 py-1.5 bg-cream resize-none placeholder:text-black/30 focus:outline-none focus:border-black/60" />
+                            <button type="button" onClick={generateAi} disabled={!ready || aiLoading || !aiPrompt.trim()}
+                                className="font-space-mono uppercase text-[11px] tracking-[-0.44px] rounded-full border border-black/40 px-3 py-1.5 hover:bg-black hover:text-[#FFFAEB] transition-colors disabled:opacity-40">
+                                {aiLoading ? 'Generating…' : '✨ Generate'}
+                            </button>
+                            {aiError && <p className="font-space-mono text-[10px] text-brand leading-snug">{aiError}</p>}
+                            <div className="h-px bg-black/10 my-1" />
+
                             <p className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-black/50">Background</p>
                             <div className="flex flex-wrap gap-2">
                                 {BG_SWATCHES.map((c) => (
