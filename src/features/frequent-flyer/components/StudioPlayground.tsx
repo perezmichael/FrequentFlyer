@@ -1,16 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Reorder, useDragControls } from 'framer-motion';
 import * as fabric from 'fabric';
 
 /**
  * Studio Playground — an interaction-craft sandbox for the flyer editor.
  *
- * This is intentionally NOT wired to the event-submission flow. It's the place
- * to push the *feel* of direct manipulation: branded transform controls,
- * Figma-style snapping with alignment guides, and an opinionated template
- * gallery that *morphs* the layout instead of hard-swapping it. Once the
- * interactions feel right here they get folded back into the real /create studio.
+ * Kept separate from the real /create flow so we can push the *feel* of direct
+ * manipulation: branded transform controls, Figma-style snapping with alignment
+ * guides, an opinionated template gallery that *morphs* the layout, and a layers
+ * panel with spring drag-reorder + hover-to-highlight.
  */
 
 // Brand tokens (kept in sync with design/tokens.ts + globals.css).
@@ -26,19 +26,20 @@ const MONO = "'Space Mono', ui-monospace, monospace";
 
 type Guide = { orient: 'v' | 'h'; pos: number };
 
-// ---- Templates -------------------------------------------------------------
-// A flyer is a small set of named "roles". A template positions/styles each
-// role; switching templates morphs the *same* objects to the new spec, so the
-// user's text is preserved while the composition animates.
-
+// An object can play a template "role" (slot) and carries a stable id + name
+// for the layers panel.
 type Role = 'headline' | 'accent' | 'date' | 'venue';
+type StudioObject = fabric.FabricObject & { role?: Role; sid?: string; sname?: string };
 
+type LayerInfo = { id: string; name: string; type: string; visible: boolean; role?: Role };
+
+// ---- Templates -------------------------------------------------------------
 interface RoleTarget {
     top: number;
-    left?: number; // explicit top-left x; omit to use `align`
+    left?: number;
     align?: 'left' | 'center';
-    width?: number; // textbox / rect width
-    height?: number; // rect height
+    width?: number;
+    height?: number;
     fontSize?: number;
     fill: string;
     textAlign?: 'left' | 'center';
@@ -93,10 +94,27 @@ const TEMPLATES: Template[] = [
 
 const ROLES: Role[] = ['headline', 'accent', 'date', 'venue'];
 
-type RoledObject = fabric.FabricObject & { role?: Role };
+/** A template's foreground (text) color, used to keep free text readable. */
+const foreground = (bg: string) => (bg.toLowerCase() === CREAM.toLowerCase() ? INK : FLYER);
 
-function findRole(canvas: fabric.Canvas, role: Role): RoledObject | undefined {
-    return canvas.getObjects().find((o) => (o as RoledObject).role === role) as RoledObject | undefined;
+function findRole(canvas: fabric.Canvas, role: Role): StudioObject | undefined {
+    return canvas.getObjects().find((o) => (o as StudioObject).role === role) as StudioObject | undefined;
+}
+
+function findById(canvas: fabric.Canvas, id: string): StudioObject | undefined {
+    return canvas.getObjects().find((o) => (o as StudioObject).sid === id) as StudioObject | undefined;
+}
+
+function describeCanvas(canvas: fabric.Canvas): LayerInfo[] {
+    // Front-most first (top of the list = top of the z-stack).
+    return canvas
+        .getObjects()
+        .slice()
+        .reverse()
+        .map((o) => {
+            const so = o as StudioObject;
+            return { id: so.sid ?? '', name: so.sname ?? o.type ?? 'layer', type: o.type ?? '', visible: o.visible !== false, role: so.role };
+        });
 }
 
 // ---- Small math helpers ----------------------------------------------------
@@ -109,7 +127,6 @@ function hexToRgb(hex: string): [number, number, number] {
     return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-/** Interpolate two hex colors, returning an `rgb()` string fabric accepts. */
 function hexLerp(a: string, b: string, t: number): string {
     const A = hexToRgb(a);
     const B = hexToRgb(b);
@@ -153,7 +170,6 @@ function brandObject(obj: fabric.FabricObject) {
         padding: 4,
         borderOpacityWhenMoving: 1,
     });
-    // Branded rotate grip (guard in case controls aren't present yet).
     const mtr = obj.controls?.mtr;
     if (mtr) {
         mtr.render = renderRotateGrip;
@@ -165,9 +181,27 @@ export default function StudioPlayground() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const fcRef = useRef<fabric.Canvas | null>(null);
     const guidesRef = useRef<Guide[]>([]);
+    const hoverRef = useRef<fabric.FabricObject | null>(null);
     const animatingRef = useRef(false);
+    const idRef = useRef(0);
+    const nameCountRef = useRef<Record<string, number>>({});
+
     const [ready, setReady] = useState(false);
     const [activeTpl, setActiveTpl] = useState<string>('stack');
+    const [layers, setLayers] = useState<LayerInfo[]>([]);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+
+    const nextId = () => `o${++idRef.current}`;
+    const freeName = (base: string) => {
+        const n = (nameCountRef.current[base] ?? 0) + 1;
+        nameCountRef.current[base] = n;
+        return n === 1 ? base : `${base} ${n}`;
+    };
+
+    const refreshLayers = useCallback(() => {
+        const canvas = fcRef.current;
+        if (canvas) setLayers(describeCanvas(canvas));
+    }, []);
 
     // ---- Canvas setup -------------------------------------------------------
     useEffect(() => {
@@ -184,57 +218,32 @@ export default function StudioPlayground() {
         });
         fcRef.current = canvas;
 
-        const add = (obj: RoledObject, role: Role) => {
+        const add = (obj: StudioObject, role: Role) => {
             brandObject(obj);
             obj.role = role;
+            obj.sid = nextId();
+            obj.sname = role[0].toUpperCase() + role.slice(1);
             canvas.add(obj);
         };
 
         // --- Seed a flyer composition matching the default "stack" template --
-        // fabric v7 defaults originX/originY to 'center' — anchor these to
-        // top-left so the left/top values mean what they look like.
+        // fabric v7 defaults origin to 'center'; anchor these to top-left.
         const headline = new fabric.Textbox('WAREHOUSE\nPARTY', {
-            left: 36,
-            top: 56,
-            originX: 'left',
-            originY: 'top',
-            width: CANVAS_W - 72,
-            fontFamily: MONO,
-            fontWeight: 'bold',
-            fontSize: 46,
-            lineHeight: 1.0,
-            fill: INK,
-            charSpacing: -40,
+            left: 36, top: 56, originX: 'left', originY: 'top',
+            width: CANVAS_W - 72, fontFamily: MONO, fontWeight: 'bold',
+            fontSize: 46, lineHeight: 1.0, fill: INK, charSpacing: -40,
         });
         const accent = new fabric.Rect({
-            left: 36,
-            top: 196,
-            originX: 'left',
-            originY: 'top',
-            width: 96,
-            height: 8,
-            fill: BRAND,
+            left: 36, top: 196, originX: 'left', originY: 'top',
+            width: 96, height: 8, fill: BRAND,
         });
         const date = new fabric.IText('FRI · JUN 6 · 10PM', {
-            left: 36,
-            top: CANVAS_H - 96,
-            originX: 'left',
-            originY: 'top',
-            fontFamily: MONO,
-            fontSize: 17,
-            fill: INK,
-            charSpacing: -20,
+            left: 36, top: CANVAS_H - 96, originX: 'left', originY: 'top',
+            fontFamily: MONO, fontSize: 17, fill: INK, charSpacing: -20,
         });
         const venue = new fabric.IText('THE ECHO · ECHO PARK', {
-            left: 36,
-            top: CANVAS_H - 64,
-            originX: 'left',
-            originY: 'top',
-            fontFamily: MONO,
-            fontSize: 14,
-            fill: INK,
-            opacity: 0.65,
-            charSpacing: -20,
+            left: 36, top: CANVAS_H - 64, originX: 'left', originY: 'top',
+            fontFamily: MONO, fontSize: 14, fill: INK, opacity: 0.65, charSpacing: -20,
         });
 
         add(headline, 'headline');
@@ -242,8 +251,8 @@ export default function StudioPlayground() {
         add(date, 'date');
         add(venue, 'venue');
         canvas.requestRenderAll();
+        setLayers(describeCanvas(canvas));
 
-        // Re-render once the brand font actually loads so metrics are correct.
         if (typeof document !== 'undefined' && document.fonts?.ready) {
             document.fonts.ready.then(() => canvas.requestRenderAll());
         }
@@ -254,14 +263,9 @@ export default function StudioPlayground() {
             if (!obj) return;
             obj.setCoords();
             const r = obj.getBoundingRect();
-            const oL = r.left;
-            const oR = r.left + r.width;
-            const oCX = r.left + r.width / 2;
-            const oT = r.top;
-            const oB = r.top + r.height;
-            const oCY = r.top + r.height / 2;
+            const oL = r.left, oR = r.left + r.width, oCX = r.left + r.width / 2;
+            const oT = r.top, oB = r.top + r.height, oCY = r.top + r.height / 2;
 
-            // Snap targets: canvas edges + center, then every other object.
             const vTargets = [0, CANVAS_W / 2, CANVAS_W];
             const hTargets = [0, CANVAS_H / 2, CANVAS_H];
             for (const o of canvas.getObjects()) {
@@ -272,27 +276,16 @@ export default function StudioPlayground() {
             }
 
             const guides: Guide[] = [];
-
-            // Vertical (x) snapping — try left/center/right edges.
             let dx = 0;
             outerX: for (const t of vTargets) {
                 for (const val of [oL, oCX, oR]) {
-                    if (Math.abs(val - t) <= SNAP) {
-                        dx = t - val;
-                        guides.push({ orient: 'v', pos: t });
-                        break outerX;
-                    }
+                    if (Math.abs(val - t) <= SNAP) { dx = t - val; guides.push({ orient: 'v', pos: t }); break outerX; }
                 }
             }
-            // Horizontal (y) snapping — try top/center/bottom edges.
             let dy = 0;
             outerY: for (const t of hTargets) {
                 for (const val of [oT, oCY, oB]) {
-                    if (Math.abs(val - t) <= SNAP) {
-                        dy = t - val;
-                        guides.push({ orient: 'h', pos: t });
-                        break outerY;
-                    }
+                    if (Math.abs(val - t) <= SNAP) { dy = t - val; guides.push({ orient: 'h', pos: t }); break outerY; }
                 }
             }
 
@@ -309,39 +302,49 @@ export default function StudioPlayground() {
             }
         };
 
-        // Draw guides on the main context after each render; they persist for a
-        // frame and get redrawn continuously while dragging.
+        // Overlay pass: alignment guides + the layers-panel hover highlight.
         const onAfterRender = () => {
             const guides = guidesRef.current;
-            if (!guides.length) return;
+            const hover = hoverRef.current;
+            if (!guides.length && !hover) return;
             const ctx = canvas.contextContainer;
             if (!ctx) return;
-            // The lower-canvas backing store is scaled by devicePixelRatio when
-            // retina scaling is on, so map our logical guide coords into it.
             const retina = canvas.getRetinaScaling();
             ctx.save();
             ctx.setTransform(retina, 0, 0, retina, 0, 0);
+
             ctx.strokeStyle = BRAND;
             ctx.lineWidth = 1;
             guides.forEach((g) => {
                 ctx.beginPath();
-                if (g.orient === 'v') {
-                    ctx.moveTo(g.pos, 0);
-                    ctx.lineTo(g.pos, CANVAS_H);
-                } else {
-                    ctx.moveTo(0, g.pos);
-                    ctx.lineTo(CANVAS_W, g.pos);
-                }
+                if (g.orient === 'v') { ctx.moveTo(g.pos, 0); ctx.lineTo(g.pos, CANVAS_H); }
+                else { ctx.moveTo(0, g.pos); ctx.lineTo(CANVAS_W, g.pos); }
                 ctx.stroke();
             });
+
+            if (hover) {
+                const b = hover.getBoundingRect();
+                ctx.strokeStyle = BRAND;
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([4, 3]);
+                ctx.strokeRect(b.left - 2, b.top - 2, b.width + 4, b.height + 4);
+                ctx.setLineDash([]);
+            }
             ctx.restore();
+        };
+
+        const onSelect = () => {
+            const a = canvas.getActiveObject() as StudioObject | undefined;
+            setSelectedId(a?.sid ?? null);
         };
 
         canvas.on('object:moving', onMoving);
         canvas.on('after:render', onAfterRender);
         canvas.on('mouse:up', clearGuides);
         canvas.on('object:modified', clearGuides);
-        canvas.on('selection:cleared', clearGuides);
+        canvas.on('selection:created', onSelect);
+        canvas.on('selection:updated', onSelect);
+        canvas.on('selection:cleared', () => { clearGuides(); setSelectedId(null); });
 
         setReady(true);
 
@@ -363,7 +366,7 @@ export default function StudioPlayground() {
         const endBg = tpl.bg;
 
         type Plan = {
-            obj: RoledObject;
+            obj: StudioObject;
             target: RoleTarget;
             start: { top: number; left: number; width: number; height: number; fontSize: number; opacity: number; fill: string };
         };
@@ -373,24 +376,30 @@ export default function StudioPlayground() {
             const target = tpl.roles[role];
             const obj = findRole(canvas, role);
             if (!target || !obj) continue;
-
-            // Non-interpolated props snap at the start of the morph.
             if (target.textAlign) obj.set('textAlign', target.textAlign);
             if (target.fontWeight) obj.set('fontWeight', target.fontWeight);
-
             plans.push({
-                obj,
-                target,
+                obj, target,
                 start: {
-                    top: obj.top ?? 0,
-                    left: obj.left ?? 0,
-                    width: obj.width ?? 0,
-                    height: obj.height ?? 0,
-                    fontSize: (obj as fabric.IText).fontSize ?? 0,
-                    opacity: obj.opacity ?? 1,
-                    fill: (obj.fill as string) || INK,
+                    top: obj.top ?? 0, left: obj.left ?? 0, width: obj.width ?? 0, height: obj.height ?? 0,
+                    fontSize: (obj as fabric.IText).fontSize ?? 0, opacity: obj.opacity ?? 1, fill: (obj.fill as string) || INK,
                 },
             });
+        }
+
+        // Free (user-added) text keeps its position but adapts color when the
+        // theme flips light<->dark so it doesn't vanish.
+        const prevFg = foreground(startBg);
+        const newFg = foreground(endBg);
+        const freeRecolor: { obj: StudioObject; from: string; to: string }[] = [];
+        if (prevFg !== newFg) {
+            for (const o of canvas.getObjects()) {
+                const so = o as StudioObject;
+                const isText = o.type === 'textbox' || o.type === 'i-text' || o.type === 'text';
+                if (!so.role && isText && typeof o.fill === 'string' && o.fill.toLowerCase() === prevFg.toLowerCase()) {
+                    freeRecolor.push({ obj: so, from: prevFg, to: newFg });
+                }
+            }
         }
 
         animatingRef.current = true;
@@ -410,20 +419,14 @@ export default function StudioPlayground() {
                     if (target.height != null) obj.set('height', lerp(start.height, target.height, t));
                     obj.set('fill', hexLerp(start.fill, target.fill, t));
                     obj.set('opacity', lerp(start.opacity, target.opacity ?? 1, t));
-
-                    // Horizontal placement: explicit left, live-centered, or inset.
-                    if (target.left != null) {
-                        obj.set('left', lerp(start.left, target.left, t));
-                    } else if (target.align === 'center') {
-                        obj.set('left', (CANVAS_W - obj.getScaledWidth()) / 2);
-                    } else {
-                        obj.set('left', lerp(start.left, INSET, t));
-                    }
+                    if (target.left != null) obj.set('left', lerp(start.left, target.left, t));
+                    else if (target.align === 'center') obj.set('left', (CANVAS_W - obj.getScaledWidth()) / 2);
+                    else obj.set('left', lerp(start.left, INSET, t));
                 }
+                for (const { obj, from, to } of freeRecolor) obj.set('fill', hexLerp(from, to, t));
                 canvas.requestRenderAll();
             },
             onComplete: () => {
-                // Land on exact final values.
                 canvas.backgroundColor = endBg;
                 for (const { obj, target } of plans) {
                     obj.set('top', target.top);
@@ -437,68 +440,44 @@ export default function StudioPlayground() {
                     else obj.set('left', INSET);
                     obj.setCoords();
                 }
+                for (const { obj, to } of freeRecolor) obj.set('fill', to);
                 canvas.requestRenderAll();
                 animatingRef.current = false;
             },
         });
     }, []);
 
-    // ---- Toolbar actions ----------------------------------------------------
+    // ---- Toolbar / element creation -----------------------------------------
     const popIn = useCallback((canvas: fabric.Canvas, obj: fabric.FabricObject) => {
         obj.set({ scaleX: 0.85, scaleY: 0.85, opacity: 0 });
         obj.animate(
             { scaleX: 1, scaleY: 1, opacity: 1 },
-            {
-                duration: 220,
-                easing: fabric.util.ease.easeOutCubic,
-                onChange: () => canvas.requestRenderAll(),
-            },
+            { duration: 220, easing: fabric.util.ease.easeOutCubic, onChange: () => canvas.requestRenderAll() },
         );
     }, []);
 
     const place = useCallback(
-        (obj: fabric.FabricObject) => {
+        (obj: StudioObject, name: string) => {
             const canvas = fcRef.current;
             if (!canvas) return;
             brandObject(obj);
-            obj.set({
-                left: CANVAS_W / 2,
-                top: CANVAS_H / 2,
-                originX: 'center',
-                originY: 'center',
-            });
+            obj.sid = nextId();
+            obj.sname = freeName(name);
+            obj.set({ left: CANVAS_W / 2, top: CANVAS_H / 2, originX: 'center', originY: 'center' });
             canvas.add(obj);
             canvas.setActiveObject(obj);
             popIn(canvas, obj);
+            refreshLayers();
+            setSelectedId(obj.sid ?? null);
         },
-        [popIn],
+        [popIn, refreshLayers],
     );
 
     const addHeadline = () =>
-        place(
-            new fabric.Textbox('HEADLINE', {
-                width: 280,
-                fontFamily: MONO,
-                fontWeight: 'bold',
-                fontSize: 40,
-                fill: INK,
-                charSpacing: -40,
-                textAlign: 'center',
-            }),
-        );
-
+        place(new fabric.Textbox('HEADLINE', { width: 280, fontFamily: MONO, fontWeight: 'bold', fontSize: 40, fill: INK, charSpacing: -40, textAlign: 'center' }), 'Text');
     const addLabel = () =>
-        place(
-            new fabric.IText('LABEL TEXT', {
-                fontFamily: MONO,
-                fontSize: 16,
-                fill: INK,
-                charSpacing: -20,
-            }),
-        );
-
-    const addBox = () =>
-        place(new fabric.Rect({ width: 120, height: 120, fill: BRAND }));
+        place(new fabric.IText('LABEL TEXT', { fontFamily: MONO, fontSize: 16, fill: INK, charSpacing: -20 }), 'Text');
+    const addBox = () => place(new fabric.Rect({ width: 120, height: 120, fill: BRAND }), 'Box');
 
     const deleteActive = useCallback(() => {
         const canvas = fcRef.current;
@@ -507,6 +486,47 @@ export default function StudioPlayground() {
         if (!actives.length) return;
         actives.forEach((o) => canvas.remove(o));
         canvas.discardActiveObject();
+        canvas.requestRenderAll();
+        refreshLayers();
+        setSelectedId(null);
+    }, [refreshLayers]);
+
+    // ---- Layers panel actions ----------------------------------------------
+    const selectLayer = useCallback((id: string) => {
+        const canvas = fcRef.current;
+        if (!canvas) return;
+        const obj = findById(canvas, id);
+        if (!obj) return;
+        canvas.setActiveObject(obj);
+        canvas.requestRenderAll();
+        setSelectedId(id);
+    }, []);
+
+    const toggleVisible = useCallback((id: string) => {
+        const canvas = fcRef.current;
+        if (!canvas) return;
+        const obj = findById(canvas, id);
+        if (!obj) return;
+        obj.visible = obj.visible === false;
+        canvas.requestRenderAll();
+        refreshLayers();
+    }, [refreshLayers]);
+
+    const hoverLayer = useCallback((id: string | null) => {
+        const canvas = fcRef.current;
+        if (!canvas) return;
+        hoverRef.current = id ? findById(canvas, id) ?? null : null;
+        canvas.requestRenderAll();
+    }, []);
+
+    const reorderLayers = useCallback((next: LayerInfo[]) => {
+        setLayers(next);
+        const canvas = fcRef.current;
+        if (!canvas) return;
+        const byId = new Map(canvas.getObjects().map((o) => [(o as StudioObject).sid, o]));
+        // List is front-first; canvas stack is back-first.
+        const stack = [...next].reverse().map((l) => byId.get(l.id)).filter(Boolean) as fabric.FabricObject[];
+        (canvas as unknown as { _objects: fabric.FabricObject[] })._objects = stack;
         canvas.requestRenderAll();
     }, []);
 
@@ -517,38 +537,20 @@ export default function StudioPlayground() {
             if (!canvas) return;
             const active = canvas.getActiveObject();
             if (!active) return;
-            // Don't hijack keys while editing text.
             if ((active as fabric.IText).isEditing) return;
 
-            if (e.key === 'Backspace' || e.key === 'Delete') {
-                e.preventDefault();
-                deleteActive();
-                return;
-            }
+            if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); deleteActive(); return; }
 
             const step = e.shiftKey ? 10 : 1;
             let moved = true;
             switch (e.key) {
-                case 'ArrowLeft':
-                    active.set('left', (active.left ?? 0) - step);
-                    break;
-                case 'ArrowRight':
-                    active.set('left', (active.left ?? 0) + step);
-                    break;
-                case 'ArrowUp':
-                    active.set('top', (active.top ?? 0) - step);
-                    break;
-                case 'ArrowDown':
-                    active.set('top', (active.top ?? 0) + step);
-                    break;
-                default:
-                    moved = false;
+                case 'ArrowLeft': active.set('left', (active.left ?? 0) - step); break;
+                case 'ArrowRight': active.set('left', (active.left ?? 0) + step); break;
+                case 'ArrowUp': active.set('top', (active.top ?? 0) - step); break;
+                case 'ArrowDown': active.set('top', (active.top ?? 0) + step); break;
+                default: moved = false;
             }
-            if (moved) {
-                e.preventDefault();
-                active.setCoords();
-                canvas.requestRenderAll();
-            }
+            if (moved) { e.preventDefault(); active.setCoords(); canvas.requestRenderAll(); }
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
@@ -562,38 +564,23 @@ export default function StudioPlayground() {
         <div className="min-h-screen bg-cream pt-[100px]">
             <div className="page-container py-10">
                 <div className="mb-1 flex items-baseline gap-3">
-                    <h1 className="font-space-grotesk text-[40px] leading-none font-bold text-black">
-                        Studio
-                    </h1>
-                    <span className="font-space-mono uppercase text-[12px] tracking-[-0.44px] text-brand">
-                        playground
-                    </span>
+                    <h1 className="font-space-grotesk text-[40px] leading-none font-bold text-black">Studio</h1>
+                    <span className="font-space-mono uppercase text-[12px] tracking-[-0.44px] text-brand">playground</span>
                 </div>
                 <p className="font-space-mono text-black/55 text-[13px] mb-8">
-                    Pick a template to morph the layout · drag elements to snap · arrows nudge
-                    (⇧ = 10px) · ⌫ deletes · grab the brick grip to rotate
+                    Pick a template to morph the layout · drag to snap · reorder layers · arrows nudge
+                    (⇧ = 10px) · ⌫ deletes
                 </p>
 
                 {/* Template gallery */}
                 <div className="mb-8">
-                    <p className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-black/50 mb-3">
-                        Templates
-                    </p>
+                    <p className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-black/50 mb-3">Templates</p>
                     <div className="flex gap-4">
                         {TEMPLATES.map((tpl) => (
-                            <button
-                                key={tpl.id}
-                                type="button"
-                                disabled={!ready}
-                                onClick={() => applyTemplate(tpl)}
-                                className="group flex flex-col items-center gap-1.5 disabled:opacity-40"
-                            >
+                            <button key={tpl.id} type="button" disabled={!ready} onClick={() => applyTemplate(tpl)}
+                                className="group flex flex-col items-center gap-1.5 disabled:opacity-40">
                                 <TemplateThumb tpl={tpl} active={activeTpl === tpl.id} />
-                                <span
-                                    className={`font-space-mono uppercase text-[10px] tracking-[-0.44px] ${
-                                        activeTpl === tpl.id ? 'text-brand' : 'text-black/50 group-hover:text-black'
-                                    }`}
-                                >
+                                <span className={`font-space-mono uppercase text-[10px] tracking-[-0.44px] ${activeTpl === tpl.id ? 'text-brand' : 'text-black/50 group-hover:text-black'}`}>
                                     {tpl.name}
                                 </span>
                             </button>
@@ -604,31 +591,38 @@ export default function StudioPlayground() {
                 <div className="flex flex-col lg:flex-row gap-8 items-start">
                     {/* Toolbar */}
                     <div className="flex flex-row lg:flex-col gap-3 flex-wrap">
-                        <button className={toolBtn} onClick={addHeadline} disabled={!ready}>
-                            + Headline
-                        </button>
-                        <button className={toolBtn} onClick={addLabel} disabled={!ready}>
-                            + Label
-                        </button>
-                        <button className={toolBtn} onClick={addBox} disabled={!ready}>
-                            + Box
-                        </button>
-                        <button className={toolBtn} onClick={deleteActive} disabled={!ready}>
-                            Delete
-                        </button>
+                        <button className={toolBtn} onClick={addHeadline} disabled={!ready}>+ Headline</button>
+                        <button className={toolBtn} onClick={addLabel} disabled={!ready}>+ Label</button>
+                        <button className={toolBtn} onClick={addBox} disabled={!ready}>+ Box</button>
+                        <button className={toolBtn} onClick={deleteActive} disabled={!ready}>Delete</button>
                     </div>
 
                     {/* Canvas stage */}
                     <div className="flex-1 flex justify-center">
-                        <div
-                            className="bg-cream"
-                            style={{
-                                boxShadow:
-                                    '0 1px 0 rgba(26,26,26,0.08), 0 18px 50px -12px rgba(26,26,26,0.35)',
-                            }}
-                        >
+                        <div className="bg-cream" style={{ boxShadow: '0 1px 0 rgba(26,26,26,0.08), 0 18px 50px -12px rgba(26,26,26,0.35)' }}>
                             <canvas ref={canvasRef} />
                         </div>
+                    </div>
+
+                    {/* Layers panel — inline width: a few Tailwind v4 JIT width
+                        utilities don't generate reliably in this setup. */}
+                    <div className="shrink-0" style={{ width: 230, maxWidth: '100%' }}>
+                        <p className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-black/50 mb-3">Layers</p>
+                        <Reorder.Group axis="y" values={layers} onReorder={reorderLayers} className="flex flex-col gap-1.5 list-none m-0 p-0">
+                            {layers.map((layer) => (
+                                <LayerRow
+                                    key={layer.id}
+                                    layer={layer}
+                                    active={selectedId === layer.id}
+                                    onSelect={selectLayer}
+                                    onToggle={toggleVisible}
+                                    onHover={hoverLayer}
+                                />
+                            ))}
+                        </Reorder.Group>
+                        <p className="font-space-mono text-[10px] text-black/35 mt-3 leading-snug">
+                            Roles morph with templates. Added elements stay put.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -636,38 +630,81 @@ export default function StudioPlayground() {
     );
 }
 
-// ---- Template thumbnail ----------------------------------------------------
-// A scaled-down, schematic preview generated from the same template data the
-// canvas uses, so the chip always reflects the real layout.
+// ---- Layers row ------------------------------------------------------------
+function LayerRow({
+    layer, active, onSelect, onToggle, onHover,
+}: {
+    layer: LayerInfo;
+    active: boolean;
+    onSelect: (id: string) => void;
+    onToggle: (id: string) => void;
+    onHover: (id: string | null) => void;
+}) {
+    const controls = useDragControls();
+    const isRole = !!layer.role;
+    return (
+        <Reorder.Item
+            value={layer}
+            dragListener={false}
+            dragControls={controls}
+            onMouseEnter={() => onHover(layer.id)}
+            onMouseLeave={() => onHover(null)}
+            className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 select-none transition-colors ${
+                active ? 'border-brand bg-brand/5' : 'border-black/15 hover:border-black/40 bg-cream'
+            }`}
+        >
+            <span
+                onPointerDown={(e) => controls.start(e)}
+                className="cursor-grab active:cursor-grabbing text-black/30 hover:text-black/60 font-space-mono text-[13px] leading-none"
+                title="Drag to reorder"
+            >
+                ⠿
+            </span>
+            <button
+                type="button"
+                onClick={() => onSelect(layer.id)}
+                className="flex-1 text-left font-space-mono uppercase text-[11px] tracking-[-0.44px] text-ink truncate"
+            >
+                {layer.name}
+                {!isRole && <span className="text-black/30 normal-case"> · free</span>}
+            </button>
+            <button
+                type="button"
+                onClick={() => onToggle(layer.id)}
+                className="text-black/40 hover:text-ink shrink-0"
+                title={layer.visible ? 'Hide' : 'Show'}
+                aria-label={layer.visible ? 'Hide layer' : 'Show layer'}
+            >
+                <EyeIcon open={layer.visible} />
+            </button>
+        </Reorder.Item>
+    );
+}
 
+function EyeIcon({ open }: { open: boolean }) {
+    return (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+            <circle cx="12" cy="12" r="3" />
+            {!open && <line x1="3" y1="3" x2="21" y2="21" />}
+        </svg>
+    );
+}
+
+// ---- Template thumbnail ----------------------------------------------------
 const THUMB_W = 52;
 const THUMB_H = 65;
 const SX = THUMB_W / CANVAS_W;
 const SY = THUMB_H / CANVAS_H;
 
 function roleBar(role: Role, t: RoleTarget) {
-    // Approximate each role's footprint in flyer coords, then scale to thumb px.
     let w: number;
     let h: number;
-    if (role === 'headline') {
-        w = t.width ?? 260;
-        h = (t.fontSize ?? 40) * 1.9; // ~two lines
-    } else if (role === 'accent') {
-        w = t.width ?? 96;
-        h = t.height ?? 8;
-    } else {
-        w = role === 'venue' ? 150 : 120;
-        h = (t.fontSize ?? 16) * 1.1;
-    }
+    if (role === 'headline') { w = t.width ?? 260; h = (t.fontSize ?? 40) * 1.9; }
+    else if (role === 'accent') { w = t.width ?? 96; h = t.height ?? 8; }
+    else { w = role === 'venue' ? 150 : 120; h = (t.fontSize ?? 16) * 1.1; }
     const x = t.left != null ? t.left : t.align === 'center' ? (CANVAS_W - w) / 2 : INSET;
-    return {
-        left: x * SX,
-        top: t.top * SY,
-        width: w * SX,
-        height: Math.max(1.5, h * SY),
-        fill: t.fill,
-        opacity: t.opacity ?? 1,
-    };
+    return { left: x * SX, top: t.top * SY, width: w * SX, height: Math.max(1.5, h * SY), fill: t.fill, opacity: t.opacity ?? 1 };
 }
 
 function TemplateThumb({ tpl, active }: { tpl: Template; active: boolean }) {
@@ -675,30 +712,14 @@ function TemplateThumb({ tpl, active }: { tpl: Template; active: boolean }) {
         <span
             className="relative block overflow-hidden rounded-[3px] transition-shadow"
             style={{
-                width: THUMB_W,
-                height: THUMB_H,
-                background: tpl.bg,
-                boxShadow: active
-                    ? `0 0 0 2px ${BRAND}, 0 0 0 3.5px ${CREAM}`
-                    : 'inset 0 0 0 1px rgba(26,26,26,0.18)',
+                width: THUMB_W, height: THUMB_H, background: tpl.bg,
+                boxShadow: active ? `0 0 0 2px ${BRAND}, 0 0 0 3.5px ${CREAM}` : 'inset 0 0 0 1px rgba(26,26,26,0.18)',
             }}
         >
             {ROLES.map((role) => {
                 const bar = roleBar(role, tpl.roles[role]);
                 return (
-                    <span
-                        key={role}
-                        className="absolute"
-                        style={{
-                            left: bar.left,
-                            top: bar.top,
-                            width: bar.width,
-                            height: bar.height,
-                            background: bar.fill,
-                            opacity: bar.opacity,
-                            borderRadius: 0.5,
-                        }}
-                    />
+                    <span key={role} className="absolute" style={{ left: bar.left, top: bar.top, width: bar.width, height: bar.height, background: bar.fill, opacity: bar.opacity, borderRadius: 0.5 }} />
                 );
             })}
         </span>
