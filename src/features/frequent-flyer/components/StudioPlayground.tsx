@@ -110,6 +110,24 @@ const GRADIENTS: GradientPreset[] = [
 
 const cssGradient = (g: GradientPreset) => `linear-gradient(135deg, ${g.stops.join(', ')})`;
 
+// ---- Starter backgrounds (curated, in public/studio/starters) --------------
+// Hand-picked for negative space, so there's room for text on top.
+type Starter = { file: string; name: string };
+const STARTERS: Starter[] = [
+    { file: 'Boat Illustration from Midjourney.png', name: 'Ink Sketch' },
+    { file: 'Two Cats Holding Handguns.png', name: 'Riso Punk' },
+    { file: 'Photorealistic Fashion Photography.png', name: 'Editorial' },
+    { file: '1930s Black and White Movie Scene.png', name: 'Noir' },
+    { file: 'Japanese Traditional Vintage Painting.png', name: 'Ukiyo-e' },
+    { file: 'Stockholm Golden Hour Photograph.png', name: 'Golden Hour' },
+    { file: '1964 Impala Black Gold Daytona Rims.png', name: 'Lowrider' },
+    { file: 'Modern Illustration Captain.png', name: 'Modern Toon' },
+    { file: 'Vintage Topps Trading Card 1960s.png', name: 'Retro Card' },
+    { file: 'Stylized Human Form.png', name: 'Figure' },
+    { file: 'Wandersoul Cat Profile Explore.png', name: 'Wandersoul' },
+];
+const starterSrc = (file: string) => `/studio/starters/${encodeURIComponent(file)}`;
+
 /** Procedural film-grain / paper noise as a data URL (no asset files). */
 function makeNoise(alpha: number): string {
     if (typeof document === 'undefined') return '';
@@ -763,6 +781,24 @@ export default function StudioPlayground() {
                     Pick a template to morph the layout · drag to snap · reorder layers · arrows nudge
                     (⇧ = 10px) · ⌫ deletes
                 </p>
+
+                {/* Starters — quick-start backgrounds */}
+                <div className="mb-8">
+                    <p className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-black/50 mb-1">Start from</p>
+                    <p className="font-space-mono text-[11px] text-black/40 mb-3">A background to build on — or skip and start blank.</p>
+                    <div className="flex gap-3 flex-wrap">
+                        {STARTERS.map((s) => (
+                            <button key={s.file} type="button" disabled={!ready} onClick={() => setBgImage(starterSrc(s.file))}
+                                className="group flex flex-col items-center gap-1.5 disabled:opacity-40">
+                                <span className="block overflow-hidden rounded-[3px] border border-black/15" style={{ width: 52, height: 65 }}>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={starterSrc(s.file)} alt={s.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                                </span>
+                                <span className="font-space-mono uppercase text-[10px] tracking-[-0.44px] text-black/50 group-hover:text-black">{s.name}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
 
                 {/* Template gallery */}
                 <div className="mb-8">
