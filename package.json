@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "ts-node --transpile-only --project scripts/tsconfig.json scripts/seed.ts",
-    "seed:culver": "ts-node --transpile-only --project scripts/tsconfig.json scripts/culverHappyHours.ts"
+    "seed:culver": "ts-node --transpile-only --project scripts/tsconfig.json scripts/culverHappyHours.ts",
+    "seed:demo": "ts-node --transpile-only --project scripts/tsconfig.json scripts/seedDemo.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
