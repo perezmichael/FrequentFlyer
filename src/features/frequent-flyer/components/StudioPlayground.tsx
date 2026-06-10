@@ -327,6 +327,7 @@ export default function StudioPlayground() {
     const [activeBg, setActiveBg] = useState<string>(CREAM);
     const [activeTexture, setActiveTexture] = useState<'none' | 'grain' | 'paper'>('none');
     const [textProps, setTextProps] = useState<TextProps | null>(null);
+    const [selOpacity, setSelOpacity] = useState(1);
     const [aiPrompt, setAiPrompt] = useState('');
     const [aiLoading, setAiLoading] = useState(false);
     const [aiError, setAiError] = useState<string | null>(null);
@@ -560,6 +561,7 @@ export default function StudioPlayground() {
         const onSelect = () => {
             const a = canvas.getActiveObject() as StudioObject | undefined;
             setSelectedId(a?.sid ?? null);
+            setSelOpacity(a?.opacity ?? 1);
             if (a && isTextType(a.type)) {
                 const t = a as fabric.IText;
                 setTextProps({
@@ -985,6 +987,7 @@ export default function StudioPlayground() {
         canvas.setActiveObject(obj);
         canvas.requestRenderAll();
         setSelectedId(id);
+        setSelOpacity(obj.opacity ?? 1);
         // Populate the typography panel directly (don't depend on the event firing).
         if (isTextType(obj.type)) {
             const t = obj as fabric.IText;
@@ -1016,6 +1019,16 @@ export default function StudioPlayground() {
         o.setCoords();
         canvas.requestRenderAll();
         setTextProps((p) => (p ? { ...p, ...patch } : p));
+        snapshot();
+    }, [snapshot]);
+
+    const setObjOpacity = useCallback((v: number) => {
+        const canvas = fcRef.current;
+        const o = canvas?.getActiveObject();
+        if (!canvas || !o) return;
+        o.set('opacity', v);
+        canvas.requestRenderAll();
+        setSelOpacity(v);
         snapshot();
     }, [snapshot]);
 
@@ -1229,6 +1242,18 @@ export default function StudioPlayground() {
                     {/* Layers panel — inline width: a few Tailwind v4 JIT width
                         utilities don't generate reliably in this setup. */}
                     <div className="shrink-0" style={{ width: 230, maxWidth: '100%' }}>
+                        {/* Layer — opacity for any selected (non-system) element */}
+                        {selectedId && !layers.find((l) => l.id === selectedId && (l.sys === 'bgfill' || l.sys === 'texture' || l.sys === 'scrim')) && (
+                            <div className="mb-6 flex flex-col gap-2 border-b border-black/10 pb-6">
+                                <p className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-black/50">Layer</p>
+                                <label className="flex flex-col gap-1">
+                                    <span className="font-space-mono uppercase text-[10px] tracking-[-0.44px] text-black/40">Opacity</span>
+                                    <input type="range" min={0} max={1} step={0.01} value={selOpacity}
+                                        onChange={(e) => setObjOpacity(Number(e.target.value))} style={{ accentColor: BRAND }} />
+                                </label>
+                            </div>
+                        )}
+
                         {/* Typography — contextual: shows when a text layer is selected */}
                         {textProps && (
                             <div className="mb-6 flex flex-col gap-3 border-b border-black/10 pb-6">
