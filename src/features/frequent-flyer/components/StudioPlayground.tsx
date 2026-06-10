@@ -156,6 +156,9 @@ type TextProps = {
 
 const isTextType = (t?: string) => t === 'textbox' || t === 'i-text' || t === 'text';
 
+// Custom props that must survive the undo/redo JSON round-trip.
+const SNAPSHOT_PROPS = ['sid', 'sname', 'role', 'sys', 'selectable', 'evented', 'hoverCursor', 'globalCompositeOperation', 'charSpacing', 'lineHeight'];
+
 /** Procedural film-grain / paper noise as a data URL (no asset files). */
 function makeNoise(alpha: number): string {
     if (typeof document === 'undefined') return '';
@@ -327,6 +330,66 @@ export default function StudioPlayground() {
         if (canvas) setLayers(describeCanvas(canvas));
     }, []);
 
+    // ---- Undo / redo (coalesced full-canvas JSON snapshots) ----------------
+    const historyRef = useRef<string[]>([]);
+    const histIdxRef = useRef(-1);
+    const restoringRef = useRef(false);
+    const snapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const snapshot = useCallback(() => {
+        if (restoringRef.current || snapTimerRef.current != null) return;
+        // Coalesce a burst of mutations (e.g. remove+add) into one entry.
+        snapTimerRef.current = setTimeout(() => {
+            snapTimerRef.current = null;
+            const c = fcRef.current;
+            if (!c) return;
+            const json = JSON.stringify(c.toObject(SNAPSHOT_PROPS));
+            const h = historyRef.current.slice(0, histIdxRef.current + 1);
+            if (h[h.length - 1] === json) return;
+            h.push(json);
+            while (h.length > 25) h.shift();
+            historyRef.current = h;
+            histIdxRef.current = h.length - 1;
+        }, 0);
+    }, []);
+
+    const restore = useCallback((json: string) => {
+        const c = fcRef.current;
+        if (!c) return;
+        restoringRef.current = true;
+        c.loadFromJSON(JSON.parse(json)).then(() => {
+            // Re-apply branded controls + lock the system layers (controls and
+            // selectable flags aren't part of the serialized geometry).
+            c.getObjects().forEach((o) => {
+                const so = o as StudioObject;
+                if (so.sys === 'bgfill' || so.sys === 'texture' || so.sys === 'scrim') {
+                    o.selectable = false;
+                    o.evented = false;
+                } else {
+                    brandObject(o);
+                }
+            });
+            c.discardActiveObject();
+            c.requestRenderAll();
+            restoringRef.current = false;
+            refreshLayers();
+            setSelectedId(null);
+            setTextProps(null);
+        });
+    }, [refreshLayers]);
+
+    const undo = useCallback(() => {
+        if (histIdxRef.current <= 0) return;
+        histIdxRef.current -= 1;
+        restore(historyRef.current[histIdxRef.current]);
+    }, [restore]);
+
+    const redo = useCallback(() => {
+        if (histIdxRef.current >= historyRef.current.length - 1) return;
+        histIdxRef.current += 1;
+        restore(historyRef.current[histIdxRef.current]);
+    }, [restore]);
+
     // ---- Canvas setup -------------------------------------------------------
     useEffect(() => {
         if (!canvasRef.current) return;
@@ -495,13 +558,19 @@ export default function StudioPlayground() {
         canvas.on('selection:updated', onSelect);
         canvas.on('selection:cleared', () => { clearGuides(); setSelectedId(null); setTextProps(null); });
 
+        // History: snapshot on structural changes + transform end.
+        canvas.on('object:added', snapshot);
+        canvas.on('object:removed', snapshot);
+        canvas.on('object:modified', snapshot);
+
         setReady(true);
+        snapshot(); // baseline (seeded composition)
 
         return () => {
             canvas.dispose();
             fcRef.current = null;
         };
-    }, []);
+    }, [snapshot]);
 
     // ---- Template morph -----------------------------------------------------
     const applyTemplate = useCallback((tpl: Template) => {
@@ -600,6 +669,7 @@ export default function StudioPlayground() {
                 for (const { obj, to } of freeRecolor) obj.set('fill', to);
                 canvas.requestRenderAll();
                 animatingRef.current = false;
+                snapshot();
             },
         });
     }, []);
@@ -672,6 +742,7 @@ export default function StudioPlayground() {
         bgFill.set('fill', hex);
         canvas.requestRenderAll();
         setActiveBg(hex);
+        snapshot();
     };
 
     const setBgGradient = (g: GradientPreset) => {
@@ -686,6 +757,7 @@ export default function StudioPlayground() {
         }) as unknown as string);
         canvas.requestRenderAll();
         setActiveBg(g.id);
+        snapshot();
     };
 
     /** Cover-fit an image to the canvas (fills fully, crops overflow). */
@@ -919,7 +991,8 @@ export default function StudioPlayground() {
         o.setCoords();
         canvas.requestRenderAll();
         setTextProps((p) => (p ? { ...p, ...patch } : p));
-    }, []);
+        snapshot();
+    }, [snapshot]);
 
     const setFont = useCallback((family: string) => {
         updateText({ fontFamily: family });
@@ -954,6 +1027,8 @@ export default function StudioPlayground() {
             if (!canvas) return;
 
             if (e.key === 'Escape') { canvas.discardActiveObject(); canvas.requestRenderAll(); setSelectedId(null); setTextProps(null); return; }
+            if ((e.key === 'z' || e.key === 'Z') && (e.metaKey || e.ctrlKey)) { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
+            if ((e.key === 'y' || e.key === 'Y') && (e.metaKey || e.ctrlKey)) { e.preventDefault(); redo(); return; }
             if ((e.key === 'd' || e.key === 'D') && (e.metaKey || e.ctrlKey)) { e.preventDefault(); duplicateActive(); return; }
 
             const active = canvas.getActiveObject();
@@ -971,11 +1046,11 @@ export default function StudioPlayground() {
                 case 'ArrowDown': active.set('top', (active.top ?? 0) + step); break;
                 default: moved = false;
             }
-            if (moved) { e.preventDefault(); active.setCoords(); canvas.requestRenderAll(); }
+            if (moved) { e.preventDefault(); active.setCoords(); canvas.requestRenderAll(); snapshot(); }
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
-    }, [deleteActive, duplicateActive]);
+    }, [deleteActive, duplicateActive, undo, redo, snapshot]);
 
     // ---- Chrome -------------------------------------------------------------
     const toolBtn =
@@ -1031,6 +1106,10 @@ export default function StudioPlayground() {
                     {/* Left column: tools + background */}
                     <div className="flex flex-col gap-7 w-full lg:w-auto">
                         <div className="flex flex-row lg:flex-col gap-3 flex-wrap">
+                            <div className="flex gap-2">
+                                <button className={`${toolBtn} flex-1`} onClick={undo} disabled={!ready} title="Undo (⌘Z)">↶ Undo</button>
+                                <button className={`${toolBtn} flex-1`} onClick={redo} disabled={!ready} title="Redo (⌘⇧Z)">↷ Redo</button>
+                            </div>
                             <button className={toolBtn} onClick={addHeadline} disabled={!ready}>+ Headline</button>
                             <button className={toolBtn} onClick={addLabel} disabled={!ready}>+ Label</button>
                             <button className={toolBtn} onClick={addBox} disabled={!ready}>+ Box</button>
