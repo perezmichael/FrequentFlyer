@@ -58,7 +58,7 @@ function CustomControls({ isFullscreen, onToggleFullscreen }: { isFullscreen: bo
     return (
         <div className={`absolute ${positionClass} flex flex-col gap-2 z-[1000]`}>
             <button
-                className="w-8 h-8 bg-white border border-gray-200 rounded-lg flex items-center justify-center cursor-pointer shadow-sm transition-all hover:bg-gray-50 hover:shadow-md active:translate-y-0 text-gray-800"
+                className="w-8 h-8 bg-cream border border-black/40 rounded-lg flex items-center justify-center cursor-pointer shadow-sm transition-all hover:bg-black hover:text-cream hover:shadow-md active:translate-y-0 text-ink"
                 onClick={() => map.zoomIn()}
                 title="Zoom In"
             >
@@ -68,7 +68,7 @@ function CustomControls({ isFullscreen, onToggleFullscreen }: { isFullscreen: bo
                 </svg>
             </button>
             <button
-                className="w-8 h-8 bg-white border border-gray-200 rounded-lg flex items-center justify-center cursor-pointer shadow-sm transition-all hover:bg-gray-50 hover:shadow-md active:translate-y-0 text-gray-800"
+                className="w-8 h-8 bg-cream border border-black/40 rounded-lg flex items-center justify-center cursor-pointer shadow-sm transition-all hover:bg-black hover:text-cream hover:shadow-md active:translate-y-0 text-ink"
                 onClick={() => map.zoomOut()}
                 title="Zoom Out"
             >
@@ -77,7 +77,7 @@ function CustomControls({ isFullscreen, onToggleFullscreen }: { isFullscreen: bo
                 </svg>
             </button>
             <button
-                className="w-8 h-8 bg-white border border-gray-200 rounded-lg flex items-center justify-center cursor-pointer shadow-sm transition-all hover:bg-gray-50 hover:shadow-md active:translate-y-0 text-gray-800"
+                className="w-8 h-8 bg-cream border border-black/40 rounded-lg flex items-center justify-center cursor-pointer shadow-sm transition-all hover:bg-black hover:text-cream hover:shadow-md active:translate-y-0 text-ink"
                 onClick={onToggleFullscreen}
                 title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
             >
@@ -113,13 +113,13 @@ const createSingleIcon = (vibes: string[]) => {
     return L.divIcon({
         className: 'custom-map-marker',
         html: `<div style="
-            background: white;
+            background: #FFFAEB;
             width: 32px;
             height: 32px;
             border-radius: 50%;
             font-size: 14px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-            border: 1.5px solid rgba(0,0,0,0.08);
+            box-shadow: 0 3px 8px rgba(26,26,26,0.3);
+            border: 1.5px solid rgba(26,26,26,0.55);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -134,19 +134,19 @@ const createClusterIcon = (count: number) => {
     return L.divIcon({
         className: 'custom-map-marker',
         html: `<div style="
-            background: #111;
-            color: white;
+            background: #1a1a1a;
+            color: #FFFAEB;
             width: 36px;
             height: 36px;
             border-radius: 50%;
             font-size: 13px;
             font-weight: 700;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.35);
-            border: 2px solid white;
+            box-shadow: 0 3px 10px rgba(26,26,26,0.4);
+            border: 2px solid #FFFAEB;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: 'Space Grotesk', sans-serif;
+            font-family: 'Space Mono', monospace;
         ">${count}</div>`,
         iconSize: [36, 36],
         iconAnchor: [18, 18],
@@ -256,13 +256,10 @@ function EventPopup({
                 </div>
 
                 {/* Event info */}
-                <div className="p-4">
-                    <div className="text-base font-semibold mb-1 text-gray-900 leading-tight">{event.title}</div>
-                    <div className="text-sm text-gray-500 mb-2">{event.location}</div>
-                    <div className="mt-2 flex flex-col gap-1">
-                        <div className="font-semibold text-gray-900 text-base">Free</div>
-                        <div className="text-xs text-gray-500">{event.date}</div>
-                    </div>
+                <div className="p-4 bg-cream">
+                    <div className="text-base font-bold mb-1 text-ink leading-tight font-space-grotesk">{event.title}</div>
+                    <div className="text-sm text-black/55 mb-3 font-space-mono">{event.location}</div>
+                    <span className="stamp text-[11px]">{event.date}</span>
                 </div>
             </div>
         </Popup>
@@ -364,7 +361,7 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, route
                     <>
                         <Polyline
                             positions={route.coordinates}
-                            pathOptions={{ color: route.color || '#3b82f6', weight: 4, opacity: 0.8 }}
+                            pathOptions={{ color: route.color || '#C2371B', weight: 4, opacity: 0.8 }}
                         />
                         <RouteUpdater coordinates={route.coordinates} />
                         {/* Render Simple Dots for Route Points if no events are passed (optional enhancement) */}
@@ -374,7 +371,7 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, route
                                 position={coord}
                                 icon={L.divIcon({
                                     className: 'route-dot',
-                                    html: `<div style="background: ${route.color || '#3b82f6'}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>`,
+                                    html: `<div style="background: ${route.color || '#C2371B'}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>`,
                                     iconSize: [12, 12]
                                 })}
                             />

@@ -53,7 +53,6 @@ export default function Navbar() {
                 <div className={styles.desktopNav}>
                     <Link href="/" className={navLinkClass}>home</Link>
                     <Link href="/events" className={navLinkClass}>events</Link>
-                    <Link href="/events2" className={navLinkClass}>events 2</Link>
                     <Link href="/map" className={navLinkClass}>map</Link>
                     <Link href="/guides" className={navLinkClass}>guides</Link>
                     <Link href="/create" className={createPillClass}>+ create</Link>
@@ -75,7 +74,6 @@ export default function Navbar() {
                 <div className={styles.mobileDropdown}>
                     <Link href="/" className={navLinkClass} onClick={() => setIsMenuOpen(false)}>home</Link>
                     <Link href="/events" className={navLinkClass} onClick={() => setIsMenuOpen(false)}>events</Link>
-                    <Link href="/events2" className={navLinkClass} onClick={() => setIsMenuOpen(false)}>events 2</Link>
                     <Link href="/map" className={navLinkClass} onClick={() => setIsMenuOpen(false)}>map</Link>
                     <Link href="/guides" className={navLinkClass} onClick={() => setIsMenuOpen(false)}>guides</Link>
                     <Link href="/create" className={`${createPillClass} self-start`} onClick={() => setIsMenuOpen(false)}>+ create</Link>

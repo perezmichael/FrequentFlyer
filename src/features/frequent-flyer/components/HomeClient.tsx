@@ -154,8 +154,9 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                 {/* Left: Unified event list */}
                 <div className={`${styles.listContainer} ${mobileTab !== 'list' ? styles.hiddenMobile : ''}`}>
                     <header className={styles.header}>
-                        <h1 className={styles.title}>
-                            What&apos;s happening this week
+                        <h1 className={`${styles.title} font-space-grotesk`}>
+                            What&apos;s happening{' '}
+                            <em className="font-serif italic font-medium text-brand">this week</em>
                         </h1>
 
                         {/* Day-of-week pills */}
@@ -193,7 +194,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                     </header>
 
                     {filteredItems.length > 0 ? (
-                        <div className={styles.grid}>
+                        <div className={`${styles.grid} stagger-in`}>
                             {filteredItems.map((item) => {
                                 if (item.kind === 'event') {
                                     const event = item.data;
@@ -222,8 +223,8 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                         </div>
                     ) : (
                         <div className={styles.noResults}>
-                            <h3>No events found</h3>
-                            <p>Check back soon for upcoming events.</p>
+                            <h3 className="font-space-mono uppercase tracking-[-0.44px]">nothing on this filter. criminal.</h3>
+                            <p className="font-space-mono text-sm text-black/55 mt-1">try another day — or be the one who posts something.</p>
                         </div>
                     )}
                 </div>

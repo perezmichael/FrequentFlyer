@@ -4,6 +4,20 @@
     gap: 12px;
     cursor: pointer;
     position: relative;
+    transition: transform 0.35s cubic-bezier(0.22, 1.4, 0.36, 1);
+}
+
+.card:hover {
+    transform: translateY(-3px);
+}
+
+.card:active {
+    transform: translateY(-1px) scale(0.985);
+    transition-duration: 0.1s;
+}
+
+.card:hover .image {
+    transform: scale(1.04);
 }
 
 .imageContainer {
