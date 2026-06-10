@@ -33,7 +33,7 @@ type Role = 'headline' | 'accent' | 'date' | 'venue';
 // `sys` marks the background-fill / background-image / texture layers. They live
 // in the normal object stack (so they show in the panel and can be reordered)
 // but aren't directly selectable/draggable on the canvas.
-type SysKind = 'bgfill' | 'bgimage' | 'texture';
+type SysKind = 'bgfill' | 'bgimage' | 'texture' | 'scrim';
 type StudioObject = fabric.FabricObject & { role?: Role; sid?: string; sname?: string; sys?: SysKind };
 
 type LayerInfo = { id: string; name: string; type: string; visible: boolean; role?: Role; sys?: SysKind };
@@ -302,6 +302,7 @@ export default function StudioPlayground() {
     const [aiPrompt, setAiPrompt] = useState('');
     const [aiLoading, setAiLoading] = useState(false);
     const [aiError, setAiError] = useState<string | null>(null);
+    const [scrim, setScrim] = useState(false);
     const uploadModeRef = useRef<'object' | 'bg'>('object');
 
     // Load the curated Google fonts once (for the canvas + the panel preview).
@@ -731,6 +732,44 @@ export default function StudioPlayground() {
         canvas.requestRenderAll();
     };
 
+    // Legibility scrim: a soft top->bottom darkening above the photo but below
+    // the text, so text stays readable on busy/light image backgrounds.
+    const toggleScrim = () => {
+        const canvas = fcRef.current;
+        if (!canvas) return;
+        const existing = findSys(canvas, 'scrim');
+        if (existing) {
+            canvas.remove(existing);
+            canvas.requestRenderAll();
+            setScrim(false);
+            refreshLayers();
+            return;
+        }
+        const grad = new fabric.Gradient({
+            type: 'linear',
+            coords: { x1: 0, y1: 0, x2: 0, y2: CANVAS_H },
+            colorStops: [
+                { offset: 0, color: 'rgba(0,0,0,0)' },
+                { offset: 0.5, color: 'rgba(0,0,0,0.12)' },
+                { offset: 1, color: 'rgba(0,0,0,0.66)' },
+            ],
+        });
+        const rect = new fabric.Rect({
+            left: 0, top: 0, originX: 'left', originY: 'top', width: CANVAS_W, height: CANVAS_H,
+            fill: grad as unknown as string, selectable: false, evented: false, hoverCursor: 'default',
+        }) as StudioObject;
+        rect.sys = 'scrim';
+        rect.sid = nextId();
+        rect.sname = 'Scrim';
+        canvas.add(rect);
+        const anchor = findSys(canvas, 'bgimage') || findSys(canvas, 'bgfill');
+        const idx = anchor ? canvas.getObjects().indexOf(anchor) + 1 : 1;
+        moveToIndex(canvas, rect, idx);
+        canvas.requestRenderAll();
+        setScrim(true);
+        refreshLayers();
+    };
+
     const applyTexture = (kind: 'none' | 'grain' | 'paper') => {
         const canvas = fcRef.current;
         if (!canvas) return;
@@ -801,6 +840,41 @@ export default function StudioPlayground() {
         setSelectedId(null);
     }, [refreshLayers]);
 
+    const duplicateActive = useCallback(async () => {
+        const canvas = fcRef.current;
+        if (!canvas) return;
+        const active = canvas.getActiveObject() as StudioObject | undefined;
+        if (!active || active.sys) return; // don't clone bg/texture system layers
+        const cl = (await active.clone()) as StudioObject;
+        cl.set({ left: (active.left ?? 0) + 16, top: (active.top ?? 0) + 16 });
+        brandObject(cl);
+        cl.sid = nextId();
+        cl.sname = active.role ? `${active.sname} copy` : freeName(isTextType(active.type) ? 'Text' : 'Box');
+        cl.role = undefined; // a duplicate is a free element, not a template slot
+        canvas.add(cl);
+        canvas.setActiveObject(cl);
+        canvas.requestRenderAll();
+        refreshLayers();
+        setSelectedId(cl.sid ?? null);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [refreshLayers]);
+
+    /** Export the flyer as a high-res PNG (selection chrome excluded). */
+    const exportPng = useCallback(() => {
+        const canvas = fcRef.current;
+        if (!canvas) return;
+        canvas.discardActiveObject();
+        guidesRef.current = [];
+        hoverRef.current = null;
+        canvas.renderAll(); // synchronous, so the data URL is clean
+        const url = canvas.toDataURL({ format: 'png', multiplier: 2, enableRetinaScaling: false });
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'frequent-flyer.png';
+        a.click();
+        setSelectedId(null);
+    }, []);
+
     // ---- Layers panel actions ----------------------------------------------
     const selectLayer = useCallback((id: string) => {
         const canvas = fcRef.current;
@@ -810,7 +884,7 @@ export default function StudioPlayground() {
         // The fill + texture layers aren't directly selectable; just highlight.
         // (The background *image* IS a normal selectable/resizable layer.)
         const sys = (obj as StudioObject).sys;
-        if (sys === 'bgfill' || sys === 'texture') { setSelectedId(id); return; }
+        if (sys === 'bgfill' || sys === 'texture' || sys === 'scrim') { setSelectedId(id); return; }
         canvas.setActiveObject(obj);
         canvas.requestRenderAll();
         setSelectedId(id);
@@ -873,11 +947,15 @@ export default function StudioPlayground() {
         canvas.requestRenderAll();
     }, []);
 
-    // ---- Keyboard: nudge + delete ------------------------------------------
+    // ---- Keyboard: nudge, delete, duplicate, escape ------------------------
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             const canvas = fcRef.current;
             if (!canvas) return;
+
+            if (e.key === 'Escape') { canvas.discardActiveObject(); canvas.requestRenderAll(); setSelectedId(null); setTextProps(null); return; }
+            if ((e.key === 'd' || e.key === 'D') && (e.metaKey || e.ctrlKey)) { e.preventDefault(); duplicateActive(); return; }
+
             const active = canvas.getActiveObject();
             if (!active) return;
             if ((active as fabric.IText).isEditing) return;
@@ -897,7 +975,7 @@ export default function StudioPlayground() {
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
-    }, [deleteActive]);
+    }, [deleteActive, duplicateActive]);
 
     // ---- Chrome -------------------------------------------------------------
     const toolBtn =
@@ -957,7 +1035,9 @@ export default function StudioPlayground() {
                             <button className={toolBtn} onClick={addLabel} disabled={!ready}>+ Label</button>
                             <button className={toolBtn} onClick={addBox} disabled={!ready}>+ Box</button>
                             <button className={toolBtn} onClick={onPickImage} disabled={!ready}>+ Image</button>
+                            <button className={toolBtn} onClick={duplicateActive} disabled={!ready} title="⌘D">Duplicate</button>
                             <button className={toolBtn} onClick={deleteActive} disabled={!ready}>Delete</button>
+                            <button className={`${toolBtn} bg-black text-[#FFFAEB]`} onClick={exportPng} disabled={!ready} title="Download PNG">↓ Export</button>
                             <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" className="hidden" onChange={onFile} />
                         </div>
 
@@ -1014,14 +1094,31 @@ export default function StudioPlayground() {
                                         {k}
                                     </button>
                                 ))}
+                                <button type="button" disabled={!ready} onClick={toggleScrim}
+                                    className={`font-space-mono uppercase text-[10px] tracking-[-0.44px] rounded-full border px-3 py-1 transition-colors ${
+                                        scrim ? 'bg-black text-[#FFFAEB] border-black' : 'border-black/30 hover:border-black'
+                                    }`}
+                                    title="Darken behind text for legibility on photos">
+                                    scrim
+                                </button>
                             </div>
                         </div>
                     </div>
 
                     {/* Canvas stage */}
                     <div className="flex-1 flex justify-center">
-                        <div className="bg-cream" style={{ boxShadow: '0 1px 0 rgba(26,26,26,0.08), 0 18px 50px -12px rgba(26,26,26,0.35)' }}>
+                        <div className="relative bg-cream" style={{ boxShadow: '0 1px 0 rgba(26,26,26,0.08), 0 18px 50px -12px rgba(26,26,26,0.35)' }}>
                             <canvas ref={canvasRef} />
+                            {aiLoading && (
+                                <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ background: 'rgba(255,250,235,0.35)' }}>
+                                    <div className="ff-shimmer absolute inset-y-0 w-1/3"
+                                        style={{ background: `linear-gradient(90deg, transparent, ${BRAND}33, transparent)` }} />
+                                    <span className="absolute bottom-4 left-0 right-0 text-center font-space-mono uppercase text-[12px] tracking-[-0.44px] text-ink">
+                                        Generating…
+                                    </span>
+                                    <style>{`@keyframes ff-sweep{0%{transform:translateX(-120%)}100%{transform:translateX(420%)}}.ff-shimmer{animation:ff-sweep 1.2s ease-in-out infinite}`}</style>
+                                </div>
+                            )}
                         </div>
                     </div>
 
