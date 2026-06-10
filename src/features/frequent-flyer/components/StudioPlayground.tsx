@@ -95,6 +95,29 @@ const TEMPLATES: Template[] = [
             venue: { left: INSET, top: CANVAS_H - 72, fontSize: 14, fill: FLYER, opacity: 0.6 },
         },
     },
+    {
+        id: 'poster',
+        name: 'Poster',
+        bg: CREAM,
+        roles: {
+            headline: { left: INSET, top: 44, width: CANVAS_W - 72, fontSize: 58, fill: INK, textAlign: 'left', fontWeight: 'bold' },
+            accent: { left: INSET, top: 236, width: 160, height: 10, fill: BRAND },
+            date: { left: INSET, top: CANVAS_H - 96, fontSize: 18, fill: INK },
+            venue: { left: INSET, top: CANVAS_H - 64, fontSize: 14, fill: INK, opacity: 0.65 },
+        },
+    },
+    {
+        id: 'footer',
+        name: 'Footer',
+        bg: CREAM,
+        roles: {
+            // Text lives in the lower third — pairs well with an image up top.
+            accent: { left: INSET, top: 338, width: 110, height: 8, fill: BRAND },
+            headline: { left: INSET, top: 360, width: CANVAS_W - 72, fontSize: 44, fill: INK, textAlign: 'left', fontWeight: 'bold' },
+            date: { left: INSET, top: 500, fontSize: 17, fill: INK },
+            venue: { left: INSET, top: 528, fontSize: 14, fill: INK, opacity: 0.65 },
+        },
+    },
 ];
 
 const ROLES: Role[] = ['headline', 'accent', 'date', 'venue'];
@@ -107,6 +130,8 @@ const GRADIENTS: GradientPreset[] = [
     { id: 'sunset', stops: ['#F5D8B0', '#E8907A', '#C2371B'] },
     { id: 'dusk', stops: ['#2b2350', '#5a4b8a', '#c98fb0'] },
     { id: 'ocean', stops: ['#0f2a3a', '#1f6f8b', '#8fd0c9'] },
+    { id: 'acid', stops: ['#d4ff3f', '#7cb342', '#16240f'] },
+    { id: 'mono', stops: ['#FFFAEB', '#cfc7b0', '#1a1a1a'] },
 ];
 
 const cssGradient = (g: GradientPreset) => `linear-gradient(135deg, ${g.stops.join(', ')})`;
