@@ -55,6 +55,7 @@ export default function Navbar() {
                     <Link href="/events" className={navLinkClass}>events</Link>
                     <Link href="/map" className={navLinkClass}>map</Link>
                     <Link href="/guides" className={navLinkClass}>guides</Link>
+                    <Link href="/agents" className={navLinkClass}>for ai</Link>
                     <Link href="/create" className={createPillClass}>+ create</Link>
                     <TipsBill />
                 </div>
@@ -76,6 +77,7 @@ export default function Navbar() {
                     <Link href="/events" className={navLinkClass} onClick={() => setIsMenuOpen(false)}>events</Link>
                     <Link href="/map" className={navLinkClass} onClick={() => setIsMenuOpen(false)}>map</Link>
                     <Link href="/guides" className={navLinkClass} onClick={() => setIsMenuOpen(false)}>guides</Link>
+                    <Link href="/agents" className={navLinkClass} onClick={() => setIsMenuOpen(false)}>for ai</Link>
                     <Link href="/create" className={`${createPillClass} self-start`} onClick={() => setIsMenuOpen(false)}>+ create</Link>
                     <TipsBill />
                 </div>
