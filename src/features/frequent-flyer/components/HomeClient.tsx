@@ -30,6 +30,24 @@ type UnifiedItem =
 // full picture of what's coming up (then filters narrow it), not just today.
 const WINDOW_DAYS = 30;
 
+// Recurring events use a different shape than one-off events. Project one into
+// the Event shape so the map and the detail sheet can treat everything the same.
+function recurringToEvent(re: RecurringEvent): Event {
+    return {
+        id: `recurring-${re.id}`,
+        title: re.event_name,
+        date: formatRecurringSchedule(re.day_of_week, re.start_time, re.end_time),
+        location: `${re.venue_name}, ${re.neighborhood}`,
+        description: re.description || re.category,
+        lat: re.lat,
+        lng: re.lng,
+        image: re.venue_image || '/placeholder.jpg',
+        neighborhood: re.neighborhood,
+        vibe: [re.category],
+        url: re.venue_url,
+    };
+}
+
 export default function HomeClient({ initialEvents, recurringEvents = [] }: HomeClientProps) {
     const today = new Date().getDay(); // 0=Sun
     // Default to All so a cold open shows everything upcoming, not just today.
@@ -92,27 +110,10 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
 
     // Convert filtered items to Event[] shape for the Map
     const mapEvents: Event[] = useMemo(() => {
-        return filteredItems.map(item => {
-            if (item.kind === 'event') return item.data;
-            const re = item.data;
-            return {
-                id: `recurring-${re.id}`,
-                title: re.event_name,
-                date: formatRecurringSchedule(re.day_of_week, re.start_time, re.end_time),
-                location: `${re.venue_name}, ${re.neighborhood}`,
-                description: re.description || re.category,
-                lat: re.lat,
-                lng: re.lng,
-                image: re.venue_image || '/placeholder.jpg',
-                neighborhood: re.neighborhood,
-                vibe: [re.category],
-            };
-        });
+        return filteredItems.map(item =>
+            item.kind === 'event' ? item.data : recurringToEvent(item.data)
+        );
     }, [filteredItems]);
-
-    const handleEventClick = (id: string) => {
-        setSelectedEventId(id);
-    };
 
     const handleMarkerClick = (id: string) => {
         setSelectedEventId(id);
@@ -209,7 +210,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                                             key={mapId}
                                             id={`home-${mapId}`}
                                             event={re}
-                                            onClick={() => handleEventClick(mapId)}
+                                            onClick={() => setDetailEvent(recurringToEvent(re))}
                                         />
                                     );
                                 }
@@ -230,6 +231,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                             events={mapEvents}
                             selectedEventId={selectedEventId}
                             onMarkerClick={handleMarkerClick}
+                            onEventOpen={setDetailEvent}
                             resizeSignal={mobileTab}
                         />
                     </div>

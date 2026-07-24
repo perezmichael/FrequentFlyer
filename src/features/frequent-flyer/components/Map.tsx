@@ -19,6 +19,8 @@ interface MapProps {
     events?: Event[]; // Optional now
     selectedEventId?: string | null;
     onMarkerClick?: (id: string) => void;
+    // Open the full event detail sheet (from the popup's "View details").
+    onEventOpen?: (event: Event) => void;
     // New prop for Guide Routes
     route?: {
         coordinates: [number, number][];
@@ -32,6 +34,9 @@ interface MapProps {
 function MapUpdater({ center }: { center: [number, number] }) {
     const map = useMap();
     useEffect(() => {
+        // Guard against events with missing/NaN coordinates — flyTo throws
+        // "Invalid LatLng object: (NaN, NaN)" and takes the whole map down.
+        if (!Number.isFinite(center[0]) || !Number.isFinite(center[1])) return;
         map.flyTo(center, 13, { duration: 1.5 });
     }, [center, map]);
     return null;
@@ -225,11 +230,13 @@ function EventPopup({
     index,
     onIndexChange,
     onClose,
+    onEventOpen,
 }: {
     group: Event[];
     index: number;
     onIndexChange: (i: number) => void;
     onClose: () => void;
+    onEventOpen?: (event: Event) => void;
 }) {
     const map = useMap();
     const event = group[index];
@@ -292,18 +299,30 @@ function EventPopup({
                     )}
                 </div>
 
-                {/* Event info */}
-                <div className="p-4 bg-cream">
+                {/* Event info — click to open the full detail sheet */}
+                <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onEventOpen && onEventOpen(event); }}
+                    className="w-full text-left block p-4 bg-cream cursor-pointer transition-colors hover:bg-black/[0.04]"
+                >
                     <div className="text-base font-bold mb-1 text-ink leading-tight font-space-grotesk">{event.title}</div>
                     <div className="text-sm text-black/55 mb-3 font-space-mono">{event.location}</div>
-                    <span className="stamp text-[11px]">{event.date}</span>
-                </div>
+                    <div className="flex items-center justify-between gap-2">
+                        <span className="stamp text-[11px]">{event.date}</span>
+                        <span className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-brand flex items-center gap-1 whitespace-nowrap">
+                            View details
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </span>
+                    </div>
+                </button>
             </div>
         </Popup>
     );
 }
 
-export default function Map({ events = [], selectedEventId, onMarkerClick, route, resizeSignal }: MapProps) {
+export default function Map({ events = [], selectedEventId, onMarkerClick, onEventOpen, route, resizeSignal }: MapProps) {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [activeGroup, setActiveGroup] = useState<Event[] | null>(null);
     const [activeGroupIndex, setActiveGroupIndex] = useState(0);
@@ -314,6 +333,7 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, route
     const locationGroups = useMemo(() => {
         const groups: Record<string, Event[]> = {};
         for (const event of events) {
+            if (!Number.isFinite(event.lat) || !Number.isFinite(event.lng)) continue;
             const key = `${event.lat.toFixed(4)},${event.lng.toFixed(4)}`;
             if (!groups[key]) groups[key] = [];
             groups[key].push(event);
@@ -400,6 +420,7 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, route
                         group={activeGroup}
                         index={activeGroupIndex}
                         onIndexChange={handleCycleIndex}
+                        onEventOpen={onEventOpen}
                         onClose={() => {
                             setActiveGroup(null);
                             onMarkerClick && onMarkerClick('');
