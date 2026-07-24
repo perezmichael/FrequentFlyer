@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import EventCard2 from './EventCard2';
 import RecurringEventCard from './RecurringEventCard';
+import EventDetailSheet from './EventDetailSheet';
 import MapLoader from '@/components/MapLoader';
 import styles from './HomeClient.module.css';
 import FilterPillRow from './FilterPillRow';
@@ -25,45 +26,34 @@ type UnifiedItem =
     | { kind: 'event'; data: Event; sortDay: number }
     | { kind: 'recurring'; data: RecurringEvent; sortDay: number };
 
-// Get the current week's Monday–Sunday dates
-function getCurrentWeekDates(): Date[] {
-    const now = new Date();
-    const dayOfWeek = now.getDay(); // 0=Sun
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - ((dayOfWeek + 6) % 7)); // back to Monday
-    monday.setHours(0, 0, 0, 0);
-
-    const dates: Date[] = [];
-    for (let i = 0; i < 7; i++) {
-        const d = new Date(monday);
-        d.setDate(monday.getDate() + i);
-        dates.push(d);
-    }
-    return dates;
-}
+// How far ahead the feed looks. Wide enough that opening the app cold shows a
+// full picture of what's coming up (then filters narrow it), not just today.
+const WINDOW_DAYS = 30;
 
 export default function HomeClient({ initialEvents, recurringEvents = [] }: HomeClientProps) {
     const today = new Date().getDay(); // 0=Sun
-    const [dayFilter, setDayFilter] = useState<number | null>(today);
+    // Default to All so a cold open shows everything upcoming, not just today.
+    const [dayFilter, setDayFilter] = useState<number | null>(null);
     const [neighborhoodFilter, setNeighborhoodFilter] = useState<string | null>(null);
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+    const [detailEvent, setDetailEvent] = useState<Event | null>(null);
     const [mobileTab, setMobileTab] = useState<'list' | 'map'>('list');
 
-    const weekDates = useMemo(() => getCurrentWeekDates(), []);
-
-    // Build the unified list: one-off events for this week + recurring events expanded to their day
+    // Build the unified list: upcoming one-off events + recurring events by day
     const unifiedItems = useMemo(() => {
         const items: UnifiedItem[] = [];
 
-        // One-off events that fall within this week
-        const weekStart = new Date(weekDates[0]);
-        weekStart.setHours(0, 0, 0, 0);
-        const weekEnd = new Date(weekDates[6]);
-        weekEnd.setHours(23, 59, 59, 999);
+        // One-off events in a rolling window from today. getEvents already drops
+        // anything before today, so this just caps how far ahead we show.
+        const windowStart = new Date();
+        windowStart.setHours(0, 0, 0, 0);
+        const windowEnd = new Date(windowStart);
+        windowEnd.setDate(windowStart.getDate() + WINDOW_DAYS);
+        windowEnd.setHours(23, 59, 59, 999);
 
         for (const event of initialEvents) {
             const eventDate = new Date(event.date);
-            if (eventDate >= weekStart && eventDate <= weekEnd) {
+            if (eventDate >= windowStart && eventDate <= windowEnd) {
                 items.push({ kind: 'event', data: event, sortDay: eventDate.getDay() });
             }
         }
@@ -74,7 +64,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
         }
 
         return items;
-    }, [initialEvents, recurringEvents, weekDates]);
+    }, [initialEvents, recurringEvents]);
 
     // Filter by day + neighborhood
     const filteredItems = useMemo(() => {
@@ -159,6 +149,11 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                             <em className="font-serif italic font-medium text-brand">this week</em>
                         </h1>
 
+                        <p className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-black/55 mt-[6px]">
+                            <span className="text-ink font-bold">{filteredItems.length}</span>
+                            {filteredItems.length === 1 ? ' event' : ' events'} across LA
+                        </p>
+
                         {/* Day-of-week pills */}
                         <FilterPillRow
                             className="mt-[12px]"
@@ -204,7 +199,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                                             id={`home-${event.id}`}
                                             event={event}
                                             isActive={selectedEventId === event.id}
-                                            onClick={() => handleEventClick(event.id)}
+                                            onClick={() => setDetailEvent(event)}
                                         />
                                     );
                                 } else {
@@ -241,6 +236,8 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                     </div>
                 </div>
             </div>
+
+            <EventDetailSheet event={detailEvent} onClose={() => setDetailEvent(null)} />
         </div>
     );
 }

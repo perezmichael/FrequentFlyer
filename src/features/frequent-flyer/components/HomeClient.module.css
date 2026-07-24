@@ -10,6 +10,10 @@
 .splitLayout {
     display: grid;
     grid-template-columns: 1fr 1fr;
+    /* Cap the row to the container height so a long event list scrolls inside
+       .listContainer instead of stretching the whole row (which would drag the
+       map column far taller than the viewport and push its center off-screen). */
+    grid-template-rows: minmax(0, 1fr);
     gap: 24px;
     padding: 0 24px;
     max-width: 1600px;
@@ -33,6 +37,8 @@
     /* Grid items default to min-width:auto, which lets card content blow the
        1fr track past the viewport (body overflow-x:hidden then clips it). */
     min-width: 0;
+    /* Allow this scroll area to shrink within the capped grid row. */
+    min-height: 0;
 }
 
 .header {
@@ -63,6 +69,8 @@
     padding-top: 1rem;
     padding-bottom: 1.5rem;
     min-width: 0;
+    /* Keep the map column pinned to the row height, not the list's content. */
+    min-height: 0;
 }
 
 .mapWrapper {
