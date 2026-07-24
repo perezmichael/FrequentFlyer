@@ -11,6 +11,10 @@ export interface Event {
     image: string;
     neighborhood: string;
     vibe: string[];
+    /** Link out to the event's own page (falls back to the venue calendar). */
+    url?: string | null;
+    /** 'scraped' | 'ff_curated' | 'promoted' — drives tiered card treatment. */
+    curationLevel?: 'scraped' | 'ff_curated' | 'promoted';
 }
 
 // "7 PM" / "7:30 PM" from a "HH:MM[:SS]" string.

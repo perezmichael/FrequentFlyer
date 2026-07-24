@@ -1,13 +1,14 @@
 import os
 import json
 import time
+import hashlib
 import requests
 from io import BytesIO
 from playwright.sync_api import sync_playwright
 from supabase import create_client, Client
 from google import genai
 from dotenv import load_dotenv
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # 1. Setup
 load_dotenv()
@@ -17,6 +18,46 @@ client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 # Load the "Soul Doc" (Manifesto)
 with open('vibedoc.md', 'r') as f:
     VIBE_MANIFESTO = f.read()
+
+# ── Auto-publish policy ──
+# Events from venues with trust_tier='trusted' (see db/schema_trust_tiers.sql)
+# skip manual review IF they clear the quality gate below. Everything else
+# stays 'pending' for the /admin queue. Re-scrapes never touch the status of
+# an event that already exists.
+AUTO_PUBLISH_MIN_VIBE = float(os.getenv("FF_AUTO_PUBLISH_MIN_VIBE", "6"))
+
+# ── Change detection ──
+# Each venue page's text is hashed (salted with the scout week window, so a
+# new week forces a re-scrape even if the page didn't change) and stored in
+# venues.page_hash (db/schema_scout_state.sql). On a match we skip the Gemini
+# call and all event processing for that venue. Set FF_FORCE_RESCRAPE=1 to
+# bypass, e.g. after changing vibedoc.md or the extraction prompt.
+FORCE_RESCRAPE = os.getenv("FF_FORCE_RESCRAPE", "") not in ("", "0", "false")
+
+
+def mark_venue_scouted(venue_id, page_hash):
+    """Record scout state; tolerate a DB that's missing the Phase 2 columns."""
+    try:
+        supabase.table("venues").update({
+            "page_hash": page_hash,
+            "last_scouted_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("id", venue_id).execute()
+    except Exception as e:
+        print(f"   ⚠️  Could not save page hash (run db/schema_scout_state.sql?): {e}")
+
+
+def should_auto_publish(venue_trust, event):
+    """Quality gate for skipping manual review. Returns (bool, reason)."""
+    if venue_trust != 'trusted':
+        return False, "venue not trusted"
+    if not event.get('event_name') or not event.get('date'):
+        return False, "missing name/date"
+    if not event.get('category'):
+        return False, "no category (vibe placeholder needs one)"
+    vibe_score = event.get('vibe_score', 0) or 0
+    if vibe_score < AUTO_PUBLISH_MIN_VIBE:
+        return False, f"vibe {vibe_score} < {AUTO_PUBLISH_MIN_VIBE:g}"
+    return True, "ok"
 
 # ── Image helpers ──
 
@@ -426,11 +467,18 @@ def run_master_scout():
 
     now = datetime.now()
     today = now.strftime("%A, %B %d, %Y")
-    # Compute the current week window: Monday to Sunday
-    week_start = now - timedelta(days=now.weekday())
-    week_end = week_start + timedelta(days=6)
+    # Scout window: today through +N days (default 30). Wider than one week so a
+    # cold open of the app shows a full upcoming picture; the UI caps how far
+    # ahead it actually lists.
+    SCOUT_WINDOW_DAYS = int(os.getenv("FF_SCOUT_WINDOW_DAYS", "30"))
+    week_start = now
+    week_end = now + timedelta(days=SCOUT_WINDOW_DAYS)
     week_start_str = week_start.strftime("%Y-%m-%d")
     week_end_str = week_end.strftime("%Y-%m-%d")
+    # Stable weekly salt for the page-hash (ISO year-week) so change detection
+    # skips unchanged pages within a week instead of refiring every day as the
+    # rolling window shifts.
+    week_key = now.strftime("%G-W%V")
     print(f"🚀 MASTER SCOUT START (Today is {today}, scouting {week_start_str} to {week_end_str})")
 
     with sync_playwright() as p:
@@ -512,6 +560,29 @@ def run_master_scout():
                     pass
                 continue
 
+            # Venue row up-front: we need its stored page_hash (change
+            # detection) and trust_tier (auto-publish) before spending a
+            # Gemini call. trust_tier is intentionally NOT in this payload —
+            # the tier lives in the DB (set via db/schema_trust_tiers.sql or
+            # the dashboard) and must survive re-scrapes.
+            venue_row = supabase.table("venues").upsert({
+                "name": v['name'], "neighborhood": v['neighborhood'], "url": v['url']
+            }, on_conflict="name").execute().data[0]
+            venue_id = venue_row['id']
+            venue_trust = venue_row.get('trust_tier', 'standard')
+
+            page_hash = hashlib.sha256(
+                f"{week_key}:{raw_text}".encode("utf-8", "replace")
+            ).hexdigest()
+            if not FORCE_RESCRAPE and venue_row.get('page_hash') == page_hash:
+                print(f"   💤 Unchanged since last scout — skipping Gemini for {v['name']}.")
+                mark_venue_scouted(venue_id, page_hash)
+                try:
+                    context.close()
+                except:
+                    pass
+                continue
+
             # Grab event links from the listing page BEFORE we extract text
             # These let us visit individual event pages for better images
             event_links = extract_event_links(page, v['url'])
@@ -577,13 +648,10 @@ def run_master_scout():
                 continue
 
             # ACT (Supabase)
-            venue_id = supabase.table("venues").upsert({
-                "name": v['name'], "neighborhood": v['neighborhood'], "url": v['url']
-            }, on_conflict="name").execute().data[0]['id']
-
             # Track image URLs seen for this venue to detect generic/shared images
             # (if an image appears for 2+ events, it's probably a venue logo, not an event flyer)
             venue_image_counts = {}
+            db_errors = 0
 
             for event in events:
                 try:
@@ -597,20 +665,37 @@ def run_master_scout():
                         "instagram_handle": event.get('talent_ig', '')
                     }, on_conflict="name").execute().data[0]['id']
 
-                    event_data = supabase.table("events").upsert({
+                    # Select-then-insert instead of a blind upsert: the old
+                    # upsert wrote status='pending' on every run, which reset
+                    # manually-approved events back to the review queue each
+                    # time a venue was re-scraped.
+                    event_payload = {
                         "event_name": event['event_name'],
                         "event_date": event['date'],
                         "event_vibe": event['category'],
                         "venue_id": venue_id,
                         "talent_id": talent_id,
-                        "status": "pending",
                         "metadata": {
                             "vibe_score": event.get('vibe_score', 0),
                             "justification": event.get('vibe_justification', '')
                         }
-                    }, on_conflict="event_name, event_date, venue_id").execute().data[0]
+                    }
 
-                    event_id = event_data['id']
+                    existing = supabase.table("events").select("id, status") \
+                        .eq("event_name", event['event_name']) \
+                        .eq("event_date", event['date']) \
+                        .eq("venue_id", venue_id).execute().data
+
+                    if existing:
+                        is_new = False
+                        event_id = existing[0]['id']
+                        # Refresh scraped fields; leave status/curation alone.
+                        supabase.table("events").update(event_payload).eq("id", event_id).execute()
+                    else:
+                        is_new = True
+                        event_payload["status"] = "pending"
+                        event_payload["curation_level"] = "scraped"
+                        event_id = supabase.table("events").insert(event_payload).execute().data[0]['id']
                     flyer_url = None
                     raw_img_url = None  # Track the source URL to detect duplicates
 
@@ -674,14 +759,45 @@ def run_master_scout():
                     if not flyer_url and raw_img_url and is_generic:
                         flyer_url = upload_flyer(raw_img_url, event_id)
 
+                    # ── Final update: flyer + event link + auto-publish decision ──
+                    final_update = {}
                     if flyer_url:
-                        supabase.table("events").update({"flyer_url": flyer_url}).eq("id", event_id).execute()
-                        print(f"   ✅ Saved Event + Flyer: {event['event_name']} ({event.get('vibe_score', 0)}/10)")
+                        final_update["flyer_url"] = flyer_url
+                    if event_detail_url and event_detail_url.startswith("http"):
+                        # The resolved per-event page (Gemini's event_url or the
+                        # fuzzy-matched listing link) — shown as "link to the
+                        # event" in the app and used as a dedup aid.
+                        final_update["source_url"] = event_detail_url
+
+                    vibe_score = event.get('vibe_score', 0)
+                    flyer_note = "+ Flyer" if flyer_url else "(No Flyer)"
+                    if is_new:
+                        publish, reason = should_auto_publish(venue_trust, event)
+                        if publish:
+                            final_update.update({
+                                "status": "approved",
+                                "auto_published": True,
+                                "published_at": datetime.now(timezone.utc).isoformat(),
+                            })
+                            print(f"   🚀 AUTO-PUBLISHED {flyer_note}: {event['event_name']} ({vibe_score}/10)")
+                        else:
+                            print(f"   📥 Queued for review [{reason}] {flyer_note}: {event['event_name']} ({vibe_score}/10)")
                     else:
-                        print(f"   ✅ Saved Event (No Flyer): {event['event_name']} ({event.get('vibe_score', 0)}/10)")
+                        print(f"   ✅ Refreshed {flyer_note}: {event['event_name']} ({vibe_score}/10) — status untouched")
+
+                    if final_update:
+                        supabase.table("events").update(final_update).eq("id", event_id).execute()
                 except Exception as e:
                     print(f"   ⚠️  DB ERROR for {event['event_name']}: {e}")
+                    db_errors += 1
                     continue
+
+            # Save the page hash only after a clean run — if any event write
+            # failed, leave the old hash so the next run retries this venue.
+            if db_errors == 0:
+                mark_venue_scouted(venue_id, page_hash)
+            else:
+                print(f"   ⚠️  {db_errors} DB error(s) — not saving page hash, venue will retry next run.")
 
             # Close this venue's context to release resources
             try:
