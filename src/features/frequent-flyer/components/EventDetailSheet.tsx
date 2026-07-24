@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { Event, formatEventDateTime } from '@/features/frequent-flyer/data/events';
 import { hasRealImage } from '@/features/frequent-flyer/data/vibePlaceholders';
 import GeneratedFlyer from './GeneratedFlyer';
+import ShareButton from './ShareButton';
 import styles from './EventDetailSheet.module.css';
 
 interface EventDetailSheetProps {
@@ -100,6 +101,17 @@ export default function EventDetailSheet({ event, onClose }: EventDetailSheetPro
                                 <line x1="10" y1="14" x2="21" y2="3" />
                             </svg>
                         </a>
+                    )}
+
+                    {/* Share — only one-off events have a shareable /event/[id] page */}
+                    {!event.id.startsWith('recurring-') && (
+                        <ShareButton
+                            path={`/event/${event.id}`}
+                            title={event.title}
+                            text={`${event.title} — ${event.location}`}
+                            label="Share this event"
+                            className={styles.shareButton}
+                        />
                     )}
                 </div>
             </div>

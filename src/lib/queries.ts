@@ -60,6 +60,54 @@ export async function getEvents(): Promise<Event[]> {
     }));
 }
 
+// Single approved event by id — backs the shareable /event/[id] page.
+export async function getEventById(id: string): Promise<Event | null> {
+    const { data, error } = await supabase
+        .from('events')
+        .select(`
+      id,
+      event_name,
+      event_date,
+      start_time,
+      end_time,
+      event_vibe,
+      flyer_url,
+      source_url,
+      curation_level,
+      metadata,
+      venues (
+        name,
+        neighborhood,
+        lat,
+        lng,
+        url
+      )
+    `)
+        .eq('id', id)
+        .eq('status', 'approved')
+        .maybeSingle();
+
+    if (error || !data) return null;
+
+    const e: any = data;
+    return {
+        id: e.id,
+        title: e.event_name,
+        date: e.event_date,
+        startTime: e.start_time || null,
+        endTime: e.end_time || null,
+        location: `${e.venues?.name || 'Unknown'}, ${e.venues?.neighborhood || 'LA'}`,
+        description: e.metadata?.justification || 'No description available',
+        lat: e.venues?.lat || 34.0522,
+        lng: e.venues?.lng || -118.2437,
+        image: e.flyer_url || '/placeholder.jpg',
+        neighborhood: e.venues?.neighborhood || 'Unknown',
+        vibe: e.event_vibe ? [e.event_vibe] : ['Event'],
+        url: e.source_url || e.venues?.url,
+        curationLevel: e.curation_level || 'scraped',
+    };
+}
+
 export async function getVenues() {
     const { data, error } = await supabase
         .from('venues')

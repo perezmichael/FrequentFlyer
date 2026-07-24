@@ -173,6 +173,38 @@
     color: #1a1a1a;
 }
 
+.shareButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 10px;
+    padding: 14px;
+    border-radius: 999px;
+    background: transparent;
+    color: #1a1a1a;
+    border: 1.5px solid rgba(26, 26, 26, 0.4);
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: -0.44px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+/* First action when there's no tickets link above it. */
+.linkButton + .shareButton {
+    margin-top: 10px;
+}
+
+.shareButton:hover {
+    background: #1a1a1a;
+    color: #FFFAEB;
+    border-color: #1a1a1a;
+}
+
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
