@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Daily FrequentFlyer scout at 10:00 AM. If the Mac was asleep at 10,
+         launchd runs the missed job on wake.
+
+         The job runs the RUNTIME COPY at ~/.frequentflyer-scout (not the
+         repo): macOS TCC blocks launchd jobs from reading ~/Desktop. Refresh
+         the runtime copy with deploy_scout.sh after scout code changes.
+
+         Reinstall after editing this file:
+           cp com.frequentflyer.scout.plist ~/Library/LaunchAgents/
+           launchctl bootout gui/$(id -u)/com.frequentflyer.scout 2>/dev/null
+           launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.frequentflyer.scout.plist -->
+    <key>Label</key>
+    <string>com.frequentflyer.scout</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>/Users/michaelperez/.frequentflyer-scout/run_scout.sh</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>10</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/Users/michaelperez/.frequentflyer-scout/logs/launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/michaelperez/.frequentflyer-scout/logs/launchd.log</string>
+</dict>
+</plist>

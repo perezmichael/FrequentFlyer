@@ -1,7 +1,8 @@
 'use client';
 
 import { Event, formatEventDateTime } from '@/features/frequent-flyer/data/events';
-import { hasRealImage, getVibePlaceholder } from '@/features/frequent-flyer/data/vibePlaceholders';
+import { hasRealImage } from '@/features/frequent-flyer/data/vibePlaceholders';
+import GeneratedFlyer from './GeneratedFlyer';
 import styles from './EventCard2.module.css';
 
 interface EventCard2Props {
@@ -13,7 +14,6 @@ interface EventCard2Props {
 
 export default function EventCard2({ event, isActive, onClick, id }: EventCard2Props) {
     const showImage = hasRealImage(event.image);
-    const placeholder = getVibePlaceholder(event.vibe?.[0]);
 
     return (
         <div id={id} className={styles.card} onClick={onClick}>
@@ -27,11 +27,7 @@ export default function EventCard2({ event, isActive, onClick, id }: EventCard2P
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={event.image} alt={event.title} className={styles.image} />
                 ) : (
-                    <div className={styles.placeholder} style={{ background: placeholder.bg }}>
-                        <span className={styles.placeholderEmoji}>{placeholder.emoji}</span>
-                        <span className={styles.placeholderVibe}>{event.vibe?.[0] || 'Event'}</span>
-                        <span className={styles.placeholderNeighborhood}>{event.neighborhood}</span>
-                    </div>
+                    <GeneratedFlyer title={event.title} vibe={event.vibe?.[0]} neighborhood={event.neighborhood} />
                 )}
             </div>
 

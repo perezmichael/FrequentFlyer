@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import EventCard2 from './EventCard2';
 import RecurringEventCard from './RecurringEventCard';
+import EventDetailSheet from './EventDetailSheet';
 import MapLoader from '@/components/MapLoader';
 import styles from './HomeClient.module.css';
 import FilterPillRow from './FilterPillRow';
@@ -25,45 +26,52 @@ type UnifiedItem =
     | { kind: 'event'; data: Event; sortDay: number }
     | { kind: 'recurring'; data: RecurringEvent; sortDay: number };
 
-// Get the current week's Monday–Sunday dates
-function getCurrentWeekDates(): Date[] {
-    const now = new Date();
-    const dayOfWeek = now.getDay(); // 0=Sun
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - ((dayOfWeek + 6) % 7)); // back to Monday
-    monday.setHours(0, 0, 0, 0);
+// How far ahead the feed looks. Wide enough that opening the app cold shows a
+// full picture of what's coming up (then filters narrow it), not just today.
+const WINDOW_DAYS = 30;
 
-    const dates: Date[] = [];
-    for (let i = 0; i < 7; i++) {
-        const d = new Date(monday);
-        d.setDate(monday.getDate() + i);
-        dates.push(d);
-    }
-    return dates;
+// Recurring events use a different shape than one-off events. Project one into
+// the Event shape so the map and the detail sheet can treat everything the same.
+function recurringToEvent(re: RecurringEvent): Event {
+    return {
+        id: `recurring-${re.id}`,
+        title: re.event_name,
+        date: formatRecurringSchedule(re.day_of_week, re.start_time, re.end_time),
+        location: `${re.venue_name}, ${re.neighborhood}`,
+        description: re.description || re.category,
+        lat: re.lat,
+        lng: re.lng,
+        image: re.venue_image || '/placeholder.jpg',
+        neighborhood: re.neighborhood,
+        vibe: [re.category],
+        url: re.venue_url,
+    };
 }
 
 export default function HomeClient({ initialEvents, recurringEvents = [] }: HomeClientProps) {
     const today = new Date().getDay(); // 0=Sun
-    const [dayFilter, setDayFilter] = useState<number | null>(today);
+    // Default to All so a cold open shows everything upcoming, not just today.
+    const [dayFilter, setDayFilter] = useState<number | null>(null);
     const [neighborhoodFilter, setNeighborhoodFilter] = useState<string | null>(null);
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+    const [detailEvent, setDetailEvent] = useState<Event | null>(null);
     const [mobileTab, setMobileTab] = useState<'list' | 'map'>('list');
 
-    const weekDates = useMemo(() => getCurrentWeekDates(), []);
-
-    // Build the unified list: one-off events for this week + recurring events expanded to their day
+    // Build the unified list: upcoming one-off events + recurring events by day
     const unifiedItems = useMemo(() => {
         const items: UnifiedItem[] = [];
 
-        // One-off events that fall within this week
-        const weekStart = new Date(weekDates[0]);
-        weekStart.setHours(0, 0, 0, 0);
-        const weekEnd = new Date(weekDates[6]);
-        weekEnd.setHours(23, 59, 59, 999);
+        // One-off events in a rolling window from today. getEvents already drops
+        // anything before today, so this just caps how far ahead we show.
+        const windowStart = new Date();
+        windowStart.setHours(0, 0, 0, 0);
+        const windowEnd = new Date(windowStart);
+        windowEnd.setDate(windowStart.getDate() + WINDOW_DAYS);
+        windowEnd.setHours(23, 59, 59, 999);
 
         for (const event of initialEvents) {
             const eventDate = new Date(event.date);
-            if (eventDate >= weekStart && eventDate <= weekEnd) {
+            if (eventDate >= windowStart && eventDate <= windowEnd) {
                 items.push({ kind: 'event', data: event, sortDay: eventDate.getDay() });
             }
         }
@@ -74,7 +82,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
         }
 
         return items;
-    }, [initialEvents, recurringEvents, weekDates]);
+    }, [initialEvents, recurringEvents]);
 
     // Filter by day + neighborhood
     const filteredItems = useMemo(() => {
@@ -102,27 +110,10 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
 
     // Convert filtered items to Event[] shape for the Map
     const mapEvents: Event[] = useMemo(() => {
-        return filteredItems.map(item => {
-            if (item.kind === 'event') return item.data;
-            const re = item.data;
-            return {
-                id: `recurring-${re.id}`,
-                title: re.event_name,
-                date: formatRecurringSchedule(re.day_of_week, re.start_time, re.end_time),
-                location: `${re.venue_name}, ${re.neighborhood}`,
-                description: re.description || re.category,
-                lat: re.lat,
-                lng: re.lng,
-                image: re.venue_image || '/placeholder.jpg',
-                neighborhood: re.neighborhood,
-                vibe: [re.category],
-            };
-        });
+        return filteredItems.map(item =>
+            item.kind === 'event' ? item.data : recurringToEvent(item.data)
+        );
     }, [filteredItems]);
-
-    const handleEventClick = (id: string) => {
-        setSelectedEventId(id);
-    };
 
     const handleMarkerClick = (id: string) => {
         setSelectedEventId(id);
@@ -154,9 +145,14 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                 {/* Left: Unified event list */}
                 <div className={`${styles.listContainer} ${mobileTab !== 'list' ? styles.hiddenMobile : ''}`}>
                     <header className={styles.header}>
-                        <h1 className={styles.title}>
+                        <h1 className={`${styles.title} font-space-grotesk`}>
                             What&apos;s happening this week
                         </h1>
+
+                        <p className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-black/55 mt-[6px]">
+                            <span className="text-ink font-bold">{filteredItems.length}</span>
+                            {filteredItems.length === 1 ? ' event' : ' events'} across LA
+                        </p>
 
                         {/* Day-of-week pills */}
                         <FilterPillRow
@@ -193,7 +189,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                     </header>
 
                     {filteredItems.length > 0 ? (
-                        <div className={styles.grid}>
+                        <div className={`${styles.grid} stagger-in`}>
                             {filteredItems.map((item) => {
                                 if (item.kind === 'event') {
                                     const event = item.data;
@@ -203,7 +199,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                                             id={`home-${event.id}`}
                                             event={event}
                                             isActive={selectedEventId === event.id}
-                                            onClick={() => handleEventClick(event.id)}
+                                            onClick={() => setDetailEvent(event)}
                                         />
                                     );
                                 } else {
@@ -214,7 +210,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                                             key={mapId}
                                             id={`home-${mapId}`}
                                             event={re}
-                                            onClick={() => handleEventClick(mapId)}
+                                            onClick={() => setDetailEvent(recurringToEvent(re))}
                                         />
                                     );
                                 }
@@ -222,8 +218,8 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                         </div>
                     ) : (
                         <div className={styles.noResults}>
-                            <h3>No events found</h3>
-                            <p>Check back soon for upcoming events.</p>
+                            <h3 className="font-space-mono uppercase tracking-[-0.44px]">nothing on this filter. criminal.</h3>
+                            <p className="font-space-mono text-sm text-black/55 mt-1">try another day — or be the one who posts something.</p>
                         </div>
                     )}
                 </div>
@@ -235,11 +231,14 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                             events={mapEvents}
                             selectedEventId={selectedEventId}
                             onMarkerClick={handleMarkerClick}
+                            onEventOpen={setDetailEvent}
                             resizeSignal={mobileTab}
                         />
                     </div>
                 </div>
             </div>
+
+            <EventDetailSheet event={detailEvent} onClose={() => setDetailEvent(null)} />
         </div>
     );
 }

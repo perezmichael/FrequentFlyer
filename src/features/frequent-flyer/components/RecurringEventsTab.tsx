@@ -93,14 +93,15 @@ export default function RecurringEventsTab({ events }: RecurringEventsTabProps) 
 
             {/* Grid */}
             {filteredEvents.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-[24px] gap-y-[40px]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-[24px] gap-y-[40px] stagger-in">
                     {filteredEvents.map(event => (
                         <RecurringEventCard key={event.id} event={event} />
                     ))}
                 </div>
             ) : (
-                <div className="flex flex-col items-center justify-center py-20 text-black/40">
-                    <p className="font-space-mono text-sm uppercase">No recurring events found for this filter.</p>
+                <div className="flex flex-col items-center justify-center py-20 text-center gap-1">
+                    <p className="font-space-mono text-sm uppercase tracking-[-0.44px] text-ink">no weeklies match.</p>
+                    <p className="font-space-mono text-sm text-black/55">every night deserves a regular thing. try another filter.</p>
                 </div>
             )}
         </>

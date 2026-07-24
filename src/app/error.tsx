@@ -14,21 +14,19 @@ export default function Error({
     }, [error]);
 
     return (
-        <div style={{ padding: '40px', textAlign: 'center' }}>
-            <h2>Something went wrong!</h2>
-            <p style={{ color: 'red', marginBottom: '20px' }}>{error.message}</p>
+        <div className="bg-cream min-h-screen w-full flex flex-col items-center justify-center gap-[16px] px-6 text-center grain-soft">
+            <p className="stamp text-[12px]">error</p>
+            <h1 className="font-space-grotesk text-[44px] leading-none font-bold text-ink">
+                well, that ripped
+            </h1>
+            <p className="font-space-mono text-[14px] text-black/55 max-w-[420px]">
+                something broke on our end. hit retry — it usually works the second time.
+            </p>
             <button
                 onClick={() => reset()}
-                style={{
-                    padding: '10px 20px',
-                    background: 'black',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '5px',
-                    cursor: 'pointer'
-                }}
+                className="font-space-mono uppercase text-[14px] tracking-[-0.64px] border border-black/40 rounded-full px-6 py-3 hover:bg-black hover:text-cream transition-[color,background-color,transform] duration-150 active:scale-95"
             >
-                Try again
+                try again
             </button>
         </div>
     );

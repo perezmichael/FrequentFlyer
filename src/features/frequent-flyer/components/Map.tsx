@@ -19,6 +19,8 @@ interface MapProps {
     events?: Event[]; // Optional now
     selectedEventId?: string | null;
     onMarkerClick?: (id: string) => void;
+    // Open the full event detail sheet (from the popup's "View details").
+    onEventOpen?: (event: Event) => void;
     // New prop for Guide Routes
     route?: {
         coordinates: [number, number][];
@@ -32,6 +34,9 @@ interface MapProps {
 function MapUpdater({ center }: { center: [number, number] }) {
     const map = useMap();
     useEffect(() => {
+        // Guard against events with missing/NaN coordinates — flyTo throws
+        // "Invalid LatLng object: (NaN, NaN)" and takes the whole map down.
+        if (!Number.isFinite(center[0]) || !Number.isFinite(center[1])) return;
         map.flyTo(center, 13, { duration: 1.5 });
     }, [center, map]);
     return null;
@@ -58,7 +63,7 @@ function CustomControls({ isFullscreen, onToggleFullscreen }: { isFullscreen: bo
     return (
         <div className={`absolute ${positionClass} flex flex-col gap-2 z-[1000]`}>
             <button
-                className="w-8 h-8 bg-white border border-gray-200 rounded-lg flex items-center justify-center cursor-pointer shadow-sm transition-all hover:bg-gray-50 hover:shadow-md active:translate-y-0 text-gray-800"
+                className="w-8 h-8 bg-cream border border-black/40 rounded-lg flex items-center justify-center cursor-pointer shadow-sm transition-all hover:bg-black hover:text-cream hover:shadow-md active:translate-y-0 text-ink"
                 onClick={() => map.zoomIn()}
                 title="Zoom In"
             >
@@ -68,7 +73,7 @@ function CustomControls({ isFullscreen, onToggleFullscreen }: { isFullscreen: bo
                 </svg>
             </button>
             <button
-                className="w-8 h-8 bg-white border border-gray-200 rounded-lg flex items-center justify-center cursor-pointer shadow-sm transition-all hover:bg-gray-50 hover:shadow-md active:translate-y-0 text-gray-800"
+                className="w-8 h-8 bg-cream border border-black/40 rounded-lg flex items-center justify-center cursor-pointer shadow-sm transition-all hover:bg-black hover:text-cream hover:shadow-md active:translate-y-0 text-ink"
                 onClick={() => map.zoomOut()}
                 title="Zoom Out"
             >
@@ -77,7 +82,7 @@ function CustomControls({ isFullscreen, onToggleFullscreen }: { isFullscreen: bo
                 </svg>
             </button>
             <button
-                className="w-8 h-8 bg-white border border-gray-200 rounded-lg flex items-center justify-center cursor-pointer shadow-sm transition-all hover:bg-gray-50 hover:shadow-md active:translate-y-0 text-gray-800"
+                className="w-8 h-8 bg-cream border border-black/40 rounded-lg flex items-center justify-center cursor-pointer shadow-sm transition-all hover:bg-black hover:text-cream hover:shadow-md active:translate-y-0 text-ink"
                 onClick={onToggleFullscreen}
                 title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
             >
@@ -113,13 +118,13 @@ const createSingleIcon = (vibes: string[]) => {
     return L.divIcon({
         className: 'custom-map-marker',
         html: `<div style="
-            background: white;
+            background: #FFFAEB;
             width: 32px;
             height: 32px;
             border-radius: 50%;
             font-size: 14px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-            border: 1.5px solid rgba(0,0,0,0.08);
+            box-shadow: 0 3px 8px rgba(26,26,26,0.3);
+            border: 1.5px solid rgba(26,26,26,0.55);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -129,27 +134,61 @@ const createSingleIcon = (vibes: string[]) => {
     });
 };
 
-// Multiple events at the same location — count badge
-const createClusterIcon = (count: number) => {
+// Most common vibe among a group of events — drives the cluster emoji so a
+// pin reads as "mostly music" / "mostly comedy" at a glance (like SF RATS).
+const mostCommonVibe = (group: Event[]): string => {
+    const counts: Record<string, number> = {};
+    for (const e of group) {
+        const v = e.vibe?.[0];
+        if (v) counts[v] = (counts[v] || 0) + 1;
+    }
+    let best = '', bestN = 0;
+    for (const [v, n] of Object.entries(counts)) {
+        if (n > bestN) { bestN = n; best = v; }
+    }
+    return best;
+};
+
+// Multiple events at the same location — representative emoji + count badge
+const createClusterIcon = (count: number, vibes: string[]) => {
+    const emoji = getVibeEmoji(vibes[0]);
     return L.divIcon({
         className: 'custom-map-marker',
-        html: `<div style="
-            background: #111;
-            color: white;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            font-size: 13px;
-            font-weight: 700;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.35);
-            border: 2px solid white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Space Grotesk', sans-serif;
-        ">${count}</div>`,
-        iconSize: [36, 36],
-        iconAnchor: [18, 18],
+        html: `<div style="position: relative; width: 38px; height: 38px;">
+            <div style="
+                background: #FFFAEB;
+                width: 38px;
+                height: 38px;
+                border-radius: 50%;
+                font-size: 16px;
+                box-shadow: 0 3px 10px rgba(26,26,26,0.35);
+                border: 1.5px solid rgba(26,26,26,0.55);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            ">${emoji}</div>
+            <div style="
+                position: absolute;
+                top: -5px;
+                right: -5px;
+                background: #1a1a1a;
+                color: #FFFAEB;
+                min-width: 17px;
+                height: 17px;
+                border-radius: 9px;
+                padding: 0 4px;
+                font-size: 10px;
+                font-weight: 700;
+                font-family: 'Space Mono', monospace;
+                box-shadow: 0 1px 4px rgba(26,26,26,0.4);
+                border: 1.5px solid #FFFAEB;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            ">${count}</div>
+        </div>`,
+        iconSize: [38, 38],
+        iconAnchor: [19, 19],
     });
 };
 
@@ -157,21 +196,33 @@ const createClusterIcon = (count: number) => {
 function MapResizer({ isFullscreen, resizeSignal }: { isFullscreen: boolean; resizeSignal?: string | number }) {
     const map = useMap();
 
+    // Observe the actual container size. On mount the split-layout container is
+    // often still 0×0 (or grows 0→full as CSS settles), which left Leaflet
+    // thinking it was tiny and never fetching tiles for the real viewport —
+    // hence the grey/cream gaps. Recalc on every real size change so tiles fill.
     useEffect(() => {
-        // Wait for CSS transition/render to finish. This also recovers from the
-        // Leaflet "mounted while display:none" case (e.g. the mobile Map tab):
-        // when the container becomes visible the map still thinks it's 0×0 and
-        // renders grey, so we recalc its size once it's on screen.
-        const timer = setTimeout(() => {
-            map.invalidateSize();
-        }, 100);
+        const container = map.getContainer();
+        const ro = new ResizeObserver(() => map.invalidateSize());
+        ro.observe(container);
+        const kick = setTimeout(() => map.invalidateSize(), 100);
+        return () => {
+            ro.disconnect();
+            clearTimeout(kick);
+        };
+    }, [map]);
+
+    // Also react to explicit signals (mobile tab switch, fullscreen toggle),
+    // which change visibility without necessarily resizing the container.
+    useEffect(() => {
+        const timer = setTimeout(() => map.invalidateSize(), 120);
         return () => clearTimeout(timer);
     }, [map, isFullscreen, resizeSignal]);
 
     return null;
 }
 
-import { hasRealImage, getVibePlaceholder } from '@/features/frequent-flyer/data/vibePlaceholders';
+import { hasRealImage } from '@/features/frequent-flyer/data/vibePlaceholders';
+import GeneratedFlyer from './GeneratedFlyer';
 
 // Popup that supports cycling through multiple events at the same venue
 function EventPopup({
@@ -179,18 +230,19 @@ function EventPopup({
     index,
     onIndexChange,
     onClose,
+    onEventOpen,
 }: {
     group: Event[];
     index: number;
     onIndexChange: (i: number) => void;
     onClose: () => void;
+    onEventOpen?: (event: Event) => void;
 }) {
     const map = useMap();
     const event = group[index];
     const total = group.length;
     const [positionClass, setPositionClass] = useState('');
     const showImage = hasRealImage(event.image);
-    const placeholder = getVibePlaceholder(event.vibe?.[0]);
 
     useEffect(() => {
         if (!event) return;
@@ -217,15 +269,7 @@ function EventPopup({
                             className="w-full h-full object-cover block"
                         />
                     ) : (
-                        <div
-                            className="w-full h-full flex flex-col items-center justify-center gap-1"
-                            style={{ background: placeholder.bg }}
-                        >
-                            <span style={{ fontSize: '2rem', lineHeight: 1 }}>{placeholder.emoji}</span>
-                            <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.9)' }}>
-                                {event.vibe?.[0] || 'Event'}
-                            </span>
-                        </div>
+                        <GeneratedFlyer title={event.title} vibe={event.vibe?.[0]} neighborhood={event.neighborhood} />
                     )}
 
                     {/* Cycle controls — only shown when multiple events at this venue */}
@@ -255,21 +299,30 @@ function EventPopup({
                     )}
                 </div>
 
-                {/* Event info */}
-                <div className="p-4">
-                    <div className="text-base font-semibold mb-1 text-gray-900 leading-tight">{event.title}</div>
-                    <div className="text-sm text-gray-500 mb-2">{event.location}</div>
-                    <div className="mt-2 flex flex-col gap-1">
-                        <div className="font-semibold text-gray-900 text-base">Free</div>
-                        <div className="text-xs text-gray-500">{event.date}</div>
+                {/* Event info — click to open the full detail sheet */}
+                <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onEventOpen && onEventOpen(event); }}
+                    className="w-full text-left block p-4 bg-cream cursor-pointer transition-colors hover:bg-black/[0.04]"
+                >
+                    <div className="text-base font-bold mb-1 text-ink leading-tight font-space-grotesk">{event.title}</div>
+                    <div className="text-sm text-black/55 mb-3 font-space-mono">{event.location}</div>
+                    <div className="flex items-center justify-between gap-2">
+                        <span className="stamp text-[11px]">{event.date}</span>
+                        <span className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-brand flex items-center gap-1 whitespace-nowrap">
+                            View details
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </span>
                     </div>
-                </div>
+                </button>
             </div>
         </Popup>
     );
 }
 
-export default function Map({ events = [], selectedEventId, onMarkerClick, route, resizeSignal }: MapProps) {
+export default function Map({ events = [], selectedEventId, onMarkerClick, onEventOpen, route, resizeSignal }: MapProps) {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [activeGroup, setActiveGroup] = useState<Event[] | null>(null);
     const [activeGroupIndex, setActiveGroupIndex] = useState(0);
@@ -280,12 +333,24 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, route
     const locationGroups = useMemo(() => {
         const groups: Record<string, Event[]> = {};
         for (const event of events) {
+            if (!Number.isFinite(event.lat) || !Number.isFinite(event.lng)) continue;
             const key = `${event.lat.toFixed(4)},${event.lng.toFixed(4)}`;
             if (!groups[key]) groups[key] = [];
             groups[key].push(event);
         }
         return Object.values(groups);
     }, [events]);
+
+    // LA is spread out, so open on a metro-wide view centered on the middle of
+    // all pins rather than a fixed downtown point. One pin per venue → centroid
+    // of the venues, not of every event, so a busy venue doesn't drag it.
+    const centroid: [number, number] = useMemo(() => {
+        if (locationGroups.length === 0) return [34.05, -118.29];
+        const pts = locationGroups.map(g => g[0]);
+        const lat = pts.reduce((s, e) => s + e.lat, 0) / pts.length;
+        const lng = pts.reduce((s, e) => s + e.lng, 0) / pts.length;
+        return [lat, lng];
+    }, [locationGroups]);
 
     const handleMarkerClick = (group: Event[]) => {
         setActiveGroup(group);
@@ -298,10 +363,13 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, route
         if (activeGroup) onMarkerClick && onMarkerClick(activeGroup[i].id);
     };
 
-    // Determine center: 1. Selected Event, 2. First Event, 3. Default LA
+    // Determine center: selected event, else the metro-wide centroid.
     const center: [number, number] = selectedEvent
         ? [selectedEvent.lat, selectedEvent.lng]
-        : (events.length > 0 ? [events[0].lat, events[0].lng] : [34.0782, -118.2606]);
+        : centroid;
+    // Open zoomed out enough to show the LA spread; tighten for a single venue
+    // or when an event is selected.
+    const initialZoom = selectedEvent ? 13 : (locationGroups.length > 1 ? 11 : 13);
 
     const toggleFullscreen = () => {
         setIsFullscreen(!isFullscreen);
@@ -313,7 +381,7 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, route
         >
             <MapContainer
                 center={center}
-                zoom={13}
+                zoom={initialZoom}
                 style={{ height: '100%', width: '100%', borderRadius: isFullscreen ? '0' : '16px' }}
                 zoomControl={false}
             >
@@ -333,7 +401,7 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, route
                     const first = group[0];
                     const icon = group.length === 1
                         ? createSingleIcon(first.vibe)
-                        : createClusterIcon(group.length);
+                        : createClusterIcon(group.length, [mostCommonVibe(group)]);
                     return (
                         <Marker
                             key={`${first.lat},${first.lng}`}
@@ -352,6 +420,7 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, route
                         group={activeGroup}
                         index={activeGroupIndex}
                         onIndexChange={handleCycleIndex}
+                        onEventOpen={onEventOpen}
                         onClose={() => {
                             setActiveGroup(null);
                             onMarkerClick && onMarkerClick('');
@@ -364,7 +433,7 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, route
                     <>
                         <Polyline
                             positions={route.coordinates}
-                            pathOptions={{ color: route.color || '#3b82f6', weight: 4, opacity: 0.8 }}
+                            pathOptions={{ color: route.color || '#C2371B', weight: 4, opacity: 0.8 }}
                         />
                         <RouteUpdater coordinates={route.coordinates} />
                         {/* Render Simple Dots for Route Points if no events are passed (optional enhancement) */}
@@ -374,7 +443,7 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, route
                                 position={coord}
                                 icon={L.divIcon({
                                     className: 'route-dot',
-                                    html: `<div style="background: ${route.color || '#3b82f6'}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>`,
+                                    html: `<div style="background: ${route.color || '#C2371B'}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>`,
                                     iconSize: [12, 12]
                                 })}
                             />

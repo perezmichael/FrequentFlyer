@@ -14,17 +14,18 @@
  *   - Pills are fully rounded with hairline ink borders.
  */
 
-/** Top-nav text link (home, events, map, …). */
+/** Top-nav text link (home, events, map, …). Hover slips a brick ghost out
+ *  from under the ink (riso misregistration — see .misreg in globals.css). */
 export const navLink =
-    'font-space-mono leading-[1.25] not-italic text-[16px] text-black tracking-[-0.64px] uppercase hover:underline underline-offset-4 decoration-2';
+    'misreg font-space-mono leading-[1.25] not-italic text-[16px] text-black tracking-[-0.64px] uppercase hover:underline underline-offset-4 decoration-2';
 
 /** Primary call-to-action pill ("+ create"): outline that inverts on hover. */
 export const createPill =
-    'font-space-mono leading-none not-italic text-[15px] text-black tracking-[-0.64px] uppercase border border-black/40 rounded-full px-5 py-2.5 hover:bg-black hover:text-[#FFFAEB] transition-colors no-underline whitespace-nowrap';
+    'font-space-mono leading-none not-italic text-[15px] text-black tracking-[-0.64px] uppercase border border-black/40 rounded-full px-5 py-2.5 hover:bg-black hover:text-[#FFFAEB] transition-[color,background-color,transform] duration-150 active:scale-95 no-underline whitespace-nowrap inline-block';
 
 /** Small filter pill base (day-of-week / neighborhood filters). */
 export const filterPillBase =
-    'font-space-mono text-[11px] uppercase tracking-[-0.44px] px-[12px] py-[6px] rounded-full border transition-colors whitespace-nowrap cursor-pointer';
+    'font-space-mono text-[11px] uppercase tracking-[-0.44px] px-[12px] py-[6px] rounded-full border transition-[color,background-color,border-color,transform] duration-150 active:scale-95 whitespace-nowrap cursor-pointer';
 
 /** Filter pill — selected state. */
 export const filterPillActive = 'bg-black text-[#FFFAEB] border-black';

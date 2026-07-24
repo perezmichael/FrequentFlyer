@@ -4,6 +4,11 @@ import { Event } from '@/features/frequent-flyer/data/events';
 import { GuideWithItems } from '@/features/frequent-flyer/types/guides';
 import { RecurringEvent } from '@/features/frequent-flyer/data/recurringEvents';
 
+/** Today's date (YYYY-MM-DD) in LA — event dates are LA-local, server may be UTC. */
+function todayInLA(): string {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(new Date());
+}
+
 export async function getEvents(): Promise<Event[]> {
     const { data, error } = await supabase
         .from('events')
@@ -15,6 +20,8 @@ export async function getEvents(): Promise<Event[]> {
       end_time,
       event_vibe,
       flyer_url,
+      source_url,
+      curation_level,
       metadata,
       venues (
         name,
@@ -25,7 +32,9 @@ export async function getEvents(): Promise<Event[]> {
       )
     `)
         .order('event_date', { ascending: true })
-        .eq('status', 'approved');
+        .eq('status', 'approved')
+        // Auto-expiry: past events fall out of the feed without manual cleanup.
+        .gte('event_date', todayInLA());
 
     if (error) {
         console.error('Error fetching events:', error);
@@ -45,8 +54,58 @@ export async function getEvents(): Promise<Event[]> {
         image: e.flyer_url || '/placeholder.jpg',
         neighborhood: e.venues?.neighborhood || 'Unknown',
         vibe: e.event_vibe ? [e.event_vibe] : ['Event'],
-        url: e.venues?.url,
+        // Prefer the event's own page (scraped source_url) over the venue calendar.
+        url: e.source_url || e.venues?.url,
+        curationLevel: e.curation_level || 'scraped',
     }));
+}
+
+// Single approved event by id — backs the shareable /event/[id] page.
+export async function getEventById(id: string): Promise<Event | null> {
+    const { data, error } = await supabase
+        .from('events')
+        .select(`
+      id,
+      event_name,
+      event_date,
+      start_time,
+      end_time,
+      event_vibe,
+      flyer_url,
+      source_url,
+      curation_level,
+      metadata,
+      venues (
+        name,
+        neighborhood,
+        lat,
+        lng,
+        url
+      )
+    `)
+        .eq('id', id)
+        .eq('status', 'approved')
+        .maybeSingle();
+
+    if (error || !data) return null;
+
+    const e: any = data;
+    return {
+        id: e.id,
+        title: e.event_name,
+        date: e.event_date,
+        startTime: e.start_time || null,
+        endTime: e.end_time || null,
+        location: `${e.venues?.name || 'Unknown'}, ${e.venues?.neighborhood || 'LA'}`,
+        description: e.metadata?.justification || 'No description available',
+        lat: e.venues?.lat || 34.0522,
+        lng: e.venues?.lng || -118.2437,
+        image: e.flyer_url || '/placeholder.jpg',
+        neighborhood: e.venues?.neighborhood || 'Unknown',
+        vibe: e.event_vibe ? [e.event_vibe] : ['Event'],
+        url: e.source_url || e.venues?.url,
+        curationLevel: e.curation_level || 'scraped',
+    };
 }
 
 export async function getVenues() {
