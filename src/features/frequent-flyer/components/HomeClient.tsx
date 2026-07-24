@@ -145,8 +145,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                 <div className={`${styles.listContainer} ${mobileTab !== 'list' ? styles.hiddenMobile : ''}`}>
                     <header className={styles.header}>
                         <h1 className={`${styles.title} font-space-grotesk`}>
-                            What&apos;s happening{' '}
-                            <em className="font-serif italic font-medium text-brand">this week</em>
+                            What&apos;s happening this week
                         </h1>
 
                         <p className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-black/55 mt-[6px]">
