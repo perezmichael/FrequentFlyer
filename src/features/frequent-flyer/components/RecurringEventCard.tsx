@@ -2,7 +2,8 @@
 
 import { RecurringEvent, formatRecurringSchedule } from '@/features/frequent-flyer/data/recurringEvents';
 import { RECURRING_CATEGORIES } from '@/features/frequent-flyer/data/recurringCategories';
-import { hasRealImage, getVibePlaceholder } from '@/features/frequent-flyer/data/vibePlaceholders';
+import { hasRealImage } from '@/features/frequent-flyer/data/vibePlaceholders';
+import GeneratedFlyer from './GeneratedFlyer';
 import styles from './EventCard2.module.css';
 
 interface RecurringEventCardProps {
@@ -13,7 +14,6 @@ interface RecurringEventCardProps {
 
 export default function RecurringEventCard({ event, onClick, id }: RecurringEventCardProps) {
     const showImage = hasRealImage(event.venue_image);
-    const placeholder = getVibePlaceholder(event.category);
 
     return (
         <div id={id} className={styles.card} onClick={onClick}>
@@ -22,11 +22,7 @@ export default function RecurringEventCard({ event, onClick, id }: RecurringEven
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={event.venue_image!} alt={event.venue_name} className={styles.image} />
                 ) : (
-                    <div className={styles.placeholder} style={{ background: placeholder.bg }}>
-                        <span className={styles.placeholderEmoji}>{placeholder.emoji}</span>
-                        <span className={styles.placeholderVibe}>{event.category}</span>
-                        <span className={styles.placeholderNeighborhood}>{event.neighborhood}</span>
-                    </div>
+                    <GeneratedFlyer title={event.event_name} vibe={event.category} neighborhood={event.neighborhood} />
                 )}
             </div>
 
