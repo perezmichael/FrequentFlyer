@@ -101,16 +101,12 @@ function CustomControls({ isFullscreen, onToggleFullscreen }: { isFullscreen: bo
 }
 
 // Vibe to Emoji Mapping
-import { VIBES } from '@/features/frequent-flyer/data/vibes';
-import { RECURRING_CATEGORIES } from '@/features/frequent-flyer/data/recurringCategories';
+import { resolveVibeEmoji, representativeEmoji } from '@/features/frequent-flyer/data/vibeEmoji';
 
-// Extract just the emoji from a label like "🎶 Music" → "🎶". One-off events
-// use VIBES keys ("Nightlife"); recurring events use their own category
-// vocabulary ("Dance Night"), so we check both before falling back to 📍.
-const getVibeEmoji = (vibe: string): string => {
-    const label = VIBES[vibe] || RECURRING_CATEGORIES[vibe] || '';
-    return label.split(' ')[0] || '📍';
-};
+// The scout writes free-text categories ("Music (DJ Set)", "Standup Comedy"),
+// so exact lookups miss and everything became a generic 📍. resolveVibeEmoji
+// falls back to keyword matching — see data/vibeEmoji.ts.
+const getVibeEmoji = (vibe: string): string => resolveVibeEmoji(vibe);
 
 // Single event at a location — small emoji dot
 const createSingleIcon = (vibes: string[]) => {
@@ -134,24 +130,8 @@ const createSingleIcon = (vibes: string[]) => {
     });
 };
 
-// Most common vibe among a group of events — drives the cluster emoji so a
-// pin reads as "mostly music" / "mostly comedy" at a glance (like SF RATS).
-const mostCommonVibe = (group: Event[]): string => {
-    const counts: Record<string, number> = {};
-    for (const e of group) {
-        const v = e.vibe?.[0];
-        if (v) counts[v] = (counts[v] || 0) + 1;
-    }
-    let best = '', bestN = 0;
-    for (const [v, n] of Object.entries(counts)) {
-        if (n > bestN) { bestN = n; best = v; }
-    }
-    return best;
-};
-
 // Multiple events at the same location — representative emoji + count badge
-const createClusterIcon = (count: number, vibes: string[]) => {
-    const emoji = getVibeEmoji(vibes[0]);
+const createClusterIcon = (count: number, emoji: string) => {
     return L.divIcon({
         className: 'custom-map-marker',
         html: `<div style="position: relative; width: 38px; height: 38px;">
@@ -199,14 +179,36 @@ function MapResizer({ isFullscreen, resizeSignal }: { isFullscreen: boolean; res
     // Observe the actual container size. On mount the split-layout container is
     // often still 0×0 (or grows 0→full as CSS settles), which left Leaflet
     // thinking it was tiny and never fetching tiles for the real viewport —
-    // hence the grey/cream gaps. Recalc on every real size change so tiles fill.
+    // hence the grey/cream gaps. Recalc on real size changes so tiles fill.
+    //
+    // Debounced and de-duped on purpose: on Android Chrome the URL bar
+    // collapses/expands while scrolling, which resizes this container
+    // repeatedly mid-gesture. Calling invalidateSize() on every one of those
+    // (it re-lays out panes and refetches tiles) made the map stutter and
+    // flash. Coalesce the burst into a single call once the size settles.
     useEffect(() => {
         const container = map.getContainer();
-        const ro = new ResizeObserver(() => map.invalidateSize());
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        let lastW = 0;
+        let lastH = 0;
+
+        const ro = new ResizeObserver((entries) => {
+            const rect = entries[0]?.contentRect;
+            if (!rect) return;
+            const w = Math.round(rect.width);
+            const h = Math.round(rect.height);
+            if (w === lastW && h === lastH) return;
+            lastW = w;
+            lastH = h;
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(() => map.invalidateSize(), 120);
+        });
+
         ro.observe(container);
         const kick = setTimeout(() => map.invalidateSize(), 100);
         return () => {
             ro.disconnect();
+            if (timer) clearTimeout(timer);
             clearTimeout(kick);
         };
     }, [map]);
@@ -378,11 +380,17 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, onEve
     return (
         <div
             className={`relative w-full h-full ${isFullscreen ? 'fixed !top-0 !left-0 !w-[100vw] !h-[100vh] z-[9999] rounded-none' : ''}`}
+            // Pass the wrapper's radius down: border-radius doesn't inherit on
+            // its own, so without this the map's `inherit` would resolve against
+            // this div (0) instead of the page's map wrapper.
+            style={{ borderRadius: isFullscreen ? 0 : 'inherit' }}
         >
             <MapContainer
                 center={center}
                 zoom={initialZoom}
-                style={{ height: '100%', width: '100%', borderRadius: isFullscreen ? '0' : '16px' }}
+                // Radius follows the wrapper (inherit) so each page decides:
+                // rounded card on desktop, full-bleed square on mobile.
+                style={{ height: '100%', width: '100%', borderRadius: isFullscreen ? '0' : 'inherit' }}
                 zoomControl={false}
             >
                 <TileLayer
@@ -401,7 +409,7 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, onEve
                     const first = group[0];
                     const icon = group.length === 1
                         ? createSingleIcon(first.vibe)
-                        : createClusterIcon(group.length, [mostCommonVibe(group)]);
+                        : createClusterIcon(group.length, representativeEmoji(group.map(e => e.vibe?.[0])));
                     return (
                         <Marker
                             key={`${first.lat},${first.lng}`}

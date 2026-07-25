@@ -1,3 +1,5 @@
+import { resolveVibeEmoji } from './vibeEmoji';
+
 export interface VibePlaceholder {
     bg: string;
     emoji: string;
@@ -43,5 +45,11 @@ export const DEFAULT_PLACEHOLDER: VibePlaceholder = {
 export const hasRealImage = (url: string | undefined | null): boolean =>
     !!url && url !== '/placeholder.jpg' && url !== '/nanobanana_placeholder.png';
 
-export const getVibePlaceholder = (vibe: string | undefined): VibePlaceholder =>
-    (vibe && VIBE_GRADIENTS[vibe]) || DEFAULT_PLACEHOLDER;
+export const getVibePlaceholder = (vibe: string | undefined): VibePlaceholder => {
+    const exact = vibe ? VIBE_GRADIENTS[vibe] : undefined;
+    if (exact) return exact;
+    // Free-text categories from the scout ("Music (DJ Set)") don't hit the
+    // table above, which left every generated flyer with the same 📍 watermark.
+    // Keep the neutral gradient but resolve a meaningful emoji.
+    return { ...DEFAULT_PLACEHOLDER, emoji: resolveVibeEmoji(vibe) };
+};

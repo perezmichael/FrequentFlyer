@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Event, formatEventDateTime } from '@/features/frequent-flyer/data/events';
 import { hasRealImage } from '@/features/frequent-flyer/data/vibePlaceholders';
 import GeneratedFlyer from './GeneratedFlyer';
@@ -18,7 +18,64 @@ interface EventDetailSheetProps {
  * time, vibe, description, and an out-link to the event's own page / tickets
  * (source_url from the scout, falling back to the venue calendar).
  */
+// Drag further than this (or flick faster) and the sheet dismisses.
+const DISMISS_DISTANCE = 110;
+const DISMISS_VELOCITY = 0.55; // px per ms
+
 export default function EventDetailSheet({ event, onClose }: EventDetailSheetProps) {
+    // Drag-to-dismiss state for the mobile grab handle. The handle used to be
+    // decorative, which read as broken — it advertises a gesture, so it has to
+    // actually perform one.
+    const [dragY, setDragY] = useState(0);
+    const [dragging, setDragging] = useState(false);
+    const dragStart = useRef<{ y: number; t: number } | null>(null);
+
+    const onPointerDown = (e: React.PointerEvent) => {
+        dragStart.current = { y: e.clientY, t: Date.now() };
+        setDragging(true);
+    };
+
+    // Track the gesture on the window rather than on the handle itself: the
+    // handle is only ~40x26px, so a real drag leaves it almost immediately and
+    // the element would stop receiving pointer events — freezing the sheet
+    // mid-drag. (Pointer capture is unreliable here, so don't depend on it.)
+    useEffect(() => {
+        if (!dragging) return;
+
+        const move = (e: PointerEvent) => {
+            if (!dragStart.current) return;
+            // Downward only — no rubber-banding the sheet above its stop.
+            setDragY(Math.max(0, e.clientY - dragStart.current.y));
+        };
+
+        const end = (e: PointerEvent) => {
+            const start = dragStart.current;
+            dragStart.current = null;
+            setDragging(false);
+            setDragY(0);
+            if (!start) return;
+            const dy = Math.max(0, e.clientY - start.y);
+            const velocity = dy / Math.max(1, Date.now() - start.t);
+            if (dy > DISMISS_DISTANCE || velocity > DISMISS_VELOCITY) onClose();
+        };
+
+        window.addEventListener('pointermove', move, { passive: true });
+        window.addEventListener('pointerup', end);
+        window.addEventListener('pointercancel', end);
+        return () => {
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup', end);
+            window.removeEventListener('pointercancel', end);
+        };
+    }, [dragging, onClose]);
+
+    // Reset drag offset whenever a different event opens the sheet.
+    useEffect(() => {
+        setDragY(0);
+        setDragging(false);
+        dragStart.current = null;
+    }, [event]);
+
     useEffect(() => {
         if (!event) return;
         const onKey = (e: KeyboardEvent) => {
@@ -40,8 +97,29 @@ export default function EventDetailSheet({ event, onClose }: EventDetailSheetPro
 
     return (
         <div className={styles.overlay} onClick={onClose}>
-            <div className={styles.sheet} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={event.title}>
-                <div className={styles.grabber}><div className={styles.grabberBar} /></div>
+            <div
+                className={styles.sheet}
+                onClick={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                aria-label={event.title}
+                style={dragY ? {
+                    transform: `translateY(${dragY}px)`,
+                    // No transition while the finger is down, so it tracks 1:1;
+                    // springs back on release.
+                    transition: dragging ? 'none' : undefined,
+                } : undefined}
+            >
+                <div
+                    className={styles.grabber}
+                    onPointerDown={onPointerDown}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Drag down to close"
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose(); }}
+                >
+                    <div className={styles.grabberBar} />
+                </div>
 
                 <button className={styles.closeButton} onClick={onClose} aria-label="Close">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">

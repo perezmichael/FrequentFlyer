@@ -30,6 +30,8 @@
     overflow-y: auto;
     animation: slideUp 0.24s cubic-bezier(0.22, 1, 0.36, 1);
     box-shadow: 0 -8px 40px rgba(26, 26, 26, 0.25);
+    /* Springs the sheet back when a drag doesn't travel far enough to dismiss. */
+    transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @media (min-width: 768px) {
@@ -47,9 +49,22 @@
     top: 0;
     display: flex;
     justify-content: center;
-    padding: 10px 0 6px;
+    /* Generous vertical padding = a thumb-sized drag target, not just the bar. */
+    padding: 12px 0 10px;
     background: linear-gradient(to bottom, #FFFAEB 60%, transparent);
     z-index: 2;
+    /* Claim the gesture so the sheet drags instead of the body scrolling. */
+    touch-action: none;
+    cursor: grab;
+}
+
+.grabber:active {
+    cursor: grabbing;
+}
+
+.grabber:focus-visible {
+    outline: 2px solid #C2371B;
+    outline-offset: -2px;
 }
 
 @media (min-width: 768px) {

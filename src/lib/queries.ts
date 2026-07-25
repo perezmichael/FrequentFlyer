@@ -48,7 +48,11 @@ export async function getEvents(): Promise<Event[]> {
         startTime: e.start_time || null,
         endTime: e.end_time || null,
         location: `${e.venues?.name || 'Unknown'}, ${e.venues?.neighborhood || 'LA'}`,
-        description: e.metadata?.justification || 'No description available',
+        // metadata.description is the public listing copy. metadata.justification
+        // is the scout's INTERNAL vibe-score rationale — it used to be shown here,
+        // which is why descriptions read as AI commentary about the event rather
+        // than about what actually happens. Never surface it.
+        description: e.metadata?.description || 'No description available',
         lat: e.venues?.lat || 34.0522,
         lng: e.venues?.lng || -118.2437,
         image: e.flyer_url || '/placeholder.jpg',
@@ -97,7 +101,11 @@ export async function getEventById(id: string): Promise<Event | null> {
         startTime: e.start_time || null,
         endTime: e.end_time || null,
         location: `${e.venues?.name || 'Unknown'}, ${e.venues?.neighborhood || 'LA'}`,
-        description: e.metadata?.justification || 'No description available',
+        // metadata.description is the public listing copy. metadata.justification
+        // is the scout's INTERNAL vibe-score rationale — it used to be shown here,
+        // which is why descriptions read as AI commentary about the event rather
+        // than about what actually happens. Never surface it.
+        description: e.metadata?.description || 'No description available',
         lat: e.venues?.lat || 34.0522,
         lng: e.venues?.lng || -118.2437,
         image: e.flyer_url || '/placeholder.jpg',
