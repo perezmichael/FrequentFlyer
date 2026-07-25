@@ -13,6 +13,8 @@
 .mapWrapper {
     width: 100%;
     height: 100%;
+    /* The map inherits its radius from this wrapper — keep the rounded card. */
+    border-radius: 16px;
 }
 
 .mapLoading {

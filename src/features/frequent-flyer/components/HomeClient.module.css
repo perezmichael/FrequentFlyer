@@ -104,7 +104,9 @@
     .splitLayout {
         grid-template-columns: 1fr;
         height: auto;
-        padding: 0 16px;
+        /* No side padding here so the map can go edge-to-edge; the list adds
+           its own gutters back below. */
+        padding: 0;
     }
 
     .listContainer,
@@ -115,12 +117,26 @@
         padding-bottom: 0;
     }
 
+    .listContainer {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
     .mapContainer {
-        /* Fill the viewport below the fixed navbar (100px) + tab bar (51px +
-           16px margin), leaving a 16px breathing gap at the bottom. */
-        height: calc(100vh - 183px);
-        height: calc(100dvh - 183px);
-        margin-bottom: 1rem;
+        /* Full-bleed: fill the viewport below the fixed navbar (100px) + tab
+           bar (51px + 16px margin), right out to the screen edges.
+           svh (not dvh) on purpose — dvh tracks Android Chrome's collapsing
+           URL bar, which resized the map continuously while scrolling. */
+        height: calc(100vh - 167px);
+        height: calc(100svh - 167px);
+        margin-bottom: 0;
+    }
+
+    /* Square, shadowless and edge-to-edge on mobile — the rounded card
+       treatment is a desktop thing. */
+    .mapWrapper {
+        border-radius: 0;
+        box-shadow: none;
     }
 
     .tabBar {

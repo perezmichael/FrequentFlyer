@@ -199,14 +199,36 @@ function MapResizer({ isFullscreen, resizeSignal }: { isFullscreen: boolean; res
     // Observe the actual container size. On mount the split-layout container is
     // often still 0×0 (or grows 0→full as CSS settles), which left Leaflet
     // thinking it was tiny and never fetching tiles for the real viewport —
-    // hence the grey/cream gaps. Recalc on every real size change so tiles fill.
+    // hence the grey/cream gaps. Recalc on real size changes so tiles fill.
+    //
+    // Debounced and de-duped on purpose: on Android Chrome the URL bar
+    // collapses/expands while scrolling, which resizes this container
+    // repeatedly mid-gesture. Calling invalidateSize() on every one of those
+    // (it re-lays out panes and refetches tiles) made the map stutter and
+    // flash. Coalesce the burst into a single call once the size settles.
     useEffect(() => {
         const container = map.getContainer();
-        const ro = new ResizeObserver(() => map.invalidateSize());
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        let lastW = 0;
+        let lastH = 0;
+
+        const ro = new ResizeObserver((entries) => {
+            const rect = entries[0]?.contentRect;
+            if (!rect) return;
+            const w = Math.round(rect.width);
+            const h = Math.round(rect.height);
+            if (w === lastW && h === lastH) return;
+            lastW = w;
+            lastH = h;
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(() => map.invalidateSize(), 120);
+        });
+
         ro.observe(container);
         const kick = setTimeout(() => map.invalidateSize(), 100);
         return () => {
             ro.disconnect();
+            if (timer) clearTimeout(timer);
             clearTimeout(kick);
         };
     }, [map]);
@@ -378,11 +400,17 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, onEve
     return (
         <div
             className={`relative w-full h-full ${isFullscreen ? 'fixed !top-0 !left-0 !w-[100vw] !h-[100vh] z-[9999] rounded-none' : ''}`}
+            // Pass the wrapper's radius down: border-radius doesn't inherit on
+            // its own, so without this the map's `inherit` would resolve against
+            // this div (0) instead of the page's map wrapper.
+            style={{ borderRadius: isFullscreen ? 0 : 'inherit' }}
         >
             <MapContainer
                 center={center}
                 zoom={initialZoom}
-                style={{ height: '100%', width: '100%', borderRadius: isFullscreen ? '0' : '16px' }}
+                // Radius follows the wrapper (inherit) so each page decides:
+                // rounded card on desktop, full-bleed square on mobile.
+                style={{ height: '100%', width: '100%', borderRadius: isFullscreen ? '0' : 'inherit' }}
                 zoomControl={false}
             >
                 <TileLayer

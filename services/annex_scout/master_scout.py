@@ -614,13 +614,24 @@ def run_master_scout():
             2. Split multi-day events into separate entries.
             3. SCORING: Use the Aesthetic Pillars in the Manifesto above to score 1-10.
             4. If you can identify a link to the event's detail page from the text, include it as "event_url".
+            5. "description" is what the PUBLIC sees, so write it like a listing, not like analysis:
+               - 1-2 short sentences describing what actually happens at the event
+                 (who's playing, what's on offer, the format).
+               - Use ONLY facts present in the TEXT below. Condense the venue's own
+                 words; do not invent details.
+               - NEVER mention the Manifesto, aesthetic pillars, vibes, scoring, or
+                 how well it fits anything. No phrases like "aligns with", "fits the
+                 pillar", "this event embodies".
+               - If the text says nothing about what the event is, return "".
+            6. "vibe_justification" is the opposite: it is INTERNAL only. Put your
+               scoring rationale there, never in "description".
 
             RETURN ONLY A JSON LIST:
             [
               {{
                 "event_name": "", "date": "YYYY-MM-DD", "talent_name": "",
                 "talent_ig": "@handle", "category": "", "vibe_score": 0, "vibe_justification": "",
-                "event_url": ""
+                "description": "", "event_url": ""
               }}
             ]
 
@@ -677,7 +688,10 @@ def run_master_scout():
                         "talent_id": talent_id,
                         "metadata": {
                             "vibe_score": event.get('vibe_score', 0),
-                            "justification": event.get('vibe_justification', '')
+                            # Internal scoring rationale — never shown to users.
+                            "justification": event.get('vibe_justification', ''),
+                            # Public-facing listing copy (see prompt rule 5).
+                            "description": (event.get('description') or '').strip(),
                         }
                     }
 
