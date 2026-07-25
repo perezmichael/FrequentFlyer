@@ -101,16 +101,12 @@ function CustomControls({ isFullscreen, onToggleFullscreen }: { isFullscreen: bo
 }
 
 // Vibe to Emoji Mapping
-import { VIBES } from '@/features/frequent-flyer/data/vibes';
-import { RECURRING_CATEGORIES } from '@/features/frequent-flyer/data/recurringCategories';
+import { resolveVibeEmoji, representativeEmoji } from '@/features/frequent-flyer/data/vibeEmoji';
 
-// Extract just the emoji from a label like "🎶 Music" → "🎶". One-off events
-// use VIBES keys ("Nightlife"); recurring events use their own category
-// vocabulary ("Dance Night"), so we check both before falling back to 📍.
-const getVibeEmoji = (vibe: string): string => {
-    const label = VIBES[vibe] || RECURRING_CATEGORIES[vibe] || '';
-    return label.split(' ')[0] || '📍';
-};
+// The scout writes free-text categories ("Music (DJ Set)", "Standup Comedy"),
+// so exact lookups miss and everything became a generic 📍. resolveVibeEmoji
+// falls back to keyword matching — see data/vibeEmoji.ts.
+const getVibeEmoji = (vibe: string): string => resolveVibeEmoji(vibe);
 
 // Single event at a location — small emoji dot
 const createSingleIcon = (vibes: string[]) => {
@@ -134,24 +130,8 @@ const createSingleIcon = (vibes: string[]) => {
     });
 };
 
-// Most common vibe among a group of events — drives the cluster emoji so a
-// pin reads as "mostly music" / "mostly comedy" at a glance (like SF RATS).
-const mostCommonVibe = (group: Event[]): string => {
-    const counts: Record<string, number> = {};
-    for (const e of group) {
-        const v = e.vibe?.[0];
-        if (v) counts[v] = (counts[v] || 0) + 1;
-    }
-    let best = '', bestN = 0;
-    for (const [v, n] of Object.entries(counts)) {
-        if (n > bestN) { bestN = n; best = v; }
-    }
-    return best;
-};
-
 // Multiple events at the same location — representative emoji + count badge
-const createClusterIcon = (count: number, vibes: string[]) => {
-    const emoji = getVibeEmoji(vibes[0]);
+const createClusterIcon = (count: number, emoji: string) => {
     return L.divIcon({
         className: 'custom-map-marker',
         html: `<div style="position: relative; width: 38px; height: 38px;">
@@ -429,7 +409,7 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, onEve
                     const first = group[0];
                     const icon = group.length === 1
                         ? createSingleIcon(first.vibe)
-                        : createClusterIcon(group.length, [mostCommonVibe(group)]);
+                        : createClusterIcon(group.length, representativeEmoji(group.map(e => e.vibe?.[0])));
                     return (
                         <Marker
                             key={`${first.lat},${first.lng}`}

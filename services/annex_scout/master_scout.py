@@ -35,6 +35,36 @@ AUTO_PUBLISH_MIN_VIBE = float(os.getenv("FF_AUTO_PUBLISH_MIN_VIBE", "6"))
 FORCE_RESCRAPE = os.getenv("FF_FORCE_RESCRAPE", "") not in ("", "0", "false")
 
 
+def normalize_event_name(name):
+    """
+    Collapse a title to a comparable core so listing variants of the SAME event
+    match: venue section prefixes ("IN THE CAFE:"), smart vs straight quotes,
+    punctuation and spacing all fall away.
+    """
+    import re
+    s = (name or '').lower()
+    # Venue section prefixes: "IN THE CAFE:", "in the lounge -", "MAIN ROOM:"
+    s = re.sub(r'^\s*(in the\s+)?[a-z][a-z ]{1,18}\s*[:\-–—]\s+', '', s)
+    s = re.sub(r'[^a-z0-9]+', '', s)
+    return s
+
+
+def same_event_name(a, b):
+    """
+    True when two titles denote the same event at the same venue+date.
+    Equal after normalization, or one is a prefixed/suffixed variant of the
+    other. The length floor keeps short generic names ("DJ Night") from
+    swallowing distinct events ("DJ Night 2").
+    """
+    na, nb = normalize_event_name(a), normalize_event_name(b)
+    if not na or not nb:
+        return False
+    if na == nb:
+        return True
+    shorter, longer = (na, nb) if len(na) <= len(nb) else (nb, na)
+    return len(shorter) >= 12 and shorter in longer
+
+
 def mark_venue_scouted(venue_id, page_hash):
     """Record scout state; tolerate a DB that's missing the Phase 2 columns."""
     try:
@@ -695,10 +725,17 @@ def run_master_scout():
                         }
                     }
 
-                    existing = supabase.table("events").select("id, status") \
-                        .eq("event_name", event['event_name']) \
+                    # Match on a NORMALIZED name, not an exact one. The same
+                    # event gets listed under title variants across runs
+                    # ("IN THE CAFE: Sean Kennerly reads…" vs "Sean Kennerly
+                    # reads…", curly vs straight quotes), and exact matching
+                    # inserted each variant as a separate row — duplicate cards
+                    # in the feed.
+                    same_slot = supabase.table("events").select("id, status, event_name") \
                         .eq("event_date", event['date']) \
                         .eq("venue_id", venue_id).execute().data
+                    existing = [r for r in same_slot
+                                if same_event_name(r.get('event_name'), event['event_name'])]
 
                     if existing:
                         is_new = False
