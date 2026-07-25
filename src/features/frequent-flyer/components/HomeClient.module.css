@@ -120,15 +120,18 @@
     .listContainer {
         padding-left: 16px;
         padding-right: 16px;
+        /* The gap below the tabs lives here now, not on .tabBar, so the map
+           can sit flush against the tab bar. */
+        padding-top: 16px;
     }
 
     .mapContainer {
         /* Full-bleed: fill the viewport below the fixed navbar (100px) + tab
-           bar (51px + 16px margin), right out to the screen edges.
+           bar (51px), flush to the tabs and out to the screen edges.
            svh (not dvh) on purpose — dvh tracks Android Chrome's collapsing
            URL bar, which resized the map continuously while scrolling. */
-        height: calc(100vh - 167px);
-        height: calc(100svh - 167px);
+        height: calc(100vh - 151px);
+        height: calc(100svh - 151px);
         margin-bottom: 0;
     }
 
@@ -142,7 +145,8 @@
     .tabBar {
         display: flex;
         border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-        margin-bottom: 16px;
+        /* No gap — the map butts right up under the tabs. */
+        margin-bottom: 0;
     }
 
     .tabButton {
