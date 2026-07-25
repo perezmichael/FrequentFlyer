@@ -18,6 +18,16 @@ import { RECURRING_CATEGORIES } from './recurringCategories';
 
 const FALLBACK_EMOJI = '📍';
 
+/**
+ * Non-event pin types (the /map page plots venues and guides alongside
+ * events). A pin is the right icon for a venue, but make it deliberate rather
+ * than an unresolved fallback, and give guides their own mark.
+ */
+const EXACT_OVERRIDES: Record<string, string> = {
+    Venue: '📍',
+    Guide: '🗺️',
+};
+
 const KEYWORD_RULES: Array<[RegExp, string]> = [
     [/comedy|stand[\s-]?up|improv|sketch show|open mic night/, '😂'],
     [/film|screening|cinema|movie|documentary/, '🎥'],
@@ -55,6 +65,8 @@ function emojiFromLabel(label: string | undefined): string | null {
 
 export function resolveVibeEmoji(vibe: string | undefined | null): string {
     if (!vibe) return FALLBACK_EMOJI;
+
+    if (EXACT_OVERRIDES[vibe]) return EXACT_OVERRIDES[vibe];
 
     // 1. Curated vocabularies win — they're hand-assigned.
     const exact = emojiFromLabel(VIBES[vibe] || RECURRING_CATEGORIES[vibe]);
