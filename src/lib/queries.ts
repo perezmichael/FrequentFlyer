@@ -28,7 +28,8 @@ export async function getEvents(): Promise<Event[]> {
         neighborhood,
         lat,
         lng,
-        url
+        url,
+        image_url
       )
     `)
         .order('event_date', { ascending: true })
@@ -53,9 +54,14 @@ export async function getEvents(): Promise<Event[]> {
         // which is why descriptions read as AI commentary about the event rather
         // than about what actually happens. Never surface it.
         description: e.metadata?.description || 'No description available',
-        lat: e.venues?.lat || 34.0522,
-        lng: e.venues?.lng || -118.2437,
-        image: e.flyer_url || '/placeholder.jpg',
+        // Never invent coordinates: an un-geocoded venue is skipped on the
+        // map, not dropped onto a downtown default.
+        lat: e.venues?.lat ?? null,
+        lng: e.venues?.lng ?? null,
+        // Flyer first; then a real photo of the venue the event is at (honest
+        // and relevant, unlike the stock art the old image search produced);
+        // the branded typographic card is the floor.
+        image: e.flyer_url || e.venues?.image_url || '/placeholder.jpg',
         neighborhood: e.venues?.neighborhood || 'Unknown',
         vibe: e.event_vibe ? [e.event_vibe] : ['Event'],
         // Prefer the event's own page (scraped source_url) over the venue calendar.
@@ -84,7 +90,8 @@ export async function getEventById(id: string): Promise<Event | null> {
         neighborhood,
         lat,
         lng,
-        url
+        url,
+        image_url
       )
     `)
         .eq('id', id)
@@ -106,9 +113,14 @@ export async function getEventById(id: string): Promise<Event | null> {
         // which is why descriptions read as AI commentary about the event rather
         // than about what actually happens. Never surface it.
         description: e.metadata?.description || 'No description available',
-        lat: e.venues?.lat || 34.0522,
-        lng: e.venues?.lng || -118.2437,
-        image: e.flyer_url || '/placeholder.jpg',
+        // Never invent coordinates: an un-geocoded venue is skipped on the
+        // map, not dropped onto a downtown default.
+        lat: e.venues?.lat ?? null,
+        lng: e.venues?.lng ?? null,
+        // Flyer first; then a real photo of the venue the event is at (honest
+        // and relevant, unlike the stock art the old image search produced);
+        // the branded typographic card is the floor.
+        image: e.flyer_url || e.venues?.image_url || '/placeholder.jpg',
         neighborhood: e.venues?.neighborhood || 'Unknown',
         vibe: e.event_vibe ? [e.event_vibe] : ['Event'],
         url: e.source_url || e.venues?.url,
@@ -175,8 +187,10 @@ export async function getRecurringEvents(): Promise<RecurringEvent[]> {
         description: e.description,
         venue_name: e.venues?.name || 'Unknown',
         neighborhood: e.venues?.neighborhood || 'Unknown',
-        lat: e.venues?.lat || 34.0522,
-        lng: e.venues?.lng || -118.2437,
+        // Never invent coordinates: an un-geocoded venue is skipped on the
+        // map, not dropped onto a downtown default.
+        lat: e.venues?.lat ?? null,
+        lng: e.venues?.lng ?? null,
         venue_url: e.venues?.url,
         venue_image: e.venues?.image_url,
     }));
@@ -210,8 +224,10 @@ export async function getAdminRecurringEvents(): Promise<(RecurringEvent & { sta
         status: e.status || 'pending',
         venue_name: e.venues?.name || 'Unknown',
         neighborhood: e.venues?.neighborhood || 'Unknown',
-        lat: e.venues?.lat || 34.0522,
-        lng: e.venues?.lng || -118.2437,
+        // Never invent coordinates: an un-geocoded venue is skipped on the
+        // map, not dropped onto a downtown default.
+        lat: e.venues?.lat ?? null,
+        lng: e.venues?.lng ?? null,
         venue_url: e.venues?.url,
         venue_image: e.venues?.image_url,
     }));

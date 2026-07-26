@@ -34,6 +34,10 @@ AUTO_PUBLISH_MIN_VIBE = float(os.getenv("FF_AUTO_PUBLISH_MIN_VIBE", "6"))
 # bypass, e.g. after changing vibedoc.md or the extraction prompt.
 FORCE_RESCRAPE = os.getenv("FF_FORCE_RESCRAPE", "") not in ("", "0", "false")
 
+# Cleanup switch: rewrite flyer_url even when no image is found, clearing
+# stale/bogus flyers (e.g. those left by the removed image-search fallback).
+REFRESH_FLYERS = os.getenv("FF_REFRESH_FLYERS", "") not in ("", "0", "false")
+
 
 def normalize_event_name(name):
     """
@@ -63,6 +67,68 @@ def same_event_name(a, b):
         return True
     shorter, longer = (na, nb) if len(na) <= len(nb) else (nb, na)
     return len(shorter) >= 12 and shorter in longer
+
+
+def _words(s):
+    """Normalize to space-separated alphanumeric words."""
+    import re
+    return re.sub(r'[^a-z0-9]+', ' ', (s or '').lower()).strip()
+
+
+def _tokens(s):
+    """Meaningful tokens for overlap scoring (drop 1-2 char noise)."""
+    return {t for t in _words(s).split() if len(t) > 2}
+
+
+def best_event_link(event_name, links):
+    """
+    Pick the listing-page link that points at THIS event's own page.
+
+    Why the scoring: reaching the event's detail page is what yields a real
+    per-event flyer. When we can't resolve it we fall back to the listing
+    page's image, which is usually the venue's hero photo — so every event at
+    that venue ends up with the same picture.
+
+    Deliberately conservative: following the WRONG event page produces a
+    confidently wrong flyer, the same failure mode as the removed image
+    search. Below the threshold we return None and take the honest venue photo.
+    """
+    import re
+    name_words = _words(event_name)
+    name_tokens = _tokens(event_name)
+    if not name_tokens:
+        return None
+
+    eventish = re.compile(r'/(events?|shows?|calendar|tickets?|e)/', re.I)
+    best, best_score = None, 0.0
+
+    for link in links:
+        href = link.get('href') or ''
+        if not href.startswith('http'):
+            continue
+        text_words = _words(link.get('text'))
+        # Venues very often put the title in the URL slug, which is cleaner
+        # than link text (no dates/prices/"buy tickets" wrapped around it).
+        slug_words = _words(re.sub(r'^https?://[^/]+', '', href))
+
+        if text_words and text_words == name_words:
+            score = 1.0
+        elif len(name_words) >= 12 and name_words in text_words:
+            score = 0.9
+        elif len(text_words) >= 12 and text_words in name_words:
+            score = 0.85
+        else:
+            text_overlap = len(name_tokens & _tokens(text_words)) / len(name_tokens)
+            slug_overlap = len(name_tokens & _tokens(slug_words)) / len(name_tokens)
+            score = max(text_overlap, slug_overlap) * 0.8
+
+        if eventish.search(href):
+            score += 0.05
+
+        if score > best_score:
+            best, best_score = href, score
+
+    return best if best_score >= 0.55 else None
 
 
 def mark_venue_scouted(venue_id, page_hash):
@@ -110,18 +176,40 @@ def clean_image_url(url, page_url):
     return url
 
 
-def upload_flyer(image_url, event_id):
+def looks_like_image(data):
+    """
+    Sniff magic bytes. More reliable than content-type/extension (many CDNs
+    serve images as octet-stream or from extensionless URLs), which lets us use
+    a low size floor without letting junk through.
+    """
+    return (
+        data[:3] == b'\xff\xd8\xff'                        # JPEG
+        or data[:8] == b'\x89PNG\r\n\x1a\n'                # PNG
+        or data[:6] in (b'GIF87a', b'GIF89a')              # GIF
+        or (data[:4] == b'RIFF' and data[8:12] == b'WEBP')  # WEBP
+    )
+
+
+def upload_flyer(image_url, event_id, referer=None):
     """Download an image URL and upload to Supabase storage. Returns public URL or None."""
     try:
-        resp = requests.get(image_url, timeout=15, headers={
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
-        })
-        if resp.status_code != 200 or len(resp.content) < 5000:
-            # Too small = likely a tracking pixel or icon
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+            "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+        }
+        # Some venue CDNs reject hotlinks without a same-origin referer.
+        if referer:
+            headers["Referer"] = referer
+
+        resp = requests.get(image_url, timeout=15, headers=headers)
+        if resp.status_code != 200:
             return None
 
-        content_type = resp.headers.get("content-type", "")
-        if "image" not in content_type and not image_url.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
+        data = resp.content
+        # 1500 bytes still excludes tracking pixels and tiny icons, but keeps
+        # well-compressed real flyers. The old 5000-byte floor was silently
+        # discarding legitimate artwork.
+        if len(data) < 1500 or not looks_like_image(data):
             return None
 
         path = f"flyers/{event_id}.jpg"
@@ -485,7 +573,7 @@ def extract_event_links(page, base_url):
                     results.push({text: text.substring(0, 100), href: href});
                 }
             }
-            return results.slice(0, 50);  // Cap at 50 links
+            return results.slice(0, 200);  // Busy calendars push real event links past a small cap
         }""", base_url)
         return links or []
     except:
@@ -595,9 +683,20 @@ def run_master_scout():
             # Gemini call. trust_tier is intentionally NOT in this payload —
             # the tier lives in the DB (set via db/schema_trust_tiers.sql or
             # the dashboard) and must survive re-scrapes.
-            venue_row = supabase.table("venues").upsert({
+            venue_payload = {
                 "name": v['name'], "neighborhood": v['neighborhood'], "url": v['url']
-            }, on_conflict="name").execute().data[0]
+            }
+            # Carry coordinates through from venues.json. Without this the DB
+            # kept lat/lng NULL for venues the scout created, and the frontend
+            # fell back to a downtown default — every such venue's events piled
+            # onto one DTLA pin. Only send real values; never invent them.
+            if v.get('lat') is not None and v.get('lng') is not None:
+                venue_payload["lat"] = v['lat']
+                venue_payload["lng"] = v['lng']
+
+            venue_row = supabase.table("venues").upsert(
+                venue_payload, on_conflict="name"
+            ).execute().data[0]
             venue_id = venue_row['id']
             venue_trust = venue_row.get('trust_tier', 'standard')
 
@@ -754,13 +853,12 @@ def run_master_scout():
 
                     # Find the best matching event link from the listing page
                     event_detail_url = event.get('event_url', '')
-                    if not event_detail_url:
-                        # Fuzzy match: find a link whose text contains the event name
-                        event_name_lower = event['event_name'].lower()
-                        for link in event_links:
-                            if event_name_lower in link['text'].lower() or link['text'].lower() in event_name_lower:
-                                event_detail_url = link['href']
-                                break
+                    if not event_detail_url or not event_detail_url.startswith('http'):
+                        # Score every listing link on normalized title + URL slug
+                        # instead of the old raw substring test, which missed
+                        # whenever punctuation/dates differed and could latch
+                        # onto the wrong link on a short match.
+                        event_detail_url = best_event_link(event['event_name'], event_links) or ''
 
                     # Navigate to event detail page if we have a URL
                     if event_detail_url and event_detail_url.startswith("http"):
@@ -787,33 +885,47 @@ def run_master_scout():
                     if not raw_img_url:
                         raw_img_url = extract_best_image(page)
 
-                    # Check if this image has been seen for 2+ events from this venue
-                    # If so, it's probably a generic venue logo — skip it and use image search instead
+                    # An image repeated across events at one venue is a venue
+                    # logo / hero, not this event's flyer. Track it but still
+                    # use it — a real venue photo beats no image, and the UI
+                    # falls back to a branded flyer anyway.
                     is_generic = False
                     if raw_img_url:
                         venue_image_counts[raw_img_url] = venue_image_counts.get(raw_img_url, 0) + 1
                         if venue_image_counts[raw_img_url] >= 2:
                             is_generic = True
-                            print(f"   ⚠️ Image appears to be generic venue image (seen {venue_image_counts[raw_img_url]}x) — searching instead")
 
-                    # If we have a non-generic image, upload it
-                    if raw_img_url and not is_generic:
-                        flyer_url = upload_flyer(raw_img_url, event_id)
-
-                    # Fallback: search DuckDuckGo Images for the event
-                    if not flyer_url:
-                        img_url = search_event_image(event['event_name'], v['name'])
-                        if img_url:
-                            flyer_url = upload_flyer(img_url, event_id)
-
-                    # Last resort: use the generic image if nothing else worked
-                    if not flyer_url and raw_img_url and is_generic:
-                        flyer_url = upload_flyer(raw_img_url, event_id)
+                    # NOTE: there used to be a DuckDuckGo image-search fallback
+                    # here ("{event_name} {venue_name} flyer"). It was actively
+                    # harmful: "Stanya Kahn Survey of Films" at "Human
+                    # Resources" matched corporate "Human Resources Survey"
+                    # stock art, and "CINEMA LAND" got a generic film-club
+                    # template. A wrong flyer misinforms and reads as careless,
+                    # and we now render an on-brand typographic placeholder when
+                    # there's no image — so no image is strictly better than a
+                    # guessed one. Only use images found ON the venue/event page.
+                    if raw_img_url:
+                        flyer_url = upload_flyer(raw_img_url, event_id, referer=page.url)
+                        image_source = 'venue_shared' if is_generic else 'event_page'
+                    else:
+                        image_source = None
 
                     # ── Final update: flyer + event link + auto-publish decision ──
                     final_update = {}
                     if flyer_url:
                         final_update["flyer_url"] = flyer_url
+                    elif REFRESH_FLYERS:
+                        # Cleanup mode: actively clear a stored flyer when this
+                        # run can't find a legitimate one, so images left behind
+                        # by the old image-search fallback get purged and the
+                        # branded placeholder takes over. Off by default — a
+                        # transient scrape failure shouldn't wipe good flyers.
+                        final_update["flyer_url"] = None
+
+                    # Record where the image came from, so bogus flyers are
+                    # traceable next time instead of being indistinguishable.
+                    event_payload["metadata"]["image_source"] = image_source
+                    final_update["metadata"] = event_payload["metadata"]
                     if event_detail_url and event_detail_url.startswith("http"):
                         # The resolved per-event page (Gemini's event_url or the
                         # fuzzy-matched listing link) — shown as "link to the

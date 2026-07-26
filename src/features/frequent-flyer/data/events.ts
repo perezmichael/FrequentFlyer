@@ -6,8 +6,14 @@ export interface Event {
     endTime?: string | null;
     location: string;
     description: string;
-    lat: number;
-    lng: number;
+    /**
+     * Venue coordinates. Null when the venue hasn't been geocoded — the map
+     * skips those pins rather than inventing a location. (These used to default
+     * to downtown LA, which stacked every un-geocoded venue's events onto one
+     * bogus DTLA pin.)
+     */
+    lat: number | null;
+    lng: number | null;
     image: string;
     neighborhood: string;
     vibe: string[];
