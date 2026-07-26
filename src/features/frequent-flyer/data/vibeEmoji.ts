@@ -30,12 +30,12 @@ const EXACT_OVERRIDES: Record<string, string> = {
 
 const KEYWORD_RULES: Array<[RegExp, string]> = [
     [/comedy|stand[\s-]?up|improv|sketch show|open mic night/, '😂'],
-    [/film|screening|cinema|movie|documentary/, '🎥'],
+    [/film|screening|cinema|movie|documentary|video/, '🎥'],
     [/karaoke/, '🎤'],
     [/open mic/, '🎙️'],
     [/trivia|quiz|pub quiz/, '🧠'],
     [/bingo/, '🎱'],
-    [/board game|game night|gaming|arcade|cornhole|bowling/, '🎲'],
+    [/board game|game night|gaming|arcade|cornhole|bowling|\bgame\b/, '🎲'],
     [/vinyl|record|listening/, '💿'],
     [/dj|disco|rave|club night|dance/, '🎧'],
     [/jazz|blues|soul|funk/, '🎷'],
