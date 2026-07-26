@@ -26,7 +26,9 @@ from zoneinfo import ZoneInfo
 
 from playwright.sync_api import sync_playwright
 
-from master_scout import supabase, extract_best_image, upload_flyer
+from master_scout import (
+    supabase, extract_best_image, upload_flyer, extract_event_links, best_event_link,
+)
 
 APPLY = "--apply" in sys.argv
 ALL = "--all" in sys.argv
@@ -39,7 +41,7 @@ KEEP_UNVERIFIABLE = "--keep-unverifiable" in sys.argv
 def main():
     today = datetime.now(ZoneInfo("America/Los_Angeles")).strftime("%Y-%m-%d")
     events = supabase.table("events").select(
-        "id, event_name, flyer_url, source_url, metadata"
+        "id, event_name, flyer_url, source_url, metadata, venues(name, url)"
     ).eq("status", "approved").gte("event_date", today).execute().data
 
     if ALL:
@@ -52,6 +54,7 @@ def main():
 
     fixed = cleared = kept = failed = 0
     page_cache = {}  # source_url -> extracted image url (or None)
+    link_cache = {}  # venue url -> [links] scraped once per venue
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
@@ -69,6 +72,21 @@ def main():
         for e in targets:
             name = (e["event_name"] or "")[:44]
             src = e.get("source_url")
+
+            # No stored event page? Try to resolve one from the venue's listing
+            # so we can recover a real flyer instead of falling back to
+            # clearing. Also backfills source_url, which powers the app's
+            # "Event page & tickets" link.
+            if not src or not src.startswith("http"):
+                venue = e.get("venues") or {}
+                resolved = _resolve_from_venue(page, venue.get("url"), e["event_name"], link_cache)
+                if resolved:
+                    src = resolved
+                    if APPLY:
+                        supabase.table("events").update(
+                            {"source_url": resolved}
+                        ).eq("id", e["id"]).execute()
+                    print(f"  🔗 resolved event page for: {name}")
 
             if not src or not src.startswith("http"):
                 if KEEP_UNVERIFIABLE:
@@ -123,6 +141,21 @@ def main():
     print(f"page visits failed:       {failed}")
     if not APPLY:
         print("\nre-run with --apply to write these changes")
+
+
+def _resolve_from_venue(page, venue_url, event_name, link_cache):
+    """Scrape the venue's listing links once, then score them for this event."""
+    if not venue_url or not venue_url.startswith("http"):
+        return None
+    if venue_url not in link_cache:
+        try:
+            page.goto(venue_url, wait_until="domcontentloaded", timeout=25000)
+            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            page.wait_for_timeout(1200)
+            link_cache[venue_url] = extract_event_links(page, venue_url)
+        except Exception:
+            link_cache[venue_url] = []
+    return best_event_link(event_name, link_cache[venue_url])
 
 
 def _write(event, flyer_url, image_source):

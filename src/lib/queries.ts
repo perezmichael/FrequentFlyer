@@ -28,7 +28,8 @@ export async function getEvents(): Promise<Event[]> {
         neighborhood,
         lat,
         lng,
-        url
+        url,
+        image_url
       )
     `)
         .order('event_date', { ascending: true })
@@ -57,7 +58,10 @@ export async function getEvents(): Promise<Event[]> {
         // map, not dropped onto a downtown default.
         lat: e.venues?.lat ?? null,
         lng: e.venues?.lng ?? null,
-        image: e.flyer_url || '/placeholder.jpg',
+        // Flyer first; then a real photo of the venue the event is at (honest
+        // and relevant, unlike the stock art the old image search produced);
+        // the branded typographic card is the floor.
+        image: e.flyer_url || e.venues?.image_url || '/placeholder.jpg',
         neighborhood: e.venues?.neighborhood || 'Unknown',
         vibe: e.event_vibe ? [e.event_vibe] : ['Event'],
         // Prefer the event's own page (scraped source_url) over the venue calendar.
@@ -86,7 +90,8 @@ export async function getEventById(id: string): Promise<Event | null> {
         neighborhood,
         lat,
         lng,
-        url
+        url,
+        image_url
       )
     `)
         .eq('id', id)
@@ -112,7 +117,10 @@ export async function getEventById(id: string): Promise<Event | null> {
         // map, not dropped onto a downtown default.
         lat: e.venues?.lat ?? null,
         lng: e.venues?.lng ?? null,
-        image: e.flyer_url || '/placeholder.jpg',
+        // Flyer first; then a real photo of the venue the event is at (honest
+        // and relevant, unlike the stock art the old image search produced);
+        // the branded typographic card is the floor.
+        image: e.flyer_url || e.venues?.image_url || '/placeholder.jpg',
         neighborhood: e.venues?.neighborhood || 'Unknown',
         vibe: e.event_vibe ? [e.event_vibe] : ['Event'],
         url: e.source_url || e.venues?.url,

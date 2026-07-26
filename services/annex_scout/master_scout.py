@@ -176,18 +176,40 @@ def clean_image_url(url, page_url):
     return url
 
 
-def upload_flyer(image_url, event_id):
+def looks_like_image(data):
+    """
+    Sniff magic bytes. More reliable than content-type/extension (many CDNs
+    serve images as octet-stream or from extensionless URLs), which lets us use
+    a low size floor without letting junk through.
+    """
+    return (
+        data[:3] == b'\xff\xd8\xff'                        # JPEG
+        or data[:8] == b'\x89PNG\r\n\x1a\n'                # PNG
+        or data[:6] in (b'GIF87a', b'GIF89a')              # GIF
+        or (data[:4] == b'RIFF' and data[8:12] == b'WEBP')  # WEBP
+    )
+
+
+def upload_flyer(image_url, event_id, referer=None):
     """Download an image URL and upload to Supabase storage. Returns public URL or None."""
     try:
-        resp = requests.get(image_url, timeout=15, headers={
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
-        })
-        if resp.status_code != 200 or len(resp.content) < 5000:
-            # Too small = likely a tracking pixel or icon
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+            "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+        }
+        # Some venue CDNs reject hotlinks without a same-origin referer.
+        if referer:
+            headers["Referer"] = referer
+
+        resp = requests.get(image_url, timeout=15, headers=headers)
+        if resp.status_code != 200:
             return None
 
-        content_type = resp.headers.get("content-type", "")
-        if "image" not in content_type and not image_url.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
+        data = resp.content
+        # 1500 bytes still excludes tracking pixels and tiny icons, but keeps
+        # well-compressed real flyers. The old 5000-byte floor was silently
+        # discarding legitimate artwork.
+        if len(data) < 1500 or not looks_like_image(data):
             return None
 
         path = f"flyers/{event_id}.jpg"
@@ -883,7 +905,7 @@ def run_master_scout():
                     # there's no image — so no image is strictly better than a
                     # guessed one. Only use images found ON the venue/event page.
                     if raw_img_url:
-                        flyer_url = upload_flyer(raw_img_url, event_id)
+                        flyer_url = upload_flyer(raw_img_url, event_id, referer=page.url)
                         image_source = 'venue_shared' if is_generic else 'event_page'
                     else:
                         image_source = None
