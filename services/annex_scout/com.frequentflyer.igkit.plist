@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Sunday 9:00 AM: build the week's Instagram carousel + caption into
+         ~/ff-ig-week-YYYY-MM-DD. Runs after the daily scout (10:00) has had a
+         week to fill the DB; nothing is posted, it just prepares the files.
+
+         Runs the runtime copy at ~/.frequentflyer-scout for the same reason
+         the scout does: macOS TCC blocks launchd from reading ~/Desktop.
+         Refresh it with deploy_scout.sh after changing the script.
+
+         Install:
+           cp com.frequentflyer.igkit.plist ~/Library/LaunchAgents/
+           launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.frequentflyer.igkit.plist -->
+    <key>Label</key>
+    <string>com.frequentflyer.igkit</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-lc</string>
+        <string>cd "$HOME/.frequentflyer-scout" &amp;&amp; ./venv/bin/python weekly_ig_kit.py</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>0</integer>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/Users/michaelperez/.frequentflyer-scout/logs/igkit.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/michaelperez/.frequentflyer-scout/logs/igkit.log</string>
+</dict>
+</plist>
