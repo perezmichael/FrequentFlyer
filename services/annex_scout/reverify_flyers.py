@@ -54,6 +54,7 @@ def main():
 
     fixed = cleared = kept = failed = 0
     page_cache = {}  # source_url -> extracted image url (or None)
+    digests = {}     # image digest -> [event ids], to spot reused pictures
     link_cache = {}  # venue url -> [links] scraped once per venue
 
     with sync_playwright() as p:
@@ -115,9 +116,10 @@ def main():
 
             if raw:
                 if APPLY:
-                    url = upload_flyer(raw, e["id"])
+                    url, digest = upload_flyer(raw, e["id"])
                     if url:
-                        _write(e, url, "event_page")
+                        _write(e, url, "event_page", digest)
+                        digests.setdefault(digest, []).append(e["id"])
                         print(f"  ✅ real flyer from event page: {name}")
                         fixed += 1
                     else:
@@ -135,7 +137,25 @@ def main():
 
         browser.close()
 
+    # Cross-event pass: the same picture on several events is a venue hero, not
+    # a per-event flyer. Per-event extraction can't see this — each event looks
+    # fine in isolation — so relabel here rather than claim 'event_page'.
+    shared = 0
+    for digest, ids in digests.items():
+        if len(ids) < 2:
+            continue
+        shared += len(ids)
+        print(f"  🔁 same image on {len(ids)} events — relabeling venue_shared")
+        if APPLY:
+            for eid in ids:
+                row = supabase.table("events").select("metadata").eq("id", eid).execute().data
+                md = dict((row[0].get("metadata") if row else None) or {})
+                md["image_source"] = "venue_shared"
+                md["image_hash"] = digest
+                supabase.table("events").update({"metadata": md}).eq("id", eid).execute()
+
     print(f"\nreplaced with real flyer: {fixed}")
+    print(f"  of which reused images: {shared} (relabeled venue_shared)")
     print(f"cleared (unverifiable):   {cleared}")
     print(f"left alone (--keep):      {kept}")
     print(f"page visits failed:       {failed}")
@@ -158,10 +178,12 @@ def _resolve_from_venue(page, venue_url, event_name, link_cache):
     return best_event_link(event_name, link_cache[venue_url])
 
 
-def _write(event, flyer_url, image_source):
+def _write(event, flyer_url, image_source, digest=None):
     """Update flyer + provenance, preserving the rest of metadata."""
     md = dict(event.get("metadata") or {})
     md["image_source"] = image_source
+    if digest:
+        md["image_hash"] = digest
     supabase.table("events").update(
         {"flyer_url": flyer_url, "metadata": md}
     ).eq("id", event["id"]).execute()

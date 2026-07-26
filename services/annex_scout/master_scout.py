@@ -53,20 +53,50 @@ def normalize_event_name(name):
     return s
 
 
+# Words that carry no identity on their own — two events sharing only these
+# are not the same event ("DJ Night" vs "DJ Night 2", "Bolero Night" vs "Jazz
+# Night"). Tokens of 1-2 chars are dropped before this is consulted.
+GENERIC_TITLE_WORDS = {
+    'night', 'nights', 'party', 'show', 'shows', 'showcase', 'live', 'music',
+    'event', 'events', 'presents', 'presented', 'featuring', 'feat', 'free',
+    'los', 'angeles', 'and', 'the', 'with', 'set', 'sets', 'day', 'weekend',
+}
+
+
 def same_event_name(a, b):
     """
     True when two titles denote the same event at the same venue+date.
-    Equal after normalization, or one is a prefixed/suffixed variant of the
-    other. The length floor keeps short generic names ("DJ Night") from
-    swallowing distinct events ("DJ Night 2").
+
+    Three ways to match, in order of confidence:
+      1. Identical after normalization.
+      2. One is a prefixed/suffixed variant of the other ("IN THE CAFE: X").
+      3. Their meaningful words overlap heavily AND share something
+         distinctive. This catches headliner-only variants ("Mr. Dinkles" vs
+         "Mr. Dinkles, Beautiful Freaks, and Dizz Brew") and reworded titles
+         ("Memoir of a Hyena Reading" vs "Sean Kennerly reads from 'Memoir of
+         a Hyena'"), which containment alone missed — the short one fell under
+         the length floor, and the reworded one wasn't a substring.
     """
     na, nb = normalize_event_name(a), normalize_event_name(b)
     if not na or not nb:
         return False
     if na == nb:
         return True
+
     shorter, longer = (na, nb) if len(na) <= len(nb) else (nb, na)
-    return len(shorter) >= 12 and shorter in longer
+    if len(shorter) >= 12 and shorter in longer:
+        return True
+
+    ta, tb = _tokens(a), _tokens(b)
+    if not ta or not tb:
+        return False
+    shared = ta & tb
+    # Require a distinctive shared word, so generic pairings don't collapse.
+    if not (shared - GENERIC_TITLE_WORDS):
+        return False
+    # Measured against the shorter title: a support-act list shouldn't dilute
+    # the match just by being long.
+    return len(shared) / min(len(ta), len(tb)) >= 0.6
 
 
 def _words(s):
@@ -214,12 +244,16 @@ def upload_flyer(image_url, event_id, referer=None):
 
         path = f"flyers/{event_id}.jpg"
         supabase.storage.from_("event-flyers").upload(
-            path, resp.content, {"content-type": "image/jpeg", "upsert": "true"}
+            path, data, {"content-type": "image/jpeg", "upsert": "true"}
         )
-        return supabase.storage.from_("event-flyers").get_public_url(path)
+        # Digest of the actual bytes: lets callers spot the SAME picture reused
+        # across events (a venue hero masquerading as a per-event flyer), which
+        # per-event extraction can't see on its own.
+        digest = hashlib.sha256(data).hexdigest()[:16]
+        return supabase.storage.from_("event-flyers").get_public_url(path), digest
     except Exception as e:
         print(f"   ⚠️ Flyer upload failed: {e}")
-        return None
+        return None, None
 
 
 def search_event_image(event_name, venue_name):
@@ -905,9 +939,10 @@ def run_master_scout():
                     # there's no image — so no image is strictly better than a
                     # guessed one. Only use images found ON the venue/event page.
                     if raw_img_url:
-                        flyer_url = upload_flyer(raw_img_url, event_id, referer=page.url)
+                        flyer_url, flyer_digest = upload_flyer(raw_img_url, event_id, referer=page.url)
                         image_source = 'venue_shared' if is_generic else 'event_page'
                     else:
+                        flyer_digest = None
                         image_source = None
 
                     # ── Final update: flyer + event link + auto-publish decision ──
@@ -925,6 +960,8 @@ def run_master_scout():
                     # Record where the image came from, so bogus flyers are
                     # traceable next time instead of being indistinguishable.
                     event_payload["metadata"]["image_source"] = image_source
+                    if flyer_digest:
+                        event_payload["metadata"]["image_hash"] = flyer_digest
                     final_update["metadata"] = event_payload["metadata"]
                     if event_detail_url and event_detail_url.startswith("http"):
                         # The resolved per-event page (Gemini's event_url or the
