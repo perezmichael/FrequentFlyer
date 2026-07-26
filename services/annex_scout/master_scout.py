@@ -34,6 +34,10 @@ AUTO_PUBLISH_MIN_VIBE = float(os.getenv("FF_AUTO_PUBLISH_MIN_VIBE", "6"))
 # bypass, e.g. after changing vibedoc.md or the extraction prompt.
 FORCE_RESCRAPE = os.getenv("FF_FORCE_RESCRAPE", "") not in ("", "0", "false")
 
+# Cleanup switch: rewrite flyer_url even when no image is found, clearing
+# stale/bogus flyers (e.g. those left by the removed image-search fallback).
+REFRESH_FLYERS = os.getenv("FF_REFRESH_FLYERS", "") not in ("", "0", "false")
+
 
 def normalize_event_name(name):
     """
@@ -595,9 +599,20 @@ def run_master_scout():
             # Gemini call. trust_tier is intentionally NOT in this payload —
             # the tier lives in the DB (set via db/schema_trust_tiers.sql or
             # the dashboard) and must survive re-scrapes.
-            venue_row = supabase.table("venues").upsert({
+            venue_payload = {
                 "name": v['name'], "neighborhood": v['neighborhood'], "url": v['url']
-            }, on_conflict="name").execute().data[0]
+            }
+            # Carry coordinates through from venues.json. Without this the DB
+            # kept lat/lng NULL for venues the scout created, and the frontend
+            # fell back to a downtown default — every such venue's events piled
+            # onto one DTLA pin. Only send real values; never invent them.
+            if v.get('lat') is not None and v.get('lng') is not None:
+                venue_payload["lat"] = v['lat']
+                venue_payload["lng"] = v['lng']
+
+            venue_row = supabase.table("venues").upsert(
+                venue_payload, on_conflict="name"
+            ).execute().data[0]
             venue_id = venue_row['id']
             venue_trust = venue_row.get('trust_tier', 'standard')
 
@@ -787,33 +802,47 @@ def run_master_scout():
                     if not raw_img_url:
                         raw_img_url = extract_best_image(page)
 
-                    # Check if this image has been seen for 2+ events from this venue
-                    # If so, it's probably a generic venue logo — skip it and use image search instead
+                    # An image repeated across events at one venue is a venue
+                    # logo / hero, not this event's flyer. Track it but still
+                    # use it — a real venue photo beats no image, and the UI
+                    # falls back to a branded flyer anyway.
                     is_generic = False
                     if raw_img_url:
                         venue_image_counts[raw_img_url] = venue_image_counts.get(raw_img_url, 0) + 1
                         if venue_image_counts[raw_img_url] >= 2:
                             is_generic = True
-                            print(f"   ⚠️ Image appears to be generic venue image (seen {venue_image_counts[raw_img_url]}x) — searching instead")
 
-                    # If we have a non-generic image, upload it
-                    if raw_img_url and not is_generic:
+                    # NOTE: there used to be a DuckDuckGo image-search fallback
+                    # here ("{event_name} {venue_name} flyer"). It was actively
+                    # harmful: "Stanya Kahn Survey of Films" at "Human
+                    # Resources" matched corporate "Human Resources Survey"
+                    # stock art, and "CINEMA LAND" got a generic film-club
+                    # template. A wrong flyer misinforms and reads as careless,
+                    # and we now render an on-brand typographic placeholder when
+                    # there's no image — so no image is strictly better than a
+                    # guessed one. Only use images found ON the venue/event page.
+                    if raw_img_url:
                         flyer_url = upload_flyer(raw_img_url, event_id)
-
-                    # Fallback: search DuckDuckGo Images for the event
-                    if not flyer_url:
-                        img_url = search_event_image(event['event_name'], v['name'])
-                        if img_url:
-                            flyer_url = upload_flyer(img_url, event_id)
-
-                    # Last resort: use the generic image if nothing else worked
-                    if not flyer_url and raw_img_url and is_generic:
-                        flyer_url = upload_flyer(raw_img_url, event_id)
+                        image_source = 'venue_shared' if is_generic else 'event_page'
+                    else:
+                        image_source = None
 
                     # ── Final update: flyer + event link + auto-publish decision ──
                     final_update = {}
                     if flyer_url:
                         final_update["flyer_url"] = flyer_url
+                    elif REFRESH_FLYERS:
+                        # Cleanup mode: actively clear a stored flyer when this
+                        # run can't find a legitimate one, so images left behind
+                        # by the old image-search fallback get purged and the
+                        # branded placeholder takes over. Off by default — a
+                        # transient scrape failure shouldn't wipe good flyers.
+                        final_update["flyer_url"] = None
+
+                    # Record where the image came from, so bogus flyers are
+                    # traceable next time instead of being indistinguishable.
+                    event_payload["metadata"]["image_source"] = image_source
+                    final_update["metadata"] = event_payload["metadata"]
                     if event_detail_url and event_detail_url.startswith("http"):
                         # The resolved per-event page (Gemini's event_url or the
                         # fuzzy-matched listing link) — shown as "link to the

@@ -15,6 +15,12 @@ L.Icon.Default.mergeOptions({
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
+/** An event known to have real coordinates — safe to plot. */
+type PlacedEvent = Event & { lat: number; lng: number };
+
+const isPlaced = (e: Event): e is PlacedEvent =>
+    Number.isFinite(e.lat) && Number.isFinite(e.lng);
+
 interface MapProps {
     events?: Event[]; // Optional now
     selectedEventId?: string | null;
@@ -234,7 +240,7 @@ function EventPopup({
     onClose,
     onEventOpen,
 }: {
-    group: Event[];
+    group: PlacedEvent[];
     index: number;
     onIndexChange: (i: number) => void;
     onClose: () => void;
@@ -326,16 +332,18 @@ function EventPopup({
 
 export default function Map({ events = [], selectedEventId, onMarkerClick, onEventOpen, route, resizeSignal }: MapProps) {
     const [isFullscreen, setIsFullscreen] = useState(false);
-    const [activeGroup, setActiveGroup] = useState<Event[] | null>(null);
+    const [activeGroup, setActiveGroup] = useState<PlacedEvent[] | null>(null);
     const [activeGroupIndex, setActiveGroupIndex] = useState(0);
 
-    const selectedEvent = events.find(e => e.id === selectedEventId);
+    // Only a geolocated selection can drive the map center.
+    const selectedEventRaw = events.find(e => e.id === selectedEventId);
+    const selectedEvent = selectedEventRaw && isPlaced(selectedEventRaw) ? selectedEventRaw : undefined;
 
     // Group events by venue location to avoid overlapping markers
     const locationGroups = useMemo(() => {
-        const groups: Record<string, Event[]> = {};
+        const groups: Record<string, PlacedEvent[]> = {};
         for (const event of events) {
-            if (!Number.isFinite(event.lat) || !Number.isFinite(event.lng)) continue;
+            if (!isPlaced(event)) continue;
             const key = `${event.lat.toFixed(4)},${event.lng.toFixed(4)}`;
             if (!groups[key]) groups[key] = [];
             groups[key].push(event);
@@ -354,7 +362,7 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, onEve
         return [lat, lng];
     }, [locationGroups]);
 
-    const handleMarkerClick = (group: Event[]) => {
+    const handleMarkerClick = (group: PlacedEvent[]) => {
         setActiveGroup(group);
         setActiveGroupIndex(0);
         onMarkerClick && onMarkerClick(group[0].id);

@@ -53,8 +53,10 @@ export async function getEvents(): Promise<Event[]> {
         // which is why descriptions read as AI commentary about the event rather
         // than about what actually happens. Never surface it.
         description: e.metadata?.description || 'No description available',
-        lat: e.venues?.lat || 34.0522,
-        lng: e.venues?.lng || -118.2437,
+        // Never invent coordinates: an un-geocoded venue is skipped on the
+        // map, not dropped onto a downtown default.
+        lat: e.venues?.lat ?? null,
+        lng: e.venues?.lng ?? null,
         image: e.flyer_url || '/placeholder.jpg',
         neighborhood: e.venues?.neighborhood || 'Unknown',
         vibe: e.event_vibe ? [e.event_vibe] : ['Event'],
@@ -106,8 +108,10 @@ export async function getEventById(id: string): Promise<Event | null> {
         // which is why descriptions read as AI commentary about the event rather
         // than about what actually happens. Never surface it.
         description: e.metadata?.description || 'No description available',
-        lat: e.venues?.lat || 34.0522,
-        lng: e.venues?.lng || -118.2437,
+        // Never invent coordinates: an un-geocoded venue is skipped on the
+        // map, not dropped onto a downtown default.
+        lat: e.venues?.lat ?? null,
+        lng: e.venues?.lng ?? null,
         image: e.flyer_url || '/placeholder.jpg',
         neighborhood: e.venues?.neighborhood || 'Unknown',
         vibe: e.event_vibe ? [e.event_vibe] : ['Event'],
@@ -175,8 +179,10 @@ export async function getRecurringEvents(): Promise<RecurringEvent[]> {
         description: e.description,
         venue_name: e.venues?.name || 'Unknown',
         neighborhood: e.venues?.neighborhood || 'Unknown',
-        lat: e.venues?.lat || 34.0522,
-        lng: e.venues?.lng || -118.2437,
+        // Never invent coordinates: an un-geocoded venue is skipped on the
+        // map, not dropped onto a downtown default.
+        lat: e.venues?.lat ?? null,
+        lng: e.venues?.lng ?? null,
         venue_url: e.venues?.url,
         venue_image: e.venues?.image_url,
     }));
@@ -210,8 +216,10 @@ export async function getAdminRecurringEvents(): Promise<(RecurringEvent & { sta
         status: e.status || 'pending',
         venue_name: e.venues?.name || 'Unknown',
         neighborhood: e.venues?.neighborhood || 'Unknown',
-        lat: e.venues?.lat || 34.0522,
-        lng: e.venues?.lng || -118.2437,
+        // Never invent coordinates: an un-geocoded venue is skipped on the
+        // map, not dropped onto a downtown default.
+        lat: e.venues?.lat ?? null,
+        lng: e.venues?.lng ?? null,
         venue_url: e.venues?.url,
         venue_image: e.venues?.image_url,
     }));
