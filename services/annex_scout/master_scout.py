@@ -69,6 +69,68 @@ def same_event_name(a, b):
     return len(shorter) >= 12 and shorter in longer
 
 
+def _words(s):
+    """Normalize to space-separated alphanumeric words."""
+    import re
+    return re.sub(r'[^a-z0-9]+', ' ', (s or '').lower()).strip()
+
+
+def _tokens(s):
+    """Meaningful tokens for overlap scoring (drop 1-2 char noise)."""
+    return {t for t in _words(s).split() if len(t) > 2}
+
+
+def best_event_link(event_name, links):
+    """
+    Pick the listing-page link that points at THIS event's own page.
+
+    Why the scoring: reaching the event's detail page is what yields a real
+    per-event flyer. When we can't resolve it we fall back to the listing
+    page's image, which is usually the venue's hero photo — so every event at
+    that venue ends up with the same picture.
+
+    Deliberately conservative: following the WRONG event page produces a
+    confidently wrong flyer, the same failure mode as the removed image
+    search. Below the threshold we return None and take the honest venue photo.
+    """
+    import re
+    name_words = _words(event_name)
+    name_tokens = _tokens(event_name)
+    if not name_tokens:
+        return None
+
+    eventish = re.compile(r'/(events?|shows?|calendar|tickets?|e)/', re.I)
+    best, best_score = None, 0.0
+
+    for link in links:
+        href = link.get('href') or ''
+        if not href.startswith('http'):
+            continue
+        text_words = _words(link.get('text'))
+        # Venues very often put the title in the URL slug, which is cleaner
+        # than link text (no dates/prices/"buy tickets" wrapped around it).
+        slug_words = _words(re.sub(r'^https?://[^/]+', '', href))
+
+        if text_words and text_words == name_words:
+            score = 1.0
+        elif len(name_words) >= 12 and name_words in text_words:
+            score = 0.9
+        elif len(text_words) >= 12 and text_words in name_words:
+            score = 0.85
+        else:
+            text_overlap = len(name_tokens & _tokens(text_words)) / len(name_tokens)
+            slug_overlap = len(name_tokens & _tokens(slug_words)) / len(name_tokens)
+            score = max(text_overlap, slug_overlap) * 0.8
+
+        if eventish.search(href):
+            score += 0.05
+
+        if score > best_score:
+            best, best_score = href, score
+
+    return best if best_score >= 0.55 else None
+
+
 def mark_venue_scouted(venue_id, page_hash):
     """Record scout state; tolerate a DB that's missing the Phase 2 columns."""
     try:
@@ -489,7 +551,7 @@ def extract_event_links(page, base_url):
                     results.push({text: text.substring(0, 100), href: href});
                 }
             }
-            return results.slice(0, 50);  // Cap at 50 links
+            return results.slice(0, 200);  // Busy calendars push real event links past a small cap
         }""", base_url)
         return links or []
     except:
@@ -769,13 +831,12 @@ def run_master_scout():
 
                     # Find the best matching event link from the listing page
                     event_detail_url = event.get('event_url', '')
-                    if not event_detail_url:
-                        # Fuzzy match: find a link whose text contains the event name
-                        event_name_lower = event['event_name'].lower()
-                        for link in event_links:
-                            if event_name_lower in link['text'].lower() or link['text'].lower() in event_name_lower:
-                                event_detail_url = link['href']
-                                break
+                    if not event_detail_url or not event_detail_url.startswith('http'):
+                        # Score every listing link on normalized title + URL slug
+                        # instead of the old raw substring test, which missed
+                        # whenever punctuation/dates differed and could latch
+                        # onto the wrong link on a short match.
+                        event_detail_url = best_event_link(event['event_name'], event_links) or ''
 
                     # Navigate to event detail page if we have a URL
                     if event_detail_url and event_detail_url.startswith("http"):
