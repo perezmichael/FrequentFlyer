@@ -70,7 +70,12 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
         windowEnd.setHours(23, 59, 59, 999);
 
         for (const event of initialEvents) {
-            const eventDate = new Date(event.date);
+            // Parse as LOCAL midnight. `new Date('2026-07-27')` is parsed as
+            // UTC, which in LA lands on the 26th at 5pm — so every event
+            // bucketed one weekday early and the day pills showed the wrong
+            // day's events. The cards were right because formatEventDateTime
+            // already appends T00:00:00; this now matches it.
+            const eventDate = new Date(`${event.date}T00:00:00`);
             if (eventDate >= windowStart && eventDate <= windowEnd) {
                 items.push({ kind: 'event', data: event, sortDay: eventDate.getDay() });
             }
@@ -146,12 +151,18 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                 <div className={`${styles.listContainer} ${mobileTab !== 'list' ? styles.hiddenMobile : ''}`}>
                     <header className={styles.header}>
                         <h1 className={`${styles.title} font-space-grotesk`}>
-                            What&apos;s happening this week
+                            What&apos;s happening
                         </h1>
 
+                        {/* Says what's actually on screen. The heading used to
+                            claim "this week" while the feed showed a rolling
+                            month, and a day filter means every Monday in that
+                            month — not just the next one. */}
                         <p className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-black/55 mt-[6px]">
                             <span className="text-ink font-bold">{filteredItems.length}</span>
-                            {filteredItems.length === 1 ? ' event' : ' events'} across LA
+                            {filteredItems.length === 1 ? ' event' : ' events'}
+                            {dayFilter !== null ? ` · ${DAY_NAMES_SHORT[dayFilter]}s` : ` · next ${WINDOW_DAYS} days`}
+                            {neighborhoodFilter ? ` · ${neighborhoodFilter}` : ' · across LA'}
                         </p>
 
                         {/* Day-of-week pills */}
