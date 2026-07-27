@@ -86,7 +86,9 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, max
     return lines;
 }
 
-export default function KitClient({ events, from, to }: { events: KitEvent[]; from: string; to: string }) {
+export default function KitClient({ events, from, to, activeDays }: {
+    events: KitEvent[]; from: string; to: string; activeDays: number | null;
+}) {
     // Default to the events that actually have a flyer — the carousel format is
     // flyer-driven, and a slide without one is a different (branded) look.
     const [selected, setSelected] = useState<Set<string>>(
@@ -247,7 +249,27 @@ export default function KitClient({ events, from, to }: { events: KitEvent[]; fr
                 {range} · {chosen.length} slides selected · {events.length} events in window
             </p>
 
-            <div className="flex gap-3 mt-5">
+            {/* A flyer often lands weeks before the date. Without this the kit
+                could only ever see the coming weekend. */}
+            <div className="flex items-center gap-2 mt-5">
+                <span className="font-space-mono text-[11px] uppercase tracking-[-0.44px] text-ink/50">Window</span>
+                {([['Weekend', null], ['7 days', 7], ['14 days', 14], ['30 days', 30]] as const).map(([label, d]) => {
+                    const on = activeDays === d;
+                    return (
+                        <a
+                            key={label}
+                            href={d ? `/admin/kit?days=${d}` : '/admin/kit'}
+                            className={`rounded-full border px-3 py-1.5 font-space-mono text-[11px] uppercase tracking-[-0.44px] no-underline transition-colors ${
+                                on ? 'bg-ink text-cream border-ink' : 'border-black/30 text-ink/60 hover:border-black/60'
+                            }`}
+                        >
+                            {label}
+                        </a>
+                    );
+                })}
+            </div>
+
+            <div className="flex gap-3 mt-4">
                 <button
                     onClick={downloadAll}
                     disabled={busy || !chosen.length}

@@ -22,8 +22,25 @@ function weekendWindow(now = new Date()) {
     return { from: iso(start), to: iso(end) };
 }
 
-export default async function KitPage() {
-    const { from, to } = weekendWindow();
+/** Today → N days out, for building a kit that isn't this weekend's. */
+function rollingWindow(days: number, now = new Date()) {
+    const end = new Date(now);
+    end.setDate(now.getDate() + days);
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    return { from: iso(now), to: iso(end) };
+}
+
+export default async function KitPage({
+    searchParams,
+}: {
+    searchParams?: { days?: string };
+}) {
+    // Default is the weekend block; ?days=N widens it, so a flyer for a show
+    // three weeks out is still reachable without editing code.
+    const days = Number(searchParams?.days);
+    const { from, to } = Number.isFinite(days) && days > 0
+        ? rollingWindow(Math.min(days, 90))
+        : weekendWindow();
 
     const { data, error } = await supabase
         .from('events')
@@ -48,5 +65,5 @@ export default async function KitPage() {
         isPick: e.curation_level === 'ff_curated',
     }));
 
-    return <KitClient events={events} from={from} to={to} />;
+    return <KitClient events={events} from={from} to={to} activeDays={Number.isFinite(days) && days > 0 ? days : null} />;
 }

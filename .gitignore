@@ -46,3 +46,7 @@ __pycache__/
 
 # scout cron logs
 services/annex_scout/logs/
+
+# hand-dropped flyers awaiting upload (images stay out of the repo)
+flyer-inbox/*
+!flyer-inbox/README.md
