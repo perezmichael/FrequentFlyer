@@ -138,9 +138,15 @@ export default function EventDetailSheet({ event, onClose }: EventDetailSheetPro
                 </div>
 
                 <div className={styles.body}>
-                    {event.vibe && event.vibe.length > 0 && (
+                    {/* Pick stamp travels with the event: someone opening a
+                        curated pick — or landing on a shared link to one —
+                        should see that a human vouched for it. */}
+                    {(event.vibe?.length || event.curationLevel === 'ff_curated') && (
                         <div className={styles.vibeRow}>
-                            {event.vibe.map((v) => (
+                            {event.curationLevel === 'ff_curated' && (
+                                <span className={styles.pick}>★ FF Pick</span>
+                            )}
+                            {event.vibe?.map((v) => (
                                 <span key={v} className="stamp text-[11px]">{v}</span>
                             ))}
                         </div>
@@ -165,6 +171,16 @@ export default function EventDetailSheet({ event, onClose }: EventDetailSheetPro
                         </svg>
                         <span>{formatEventDateTime(event.date, event.startTime, event.endTime)}</span>
                     </div>
+
+                    {event.price && (
+                        <div className={`${styles.metaRow} font-space-mono`}>
+                            <svg className={styles.metaIcon} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="12" y1="1" x2="12" y2="23" />
+                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                            </svg>
+                            <span>{event.price}</span>
+                        </div>
+                    )}
 
                     {event.description && event.description !== 'No description available' && (
                         <p className={styles.description}>{event.description}</p>

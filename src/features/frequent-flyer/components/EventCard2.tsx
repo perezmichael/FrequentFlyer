@@ -49,10 +49,15 @@ export default function EventCard2({ event, isActive, onClick, id }: EventCard2P
                 </div>
                 <div className={styles.info}>{event.location}</div>
                 <div className={styles.info}>{formatEventDateTime(event.date, event.startTime, event.endTime)}</div>
-                <div className={styles.price}>
-                    <span className={styles.priceValue}>Free</span>
-                    <span style={{ fontWeight: 400 }}>entry</span>
-                </div>
+                {/* Only shown when the venue actually stated a price. This used
+                    to read "Free entry" on every card — including $26 ticketed
+                    shows — which sends people to a door expecting free. Silence
+                    beats a confident wrong number. */}
+                {event.price && (
+                    <div className={styles.price}>
+                        <span className={styles.priceValue}>{event.price}</span>
+                    </div>
+                )}
             </div>
         </div>
     );

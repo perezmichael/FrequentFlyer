@@ -17,7 +17,7 @@ export interface FlyerEvent {
   startTime?: string | null;
   endTime?: string | null;
   category?: string;
-  price?: string;
+  price?: string | null;
   neighborhood: string;
   vibe?: string[];
 }
@@ -64,7 +64,9 @@ export default function FlyerCard({ image, event }: FlyerCardProps) {
 
   // Map backend "vibe" to frontend "category" if needed
   const category = event.category || (event.vibe && event.vibe[0]) || "Event";
-  const price = event.price || "Free"; // Default if missing
+  // No default: this used to print "Free" whenever price was missing,
+  // which was every event — including ticketed shows.
+  const price = event.price;
 
   return (
     <motion.div
@@ -154,10 +156,14 @@ export default function FlyerCard({ image, event }: FlyerCardProps) {
                 <p className="font-space-grotesk font-normal leading-[18px] text-flyer text-[14px] tracking-[-0.21px] uppercase">
                   {category}
                 </p>
-                <div className="w-px h-[14px] bg-[#A3A3A3]"></div>
-                <p className="font-space-grotesk font-normal leading-[18px] text-flyer text-[14px] tracking-[-0.21px] uppercase">
-                  {price}
-                </p>
+                {price && (
+                  <>
+                    <div className="w-px h-[14px] bg-[#A3A3A3]"></div>
+                    <p className="font-space-grotesk font-normal leading-[18px] text-flyer text-[14px] tracking-[-0.21px] uppercase">
+                      {price}
+                    </p>
+                  </>
+                )}
                 <div className="w-px h-[14px] bg-[#A3A3A3]"></div>
                 <p className="font-space-grotesk font-normal leading-[18px] text-flyer text-[14px] tracking-[-0.21px] uppercase">
                   {event.neighborhood}

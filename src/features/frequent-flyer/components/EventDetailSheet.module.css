@@ -127,6 +127,21 @@
     margin-bottom: 10px;
 }
 
+.pick {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border: 1px solid #C2371B;
+    border-radius: 999px;
+    color: #C2371B;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: -0.44px;
+    white-space: nowrap;
+}
+
 .title {
     font-size: 26px;
     line-height: 1.05;
