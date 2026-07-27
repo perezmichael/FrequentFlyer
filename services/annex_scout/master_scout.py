@@ -886,7 +886,16 @@ def run_master_scout():
                     # ── Image extraction: try event-specific page first ──
 
                     # Find the best matching event link from the listing page
+                    # Gemini's event_url is a guess, not a fact — on venues with
+                    # a dominant recurring show it hands back that show's URL
+                    # for every event (The Elysian: 10 different events all
+                    # pointed at /shows/superbloom, so all 10 displayed the
+                    # Superbloom poster). Only accept it if the URL actually
+                    # looks like this event; otherwise score the real links.
                     event_detail_url = event.get('event_url', '')
+                    if event_detail_url and event_detail_url.startswith('http'):
+                        if not best_event_link(event['event_name'], [{'text': '', 'href': event_detail_url}]):
+                            event_detail_url = ''
                     if not event_detail_url or not event_detail_url.startswith('http'):
                         # Score every listing link on normalized title + URL slug
                         # instead of the old raw substring test, which missed

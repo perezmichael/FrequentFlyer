@@ -26,7 +26,6 @@ export default function GeneratedFlyer({ title, vibe, neighborhood, className }:
                 width: '100%',
                 height: '100%',
                 background: '#1a1a1a',
-                borderTop: '3px solid #C2371B',
                 padding: '14px 14px 12px',
                 display: 'flex',
                 flexDirection: 'column',
