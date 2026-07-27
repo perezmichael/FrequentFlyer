@@ -220,6 +220,20 @@
     border-color: #1a1a1a;
 }
 
+/* The sheet travels the full viewport height on mobile — the largest movement
+   in the app. Under reduced motion it fades in place instead. Drag-to-dismiss
+   still tracks the finger: that's direct manipulation, not decoration, and
+   removing it would break the gesture. */
+@media (prefers-reduced-motion: reduce) {
+    .overlay,
+    .sheet {
+        animation: fadeIn 0.15s var(--ff-ease-out);
+    }
+    .sheet {
+        transition: none;
+    }
+}
+
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }

@@ -26,6 +26,19 @@
   --ff-tracking-pill: -0.44px;
   --ff-radius-pill: 9999px;
 
+  /* Motion. Entrances and exits use --ff-ease-out (strong, starts fast, so the
+     moment you're watching isn't delayed); on-screen movement uses in-out; the
+     sheet uses the drawer curve. --ff-ease-spring is the one deliberate
+     overshoot — the springy card lift. Durations stay under 300ms for UI;
+     drawers get a little more room. */
+  --ff-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ff-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ff-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --ff-ease-spring: cubic-bezier(0.22, 1.4, 0.36, 1);
+  --ff-duration-fast: 0.15s;   /* button/press feedback, color changes */
+  --ff-duration-base: 0.22s;   /* dropdowns, small popovers */
+  --ff-duration-slow: 0.35s;   /* card lift, drawers */
+
   /* Colors - Gemini/Airbnb Inspired (shadcn scaffold — used by admin ui only) */
 
   --primary: oklch(0.205 0 0);
@@ -154,13 +167,19 @@ h6 {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: var(--spacing-lg);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform var(--ff-duration-base) var(--ff-ease-out),
+    box-shadow var(--ff-duration-base) var(--ff-ease-out);
   cursor: pointer;
 }
 
-.card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--card-hover-shadow);
+/* Hover motion only where hovering is real. On touch, a tap fires a synthetic
+   hover and the card stays stuck in its lifted state until you tap elsewhere. */
+@media (hover: hover) and (pointer: fine) {
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--card-hover-shadow);
+  }
 }
 
 .btn {
@@ -514,12 +533,16 @@ h6 {
 /* Springy hover/press for cards & tappables. One curve, reused everywhere. */
 .lift {
   transition:
-    transform 0.35s cubic-bezier(0.22, 1.4, 0.36, 1),
-    box-shadow 0.35s cubic-bezier(0.22, 1.4, 0.36, 1);
+    transform var(--ff-duration-slow) var(--ff-ease-spring),
+    box-shadow var(--ff-duration-slow) var(--ff-ease-spring);
 }
-.lift:hover {
-  transform: translateY(-3px);
+/* See .card above — ungated :hover sticks after a tap on touch devices. */
+@media (hover: hover) and (pointer: fine) {
+  .lift:hover {
+    transform: translateY(-3px);
+  }
 }
+/* :active is a real press on both touch and pointer, so it stays ungated. */
 .lift:active {
   transform: translateY(-1px) scale(0.985);
   transition-duration: 0.1s;
@@ -548,9 +571,20 @@ h6 {
 .stagger-in > *:nth-child(7) { animation-delay: 0.27s; }
 .stagger-in > *:nth-child(8) { animation-delay: 0.31s; }
 .stagger-in > *:nth-child(n + 9) { animation-delay: 0.35s; }
+/* Reduced motion = fewer and gentler, not zero. Drop travel and continuous
+   spinning; keep opacity and colour so feedback still reads. */
 @media (prefers-reduced-motion: reduce) {
-  .stagger-in > * { animation: none; }
+  /* Cards still fade in, they just don't fly up. */
+  .stagger-in > * {
+    animation: ff-fade-in 0.2s var(--ff-ease-out) both;
+  }
   .lift, .lift:hover, .lift:active { transition: none; transform: none; }
+}
+
+/* Opacity-only counterpart to ff-fade-up, used under reduced motion. */
+@keyframes ff-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* A whisper of print grain over hero/dark surfaces — same press as the flyers. */
