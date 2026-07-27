@@ -130,8 +130,91 @@ def main():
     with open(f"{out}/caption.txt", "w") as fh:
         fh.write(caption)
 
-    print(f"\n{len(slides)} slides + caption.txt -> {out}")
+    # Newsletter from the same data — more events than the carousel can hold,
+    # since an email isn't capped at 10 slides.
+    title, subtitle, html = build_newsletter(by_night, today, end, rng)
+    with open(f"{out}/newsletter.html", "w") as fh:
+        fh.write(html)
+
+    print(f"\n{len(slides)} slides + caption.txt + newsletter.html -> {out}")
     print("\n" + caption)
+
+    push_to_beehiiv(title, subtitle, html)
+
+
+def build_newsletter(by_night, today, end, rng):
+    """Night-by-night HTML for the email, in the existing newsletter format."""
+    top = []
+    for night in sorted(by_night):
+        for e in by_night[night][:1]:
+            top.append(e["event_name"].split(",")[0].split(":")[0].strip())
+    subtitle = ", ".join(top[:3]) if top else "This week in LA"
+    title = f"Things to do This Week in LA: {rng}"
+
+    parts = [f"<p>Seven nights. Here's where we'd be.</p>"]
+    for night in sorted(by_night):
+        day = datetime.strptime(night, "%Y-%m-%d").strftime("%A %-m/%-d")
+        parts.append(f"<h2>{day}</h2>")
+        for e in by_night[night][:3]:
+            v = e.get("venues") or {}
+            desc = ((e.get("metadata") or {}).get("description") or "").strip()
+            link = e.get("source_url") or ""
+            name = _esc(e["event_name"])
+            name_html = f'<a href="{_esc(link)}">{name}</a>' if link.startswith("http") else name
+            where = f"{_esc(v.get('name', ''))} · {_esc(v.get('neighborhood', ''))}"
+            parts.append(f"<p><strong>{name_html}</strong><br><em>{where}</em>"
+                         + (f"<br>{_esc(desc)}" if desc else "") + "</p>")
+
+    parts.append('<hr><p>Full listings, map, and everything we couldn\'t fit — '
+                 '<a href="https://frequentflyerla.com">frequentflyerla.com</a></p>')
+    return title, subtitle, "\n".join(parts)
+
+
+def _esc(s):
+    return (str(s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+
+
+def push_to_beehiiv(title, subtitle, html):
+    """
+    Create a DRAFT post in beehiiv, if credentials are configured.
+
+    Never publishes — status is always 'draft', so the issue still needs a
+    human to review and send.
+
+    Heads up: beehiiv documents post creation as beta and Enterprise-only, so
+    this may 403 on lower plans. That's fine — newsletter.html is written
+    either way and can be pasted straight into the beehiiv editor.
+    """
+    key = os.getenv("BEEHIIV_API_KEY")
+    pub = os.getenv("BEEHIIV_PUBLICATION_ID")
+    if not key or not pub:
+        print("\n(beehiiv: set BEEHIIV_API_KEY and BEEHIIV_PUBLICATION_ID in .env "
+              "to auto-create a draft; newsletter.html is ready to paste meanwhile)")
+        return
+
+    try:
+        resp = requests.post(
+            f"https://api.beehiiv.com/v2/publications/{pub}/posts",
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            json={
+                "title": title,
+                "subtitle": subtitle,
+                "body_content": html,
+                "status": "draft",
+            },
+            timeout=30,
+        )
+    except Exception as err:
+        print(f"\nbeehiiv: request failed ({str(err)[:70]}) — paste newsletter.html instead")
+        return
+
+    if resp.status_code in (200, 201, 202):
+        print("\nbeehiiv: draft created — review and send from the dashboard")
+    elif resp.status_code in (401, 403):
+        print(f"\nbeehiiv: {resp.status_code} — API key rejected, or post creation isn't "
+              "available on this plan (it's Enterprise-only). Paste newsletter.html instead.")
+    else:
+        print(f"\nbeehiiv: {resp.status_code} {resp.text[:140]} — paste newsletter.html instead")
 
 
 if __name__ == "__main__":
