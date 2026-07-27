@@ -36,21 +36,6 @@
     transition: transform 0.3s ease;
 }
 
-.heartButton {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    z-index: 2;
-    transition: transform 0.2s;
-}
-
-.heartButton:hover {
-    transform: scale(1.1);
-}
-
 .content {
     display: flex;
     flex-direction: column;
