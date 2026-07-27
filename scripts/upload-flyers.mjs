@@ -9,6 +9,7 @@
  * to a known event, so a flyer is never matched by guesswork.
  */
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { extname, basename, join } from 'node:path';
 import { config } from 'dotenv';
 
@@ -57,8 +58,12 @@ async function findEvent(name) {
     return Array.isArray(rows) ? rows : [];
 }
 
-async function upload(eventId, buf, mime, ext) {
-    const path = `flyers/${eventId}.${ext}`;
+async function upload(digest, buf, mime, ext) {
+    // Keyed by content, not by event. One flyer advertising four Sundays is a
+    // single object with a single URL, so the feed's repeat-detection (which
+    // compares image URLs) can tell those cards share a picture and render the
+    // branded card for the repeats instead of four identical tiles.
+    const path = `flyers/shared/${digest}.${ext}`;
     const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`, {
         method: 'POST',
         headers: { ...headers, 'Content-Type': mime, 'x-upsert': 'true' },
@@ -68,7 +73,7 @@ async function upload(eventId, buf, mime, ext) {
     return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
 }
 
-async function attach(eventId, flyerUrl, bytes) {
+async function attach(eventId, flyerUrl, bytes, digest) {
     // metadata is a jsonb blob — read and merge so the description and price
     // written when the event was created survive the update.
     const current = await (await fetch(`${SUPABASE_URL}/rest/v1/events?select=metadata&id=eq.${eventId}`, { headers })).json();
@@ -77,6 +82,7 @@ async function attach(eventId, flyerUrl, bytes) {
         // Provenance, so a wrong flyer stays traceable to how it got here.
         image_source: 'editor upload',
         image_bytes: bytes,
+        image_hash: digest,
     };
     const res = await fetch(`${SUPABASE_URL}/rest/v1/events?id=eq.${eventId}`, {
         method: 'PATCH',
@@ -107,6 +113,7 @@ async function main() {
         if (!targets) { unknown.push(file); continue; }
 
         const buf = readFileSync(join(INBOX, file));
+        const digest = createHash('sha1').update(buf).digest('hex').slice(0, 16);
         const kind = sniff(buf);
         if (!kind) { console.log(`SKIP  ${file} — not a recognisable image`); continue; }
         if (buf.length < 1500) { console.log(`SKIP  ${file} — ${buf.length} bytes, too small to be a real flyer`); continue; }
@@ -121,8 +128,8 @@ async function main() {
                     continue;
                 }
                 try {
-                    const url = await upload(ev.id, buf, kind.mime, kind.ext);
-                    await attach(ev.id, url, buf.length);
+                    const url = await upload(digest, buf, kind.mime, kind.ext);
+                    await attach(ev.id, url, buf.length, digest);
                     console.log(`OK    ${file} → ${ev.event_name} (${ev.event_date})`);
                     attached++;
                 } catch (err) {
