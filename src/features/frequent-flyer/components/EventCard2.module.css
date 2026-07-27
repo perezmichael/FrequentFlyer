@@ -71,6 +71,28 @@
     margin-bottom: 2px;
 }
 
+/* FF Pick — the brand's one editorial endorsement. Brick on cream, uppercase
+   mono with the pill tracking, hairline outline: the same stamp language as
+   the vibe chips, so it reads as part of the system rather than a badge
+   bolted on. */
+.pick {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    margin-left: 8px;
+    padding: 2px 7px;
+    border: 1px solid var(--ff-accent);
+    border-radius: var(--ff-radius-pill);
+    color: var(--ff-accent);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: var(--ff-tracking-pill);
+    white-space: nowrap;
+}
+
 .rating {
     display: flex;
     align-items: center;

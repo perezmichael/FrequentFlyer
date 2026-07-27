@@ -32,12 +32,20 @@ export default function EventCard2({ event, isActive, onClick, id }: EventCard2P
             </div>
 
             <div className={styles.content}>
-                {/* No rating here. It used to render a hardcoded 4.9 on every
-                    card — invented data dressed as a trust signal, on an app
-                    whose whole claim is human curation. (.rating still exists:
-                    RecurringEventCard uses the slot for its category emoji.) */}
+                {/* The slot the fake 4.9 used to occupy, now carrying a claim
+                    that's actually true: a human marked this one. Only
+                    ff_curated gets it — 'promoted' is labelled on the flyer
+                    instead, so paid placement never wears editorial clothes. */}
                 <div className={styles.header}>
                     <h3 className={styles.title}>{event.title}</h3>
+                    {event.curationLevel === 'ff_curated' && (
+                        <span className={styles.pick} title="A Frequent Flyer pick">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden>
+                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                            </svg>
+                            FF Pick
+                        </span>
+                    )}
                 </div>
                 <div className={styles.info}>{event.location}</div>
                 <div className={styles.info}>{formatEventDateTime(event.date, event.startTime, event.endTime)}</div>
