@@ -54,7 +54,10 @@
     font-weight: 500;
     color: #64748b;
     cursor: pointer;
-    transition: all 0.2s ease;
+    /* Enumerated, not `all`: `all` also animates layout-affecting properties. */
+    transition: color var(--ff-duration-fast) var(--ff-ease-out),
+        background var(--ff-duration-fast) var(--ff-ease-out),
+        border-color var(--ff-duration-fast) var(--ff-ease-out);
 }
 
 .filterButton:hover {
