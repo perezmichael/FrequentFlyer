@@ -642,6 +642,13 @@ def run_master_scout():
         )
 
         for v in venues:
+            # Some entries exist only to carry coordinates (venues with no
+            # working events page — see venues.json). Skip them instead of
+            # attempting goto(None) on every run.
+            if not v.get('url'):
+                print(f"\n⏭️  {v['name']}: no events URL, coords-only entry — skipping scrape.")
+                continue
+
             print(f"\n🛰️  SCOUTING: {v['name']} ({v['neighborhood']})...")
 
             # Fresh browser context per venue — prevents one venue's navigation

@@ -10,10 +10,23 @@ interface EventCard2Props {
     isActive?: boolean;
     onClick?: () => void;
     id?: string;
+    /** Render the branded card even though a photo exists — used when the same
+     *  picture already appeared earlier in this view. */
+    forcePlaceholder?: boolean;
+    /** How many dates this card stands in for (a collapsed series). */
+    seriesDates?: number;
+    /** Last date of the run, for the "through …" note. */
+    seriesLastDate?: string;
 }
 
-export default function EventCard2({ event, isActive, onClick, id }: EventCard2Props) {
-    const showImage = hasRealImage(event.image);
+export default function EventCard2({
+    event, isActive, onClick, id, forcePlaceholder = false, seriesDates = 1, seriesLastDate,
+}: EventCard2Props) {
+    const showImage = hasRealImage(event.image) && !forcePlaceholder;
+    const extraDates = Math.max(0, seriesDates - 1);
+    const runsThrough = seriesLastDate
+        ? new Date(`${seriesLastDate}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        : null;
 
     return (
         <div id={id} className={styles.card} onClick={onClick}>
@@ -49,6 +62,14 @@ export default function EventCard2({ event, isActive, onClick, id }: EventCard2P
                 </div>
                 <div className={styles.info}>{event.location}</div>
                 <div className={styles.info}>{formatEventDateTime(event.date, event.startTime, event.endTime)}</div>
+                {/* One card stands in for a whole run, so say how long it runs
+                    rather than printing 30 near-identical cards. */}
+                {extraDates > 0 && (
+                    <div className={styles.seriesNote}>
+                        + {extraDates} more {extraDates === 1 ? 'date' : 'dates'}
+                        {runsThrough ? ` through ${runsThrough}` : ''}
+                    </div>
+                )}
                 {/* Only shown when the venue actually stated a price. This used
                     to read "Free entry" on every card — including $26 ticketed
                     shows — which sends people to a door expecting free. Silence
