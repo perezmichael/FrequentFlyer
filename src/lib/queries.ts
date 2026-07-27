@@ -54,6 +54,7 @@ export async function getEvents(): Promise<Event[]> {
         // which is why descriptions read as AI commentary about the event rather
         // than about what actually happens. Never surface it.
         description: e.metadata?.description || 'No description available',
+        price: e.metadata?.price || null,
         // Never invent coordinates: an un-geocoded venue is skipped on the
         // map, not dropped onto a downtown default.
         lat: e.venues?.lat ?? null,
@@ -113,6 +114,7 @@ export async function getEventById(id: string): Promise<Event | null> {
         // which is why descriptions read as AI commentary about the event rather
         // than about what actually happens. Never surface it.
         description: e.metadata?.description || 'No description available',
+        price: e.metadata?.price || null,
         // Never invent coordinates: an un-geocoded venue is skipped on the
         // map, not dropped onto a downtown default.
         lat: e.venues?.lat ?? null,

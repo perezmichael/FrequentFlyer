@@ -2,15 +2,15 @@
 
 import { useState, useRef } from 'react';
 import { Event } from '@/features/frequent-flyer/data/events';
-import { updateEvent, uploadEventFlyer } from '@/app/actions';
+import { updateEvent, uploadEventFlyer, setEventCuration } from '@/app/actions';
 import { VIBES, VIBE_KEYS } from '@/features/frequent-flyer/data/vibes';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, X, Edit2, Save, XCircle, Upload, AlertTriangle, ImageOff } from 'lucide-react';
+import { Check, X, Edit2, Save, XCircle, Upload, AlertTriangle, ImageOff, Star } from 'lucide-react';
 
 interface AdminEventCardProps {
-    event: Event & { status?: string; vibe_score?: number };
+    event: Event & { status?: string; vibe_score?: number; curationLevel?: string };
     source?: string;
     selected?: boolean;
     focused?: boolean;
@@ -44,6 +44,9 @@ export default function AdminEventCard({
     onFocus,
 }: AdminEventCardProps) {
     const [isEditing, setIsEditing] = useState(false);
+    // Optimistic: the server action revalidates, but the star should flip now.
+    const [curation, setCuration] = useState(event.curationLevel || 'scraped');
+    const [curationPending, setCurationPending] = useState(false);
     const [formData, setFormData] = useState({
         title: event.title,
         date: event.date,
@@ -302,6 +305,39 @@ export default function AdminEventCard({
                     >
                         <X className="w-4 h-4 mr-2" />
                         Dismiss
+                    </Button>
+                    {/* Separate from approve on purpose: approving means "this
+                        is real", picking means "I'd go to this". Only the
+                        second one is taste, and only it changes the card. */}
+                    <Button
+                        onClick={async e => {
+                            e.stopPropagation();
+                            const next = curation === 'ff_curated' ? 'scraped' : 'ff_curated';
+                            setCuration(next);
+                            setCurationPending(true);
+                            try {
+                                await setEventCuration(event.id, next);
+                            } catch {
+                                setCuration(curation); // revert on failure
+                            } finally {
+                                setCurationPending(false);
+                            }
+                        }}
+                        variant="outline"
+                        size="sm"
+                        disabled={curationPending}
+                        title={curation === 'ff_curated' ? 'Remove FF Pick' : 'Mark as an FF Pick'}
+                        className={
+                            curation === 'ff_curated'
+                                ? 'border-[#C2371B] text-[#C2371B] hover:bg-[#C2371B]/10'
+                                : ''
+                        }
+                    >
+                        <Star
+                            className="w-4 h-4 mr-1"
+                            fill={curation === 'ff_curated' ? 'currentColor' : 'none'}
+                        />
+                        Pick
                     </Button>
                 </CardFooter>
             )}

@@ -788,13 +788,20 @@ def run_master_scout():
                - If the text says nothing about what the event is, return "".
             6. "vibe_justification" is the opposite: it is INTERNAL only. Put your
                scoring rationale there, never in "description".
+            7. "price" is what it costs to get in, copied from the TEXT — e.g.
+               "$15", "$20-25", "Free", "Free with RSVP", "Sliding scale".
+               - ONLY state a price the text actually gives. Do NOT guess, and
+                 do NOT assume free just because no price is listed: most of
+                 these events ticket at the door or through DICE.
+               - If the text doesn't say, return "" and the app will stay quiet
+                 about it rather than claim it's free.
 
             RETURN ONLY A JSON LIST:
             [
               {{
                 "event_name": "", "date": "YYYY-MM-DD", "talent_name": "",
                 "talent_ig": "@handle", "category": "", "vibe_score": 0, "vibe_justification": "",
-                "description": "", "event_url": ""
+                "description": "", "price": "", "event_url": ""
               }}
             ]
 
@@ -855,6 +862,11 @@ def run_master_scout():
                             "justification": event.get('vibe_justification', ''),
                             # Public-facing listing copy (see prompt rule 5).
                             "description": (event.get('description') or '').strip(),
+                            # Door price as printed by the venue (rule 7).
+                            # Empty means unknown — the UI stays silent rather
+                            # than claiming free, which it used to do for every
+                            # event including $26 ticketed shows.
+                            "price": (event.get('price') or '').strip(),
                         }
                     }
 

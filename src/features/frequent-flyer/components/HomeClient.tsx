@@ -53,6 +53,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
     // Default to All so a cold open shows everything upcoming, not just today.
     const [dayFilter, setDayFilter] = useState<number | null>(null);
     const [neighborhoodFilter, setNeighborhoodFilter] = useState<string | null>(null);
+    const [picksOnly, setPicksOnly] = useState(false);
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
     const [detailEvent, setDetailEvent] = useState<Event | null>(null);
     const [mobileTab, setMobileTab] = useState<'list' | 'map'>('list');
@@ -99,9 +100,21 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                 : item.data.neighborhood;
             if (neighborhoodFilter && neighborhood !== neighborhoodFilter) return false;
 
+            // Recurring nights aren't curatable yet — they have no
+            // curation_level — so a picks-only view excludes them rather than
+            // implying they were vouched for.
+            if (picksOnly && !(item.kind === 'event' && item.data.curationLevel === 'ff_curated')) return false;
+
             return true;
         });
-    }, [unifiedItems, dayFilter, neighborhoodFilter]);
+    }, [unifiedItems, dayFilter, neighborhoodFilter, picksOnly]);
+
+    // How many picks exist at all — the toggle hides itself when there are none,
+    // so an empty filter can't be tapped into a dead end.
+    const pickCount = useMemo(
+        () => unifiedItems.filter(i => i.kind === 'event' && i.data.curationLevel === 'ff_curated').length,
+        [unifiedItems]
+    );
 
     // Derive neighborhoods from all items
     const neighborhoods = useMemo(() => {
@@ -161,7 +174,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                         <p className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-black/55 mt-[6px]">
                             <span className="text-ink font-bold">{filteredItems.length}</span>
                             {filteredItems.length === 1 ? ' event' : ' events'}
-                            {dayFilter !== null ? ` · ${DAY_NAMES_SHORT[dayFilter]}s` : ` · next ${WINDOW_DAYS} days`}
+                            {picksOnly ? ' · FF Picks' : dayFilter !== null ? ` · ${DAY_NAMES_SHORT[dayFilter]}s` : ` · next ${WINDOW_DAYS} days`}
                             {neighborhoodFilter ? ` · ${neighborhoodFilter}` : ' · across LA'}
                         </p>
 
@@ -170,7 +183,12 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                             className="mt-[12px]"
                             aria-label="Filter by day"
                             pills={[
-                                { key: '__all', label: 'All', active: dayFilter === null, onClick: () => setDayFilter(null) },
+                                { key: '__all', label: 'All', active: dayFilter === null && !picksOnly, onClick: () => { setDayFilter(null); setPicksOnly(false); } },
+                                // Only offered once picks exist, so it can't be
+                                // tapped into an empty view.
+                                ...(pickCount > 0
+                                    ? [{ key: '__picks', label: `★ FF Picks`, active: picksOnly, emphasize: true, onClick: () => setPicksOnly(!picksOnly) }]
+                                    : []),
                                 ...DAY_NAMES_SHORT.map((name, i) => ({
                                     key: String(i),
                                     label: i === today ? `${name} ·` : name,

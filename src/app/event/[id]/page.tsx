@@ -61,10 +61,16 @@ export default async function EventPage({ params }: { params: { id: string } }) 
                 </div>
 
                 <div className="px-5 pt-5">
-                    {/* Vibe stamps */}
-                    {event.vibe && event.vibe.length > 0 && (
+                    {/* A shared link to a pick should say so — that's the whole
+                        reason the link is worth sending. */}
+                    {(event.vibe?.length || event.curationLevel === 'ff_curated') && (
                         <div className="flex flex-wrap gap-1.5 mb-3">
-                            {event.vibe.map((v) => (
+                            {event.curationLevel === 'ff_curated' && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-brand text-brand font-space-mono text-[11px] font-bold uppercase tracking-[-0.44px] whitespace-nowrap">
+                                    ★ FF Pick
+                                </span>
+                            )}
+                            {event.vibe?.map((v) => (
                                 <span key={v} className="stamp text-[11px]">{v}</span>
                             ))}
                         </div>
@@ -91,6 +97,15 @@ export default async function EventPage({ params }: { params: { id: string } }) 
                             </svg>
                             <span>{when}</span>
                         </div>
+                        {event.price && (
+                            <div className="flex items-start gap-2">
+                                <svg className="flex-shrink-0 mt-[1px] text-black/50" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="12" y1="1" x2="12" y2="23" />
+                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                                </svg>
+                                <span>{event.price}</span>
+                            </div>
+                        )}
                     </div>
 
                     {hasDescription && (

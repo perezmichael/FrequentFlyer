@@ -38,6 +38,7 @@ async function getAdminEvents() {
         vibe: e.event_vibe ? [e.event_vibe] : [],
         status: e.status || 'pending',
         vibe_score: e.metadata?.vibe_score || 0,
+        curationLevel: e.curation_level || 'scraped',
         source: e.metadata?.source || 'manual',
         lat: e.venues?.lat || 0,
         lng: e.venues?.lng || 0

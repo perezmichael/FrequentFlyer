@@ -133,6 +133,23 @@ export async function approveEvent(id: string) {
     revalidateEventPaths();
 }
 
+const ALLOWED_CURATION_LEVELS = new Set(['scraped', 'ff_curated', 'promoted'] as const);
+
+/**
+ * Set an event's curation level — independent of status.
+ *
+ * Approving says "this is real, show it". Curating says "I'd go to this".
+ * They're different claims, and only the second one is taste, so it gets its
+ * own control rather than riding on approve.
+ */
+export async function setEventCuration(id: string, level: string) {
+    await assertAdmin();
+    if (!isNonEmptyString(id)) throw new Error('Invalid event id');
+    if (!ALLOWED_CURATION_LEVELS.has(level as any)) throw new Error('Invalid curation level');
+    await supabase.from('events').update({ curation_level: level }).eq('id', id);
+    revalidateEventPaths();
+}
+
 export async function rejectEvent(id: string) {
     await assertAdmin();
     if (!isNonEmptyString(id)) throw new Error('Invalid event id');

@@ -17,6 +17,10 @@ export interface Event {
     image: string;
     neighborhood: string;
     vibe: string[];
+    /** Door price as the venue states it ("$15", "Free with RSVP"). Null when
+     *  unknown — the UI stays silent rather than guessing, since it used to
+     *  claim "Free entry" on every event including ticketed shows. */
+    price?: string | null;
     /** Link out to the event's own page (falls back to the venue calendar). */
     url?: string | null;
     /** 'scraped' | 'ff_curated' | 'promoted' — drives tiered card treatment. */
