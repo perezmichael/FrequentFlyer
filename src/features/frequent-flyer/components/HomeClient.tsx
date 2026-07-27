@@ -8,6 +8,7 @@ import EventDetailSheet from './EventDetailSheet';
 import MapLoader from '@/components/MapLoader';
 import styles from './HomeClient.module.css';
 import FilterPillRow from './FilterPillRow';
+import { hasRealImage } from '@/features/frequent-flyer/data/vibePlaceholders';
 import { Event } from '@/features/frequent-flyer/data/events';
 import { RecurringEvent, DAY_NAMES_SHORT, formatRecurringSchedule } from '@/features/frequent-flyer/data/recurringEvents';
 
@@ -47,6 +48,42 @@ function recurringToEvent(re: RecurringEvent): Event {
         url: re.venue_url,
     };
 }
+
+
+// Two events belong to the same series when the same show runs at the same
+// venue on multiple dates. Titles are normalized so punctuation drift doesn't
+// split a series in two.
+function seriesKey(e: Event): string {
+    const title = e.title.toLowerCase().replace(/[^a-z0-9]+/g, '');
+    return `${title}@@${e.location}`;
+}
+
+// Same key shape for a recurring night, so a show that exists in BOTH tables
+// (5 dated rows for "Tomorrow! w/ Ron Lynch" plus a recurring row) collapses
+// to one card instead of two.
+function recurringSeriesKey(re: RecurringEvent): string {
+    const title = re.event_name.toLowerCase().replace(/[^a-z0-9]+/g, '');
+    return `${title}@@${re.venue_name}, ${re.neighborhood}`;
+}
+
+// Tracks which images the current render has already used, so a repeated photo
+// can be swapped for the branded card. Reset at the top of each render pass.
+const seenImages = new Set<string>();
+
+// A card standing in for one or more dates of the same show.
+type Listing = {
+    kind: 'event';
+    data: Event;
+    /** How many dates this card represents in the current view. */
+    dates: number;
+    /** Last date in the run, for the "through …" note. */
+    lastDate: string;
+} | {
+    kind: 'recurring';
+    data: RecurringEvent;
+    /** Extra weekday rows folded into this card. */
+    extraDays: number;
+};
 
 export default function HomeClient({ initialEvents, recurringEvents = [] }: HomeClientProps) {
     const today = new Date().getDay(); // 0=Sun
@@ -126,12 +163,83 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
         return Array.from(set).sort();
     }, [unifiedItems]);
 
-    // Convert filtered items to Event[] shape for the Map
+    /**
+     * Collapse a run of dates into one card.
+     *
+     * CINEMA LAND is genuinely 30 dated rows (nightly through September) and
+     * Superbloom is weekly — correct in the database, but as 30 identical cards
+     * it buries everything else. 83 of 204 cards in the window were repeat
+     * dates of something already listed.
+     *
+     * Rules: one card per show per venue, representing the SOONEST date in the
+     * current view, annotated with how many more there are. Because it runs
+     * after filtering, tapping MON collapses that series' Mondays to a single
+     * card rather than five.
+     */
+    const listings = useMemo<Listing[]>(() => {
+        // Plain object, not a Map: the dynamically imported <Map> component
+        // above shadows the global Map constructor in this module.
+        const bySeries: Record<string, { data: Event; dates: number; lastDate: string }> = {};
+        const order: string[] = [];
+        const out: Listing[] = [];
+
+        // Recurring nights first, so a dated event can supersede one: the
+        // events row carries a real date, flyer and tickets link, which the
+        // recurring row doesn't.
+        const byRecurring: Record<string, { data: RecurringEvent; extraDays: number }> = {};
+        const recurringOrder: string[] = [];
+        for (const item of filteredItems) {
+            if (item.kind !== 'recurring') continue;
+            const key = recurringSeriesKey(item.data);
+            if (!byRecurring[key]) {
+                byRecurring[key] = { data: item.data, extraDays: 0 };
+                recurringOrder.push(key);
+            } else {
+                // "33 Taps Happy Hour" is seven rows, one per weekday.
+                byRecurring[key].extraDays += 1;
+            }
+        }
+
+        for (const item of filteredItems) {
+            if (item.kind === 'recurring') continue;
+            const key = seriesKey(item.data);
+            // A dated event wins over the recurring row for the same show.
+            if (byRecurring[key]) delete byRecurring[key];
+            const seen = bySeries[key];
+            if (!seen) {
+                bySeries[key] = { data: item.data, dates: 1, lastDate: item.data.date };
+                order.push(key);
+            } else {
+                seen.dates += 1;
+                // Keep the earliest as the representative, track the latest.
+                if (item.data.date < seen.data.date) seen.data = item.data;
+                if (item.data.date > seen.lastDate) seen.lastDate = item.data.date;
+            }
+        }
+
+        for (const k of recurringOrder) {
+            const v = byRecurring[k];
+            if (v) out.push({ kind: 'recurring', data: v.data, extraDays: v.extraDays });
+        }
+        for (const v of order.map(k => bySeries[k])) {
+            out.push({ kind: 'event', data: v.data, dates: v.dates, lastDate: v.lastDate });
+        }
+        // Soonest first, so a collapsed series sits where its next date falls.
+        out.sort((a, b) => {
+            const da = a.kind === 'event' ? a.data.date : '';
+            const db = b.kind === 'event' ? b.data.date : '';
+            return da < db ? -1 : da > db ? 1 : 0;
+        });
+        return out;
+    }, [filteredItems]);
+
+    // Convert to Event[] for the Map. Uses collapsed listings so a nightly
+    // series contributes one pin's worth, not thirty.
     const mapEvents: Event[] = useMemo(() => {
-        return filteredItems.map(item =>
+        return listings.map(item =>
             item.kind === 'event' ? item.data : recurringToEvent(item.data)
         );
-    }, [filteredItems]);
+    }, [listings]);
 
     const handleMarkerClick = (id: string) => {
         setSelectedEventId(id);
@@ -172,8 +280,8 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                             month, and a day filter means every Monday in that
                             month — not just the next one. */}
                         <p className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-black/55 mt-[6px]">
-                            <span className="text-ink font-bold">{filteredItems.length}</span>
-                            {filteredItems.length === 1 ? ' event' : ' events'}
+                            <span className="text-ink font-bold">{listings.length}</span>
+                            {listings.length === 1 ? ' event' : ' events'}
                             {picksOnly ? ' · FF Picks' : dayFilter !== null ? ` · ${DAY_NAMES_SHORT[dayFilter]}s` : ` · next ${WINDOW_DAYS} days`}
                             {neighborhoodFilter ? ` · ${neighborhoodFilter}` : ' · across LA'}
                         </p>
@@ -217,17 +325,30 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                         )}
                     </header>
 
-                    {filteredItems.length > 0 ? (
+                    {listings.length > 0 ? (
                         <div className={`${styles.grid} stagger-in`}>
-                            {filteredItems.map((item) => {
+                            {(() => { seenImages.clear(); return null; })()}
+                            {listings.map((item) => {
                                 if (item.kind === 'event') {
                                     const event = item.data;
+                                    // Second and later appearances of the SAME
+                                    // picture fall back to the branded card.
+                                    // Venue-photo fallbacks repeat by nature
+                                    // (45 Human Resources events share one
+                                    // photo); a wall of identical images reads
+                                    // worse than a typographic card that looks
+                                    // deliberate. Nothing is invented either way.
+                                    const dup = hasRealImage(event.image) && seenImages.has(event.image);
+                                    if (hasRealImage(event.image)) seenImages.add(event.image);
                                     return (
                                         <EventCard2
                                             key={event.id}
                                             id={`home-${event.id}`}
                                             event={event}
                                             isActive={selectedEventId === event.id}
+                                            forcePlaceholder={dup}
+                                            seriesDates={item.dates}
+                                            seriesLastDate={item.lastDate}
                                             onClick={() => setDetailEvent(event)}
                                         />
                                     );
@@ -239,6 +360,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                                             key={mapId}
                                             id={`home-${mapId}`}
                                             event={re}
+                                            extraDays={item.extraDays}
                                             onClick={() => setDetailEvent(recurringToEvent(re))}
                                         />
                                     );

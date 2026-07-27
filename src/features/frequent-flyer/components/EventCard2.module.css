@@ -109,6 +109,15 @@
     line-height: 1.3;
 }
 
+.seriesNote {
+    margin-top: 2px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: -0.44px;
+    color: var(--ff-accent);
+}
+
 .price {
     margin-top: 6px;
     font-size: 0.95rem;
