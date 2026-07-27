@@ -94,6 +94,7 @@ export default function KitClient({ events, from, to }: { events: KitEvent[]; fr
     );
     const [fonts, setFonts] = useState<{ grotesk: string; mono: string } | null>(null);
     const [busy, setBusy] = useState(false);
+    const [tileSize, setTileSize] = useState(170);
     const canvasRefs = useRef<Record<string, HTMLCanvasElement | null>>({});
 
     useEffect(() => {
@@ -260,6 +261,21 @@ export default function KitClient({ events, from, to }: { events: KitEvent[]; fr
                 >
                     Reset to flyers only
                 </button>
+
+                <div className="ml-auto flex items-center gap-2">
+                    <span className="font-space-mono text-[11px] uppercase tracking-[-0.44px] text-ink/50">Size</span>
+                    {([['S', 130], ['M', 170], ['L', 240]] as const).map(([label, px]) => (
+                        <button
+                            key={label}
+                            onClick={() => setTileSize(px)}
+                            className={`rounded-full border px-3 py-1.5 font-space-mono text-[11px] uppercase tracking-[-0.44px] transition-colors ${
+                                tileSize === px ? 'bg-ink text-cream border-ink' : 'border-black/30 text-ink/60 hover:border-black/60'
+                            }`}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Everything in the window, so nothing is silently dropped. */}
@@ -281,21 +297,30 @@ export default function KitClient({ events, from, to }: { events: KitEvent[]; fr
                 })}
             </div>
 
-            <div className="mt-10 grid gap-8 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
+            {/* Contact-sheet density: the whole point is judging the set at a
+                glance, so tiles pack full-width rather than capping at the
+                feed's 3 columns (which only exists because the feed shares the
+                screen with the map). */}
+            <div
+                className="mt-10 grid gap-4"
+                style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${tileSize}px, 1fr))` }}
+            >
                 {chosen.map(e => (
-                    <div key={e.id} className="flex flex-col gap-3">
+                    <button
+                        key={e.id}
+                        onClick={() => download(e)}
+                        title={`Download ${e.title || 'slide'}`}
+                        className="group relative block w-full text-left"
+                    >
                         <canvas
                             ref={el => { canvasRefs.current[e.id] = el; }}
-                            className="w-full rounded-[12px] border border-black/10"
+                            className="w-full rounded-[10px] border border-black/10 transition-transform duration-200 group-hover:-translate-y-0.5"
                             style={{ aspectRatio: `${W} / ${H}` }}
                         />
-                        <button
-                            onClick={() => download(e)}
-                            className="rounded-full border border-black/40 px-4 py-1.5 font-space-mono text-[12px] uppercase tracking-[-0.44px] text-ink hover:bg-ink hover:text-cream transition-colors"
-                        >
+                        <span className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-[10px] bg-ink/85 px-2 py-1.5 text-center font-space-mono text-[10px] uppercase tracking-[-0.44px] text-cream opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                             Download PNG
-                        </button>
-                    </div>
+                        </span>
+                    </button>
                 ))}
             </div>
         </div>
