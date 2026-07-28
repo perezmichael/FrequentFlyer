@@ -49,18 +49,21 @@ export default function Navbar() {
                     </div>
                 </Link>
 
-                {/* Desktop nav — hidden below 768px via CSS module */}
+                {/* Desktop nav — hidden below 1024px via CSS module.
+                    /agents ("for ai") is deliberately not here: it serves
+                    developers pointing an agent at the submit endpoint, not
+                    someone deciding what to do on Friday. The page is still
+                    live and linked from elsewhere. */}
                 <div className={styles.desktopNav}>
                     <Link href="/" className={navLinkClass}>home</Link>
                     <Link href="/events" className={navLinkClass}>events</Link>
                     <Link href="/map" className={navLinkClass}>map</Link>
                     <Link href="/guides" className={navLinkClass}>guides</Link>
-                    <Link href="/agents" className={navLinkClass}>for ai</Link>
                     <Link href="/create" className={createPillClass}>+ create</Link>
                     <TipsBill />
                 </div>
 
-                {/* Hamburger button — hidden above 768px via CSS module */}
+                {/* Hamburger button — hidden above 1024px via CSS module */}
                 <button
                     className={styles.hamburgerButton}
                     onClick={() => setIsMenuOpen(prev => !prev)}
@@ -70,14 +73,13 @@ export default function Navbar() {
                 </button>
             </div>
 
-            {/* Mobile dropdown — CSS module hides this above 768px */}
+            {/* Mobile dropdown — CSS module hides this above 1024px */}
             {isMenuOpen && (
                 <div className={styles.mobileDropdown}>
                     <Link href="/" className={navLinkClass} onClick={() => setIsMenuOpen(false)}>home</Link>
                     <Link href="/events" className={navLinkClass} onClick={() => setIsMenuOpen(false)}>events</Link>
                     <Link href="/map" className={navLinkClass} onClick={() => setIsMenuOpen(false)}>map</Link>
                     <Link href="/guides" className={navLinkClass} onClick={() => setIsMenuOpen(false)}>guides</Link>
-                    <Link href="/agents" className={navLinkClass} onClick={() => setIsMenuOpen(false)}>for ai</Link>
                     <Link href="/create" className={`${createPillClass} self-start`} onClick={() => setIsMenuOpen(false)}>+ create</Link>
                     <TipsBill />
                 </div>

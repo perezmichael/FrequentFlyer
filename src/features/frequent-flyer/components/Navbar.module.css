@@ -25,7 +25,11 @@
     background: #FFFAEB;
 }
 
-@media (min-width: 768px) {
+/* The full nav needs ~1000px: the wordmark is 267px and the link row plus the
+   create pill and tips bill is ~617px. Revealing it at 768px left the whole
+   tablet band with the brand and the links flush at zero gap and "for ai"
+   wrapping onto two lines. Tablets get the hamburger, which already works. */
+@media (min-width: 1024px) {
     .desktopNav {
         display: flex;
     }
