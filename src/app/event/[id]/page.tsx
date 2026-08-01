@@ -3,6 +3,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { getEventById } from '@/lib/queries';
 import { formatEventDateTime } from '@/features/frequent-flyer/data/events';
+import { absoluteUrl } from '@/lib/site';
 import { hasRealImage } from '@/features/frequent-flyer/data/vibePlaceholders';
 import GeneratedFlyer from '@/features/frequent-flyer/components/GeneratedFlyer';
 import ShareButton from '@/features/frequent-flyer/components/ShareButton';
@@ -13,7 +14,7 @@ export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
     const event = await getEventById(params.id);
-    if (!event) return { title: 'Event not found · Frequent Flyer' };
+    if (!event) return { title: 'Event not found' };
 
     const when = formatEventDateTime(event.date, event.startTime, event.endTime);
     const description = `${event.location} · ${when}`;
@@ -22,9 +23,16 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
     const images = hasRealImage(event.image) ? [event.image] : [];
 
     return {
-        title: `${event.title} · Frequent Flyer`,
+        // No " · Frequent Flyer" suffix here — the root layout's title
+        // template appends it, and doing both produced "Chess · Frequent
+        // Flyer · Frequent Flyer".
+        title: event.title,
         description,
+        // Without this the page inherits the root canonical and declares
+        // itself a duplicate of the homepage, de-indexing every listing.
+        alternates: { canonical: `/event/${params.id}` },
         openGraph: {
+            url: `/event/${params.id}`,
             title: event.title,
             description,
             images,
@@ -47,8 +55,49 @@ export default async function EventPage({ params }: { params: { id: string } }) 
     const when = formatEventDateTime(event.date, event.startTime, event.endTime);
     const hasDescription = event.description && event.description !== 'No description available';
 
+    /**
+     * schema.org Event, which is what makes a listing eligible for Google's
+     * event rich results. Every field is omitted rather than guessed when we
+     * don't hold it — a wrong startTime or a fabricated price in structured
+     * data is worse than none, both for the reader and for the venue.
+     */
+    const jsonLd: Record<string, unknown> = {
+        '@context': 'https://schema.org',
+        '@type': 'Event',
+        name: event.title,
+        // Date-only when the venue never published a start time.
+        startDate: event.startTime ? `${event.date}T${event.startTime}` : event.date,
+        eventStatus: 'https://schema.org/EventScheduled',
+        eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+        url: absoluteUrl(`/event/${event.id}`),
+        location: {
+            '@type': 'Place',
+            name: event.location,
+            address: {
+                '@type': 'PostalAddress',
+                addressLocality: event.neighborhood || 'Los Angeles',
+                addressRegion: 'CA',
+                addressCountry: 'US',
+            },
+            // Omitted for un-geocoded venues rather than defaulted to a city
+            // centroid — a wrong pin in structured data is a wrong pin in Google.
+            ...(Number.isFinite(event.lat) && Number.isFinite(event.lng)
+                ? { geo: { '@type': 'GeoCoordinates', latitude: event.lat, longitude: event.lng } }
+                : {}),
+        },
+    };
+    if (event.endTime) jsonLd.endDate = `${event.date}T${event.endTime}`;
+    if (showImage) jsonLd.image = [event.image];
+    if (hasDescription) jsonLd.description = event.description;
+
     return (
         <main className="min-h-screen bg-cream pt-[100px]">
+            <script
+                type="application/ld+json"
+                // Next injects this verbatim; the payload is our own DB content,
+                // serialised with JSON.stringify.
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+            />
             <div className="max-w-[560px] mx-auto pb-20">
                 {/* Hero flyer — full-bleed & tall on mobile, framed card on larger screens */}
                 <div className="relative w-full aspect-[4/5] sm:aspect-[4/3] sm:mt-6 sm:rounded-2xl overflow-hidden bg-ink sm:border sm:border-black/40">

@@ -3,6 +3,20 @@ import GuidesPageClient from '@/features/frequent-flyer/components/GuidesPageCli
 import PageLoader from '@/components/PageLoader';
 import { supabase } from '@/lib/supabase';
 import { GuideWithItems } from '@/features/frequent-flyer/types/guides';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+    title: 'LA neighbourhood guides',
+    description:
+        'Hand-built guides to Los Angeles by neighbourhood and mood — hidden jazz bars, a day in Thai Town, Silver Lake nights, Eastside brews.',
+    alternates: { canonical: '/guides' },
+    openGraph: {
+        title: 'LA neighbourhood guides',
+        description:
+            'Hand-built guides to Los Angeles by neighbourhood and mood.',
+        url: '/guides',
+    },
+};
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
