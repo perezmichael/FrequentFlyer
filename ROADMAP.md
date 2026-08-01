@@ -193,6 +193,57 @@ guessed. Send addresses and they get geocoded and pinned.
 
 ---
 
+## P3 — Expanding to other cities
+
+**Recommendation: stay in LA until it's undeniable.** Both goals point at depth,
+and a weak second city actively damages the first — "the guy who knows the
+events" doesn't survive being visibly wrong about San Francisco. But the
+LA-isms are worth pulling into config now: it's about half a day, it makes the
+code cleaner regardless, and it keeps the option open for free.
+
+### Already city-agnostic
+
+More than expected. **Neighbourhoods are derived from data, not hardcoded** —
+the filter pills build themselves from whatever is in the database
+(`HomeClient.tsx`, `EventsPageClient.tsx`, `RecurringEventsTab.tsx`). The map
+centres on data. The schema has no LA columns. Series collapsing, flyer
+handling, dedup, the SEO layer and the carousel kit are all generic.
+
+### What is LA-bound
+
+| Thing | Where |
+|---|---|
+| `LA_BOX` bounding box | `src/app/api/agent/submit/route.ts:25`, mirrored in the `/agents` prompt |
+| ~41 copy strings | 15 files — "Los Angeles", "ACROSS LA" |
+| Venue list | `services/annex_scout/venues.json` |
+| Taste manifesto | `services/annex_scout/vibedoc.md` — explicitly "The Soul of the Eastside" |
+| Source directory | `src/app/agents/page.tsx` — 19hz LA, RA LA, Songkick LA |
+| Brand lockup, guides | Navbar, `GeneratedFlyer`, guide content |
+
+**Do:** extract a `src/lib/city.ts` alongside `site.ts` holding name, bounding
+box, default centre, source directory and manifesto pointer. Template the copy
+strings off it.
+
+### The actual constraint is people, not code
+
+The pipeline is portable; the value isn't. What makes this good is that someone
+who goes out in Echo Park picked those 41 venues and wrote a manifesto naming
+vinyl-only sets and hand-drawn flyers. That document *is* the product, and it
+can't be written for a city you don't live in — a cloned instance would be
+Eventbrite with better typography, competing on completeness, which is exactly
+where it loses.
+
+The version that works is **one local curator per city**, each owning their own
+`venues.json` and `vibedoc.md`. That means those become per-city database
+records rather than repo files — a genuinely different product (a platform for
+curators) than one person's curated map.
+
+**The signal to expand is someone in another city asking to run it** — that's
+demand rather than speculation, and it solves the curator problem in the same
+move, because the person asking is the person with the taste.
+
+---
+
 ## Reference: state as of 2026-08-01
 
 - 210 upcoming approved events, 41 venues, 4 guides
