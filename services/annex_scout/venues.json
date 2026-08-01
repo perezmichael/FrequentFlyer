@@ -278,5 +278,12 @@
     "neighborhood": "Los Feliz",
     "lat": 34.1073013,
     "lng": -118.287281
+  },
+  {
+    "name": "Village Well",
+    "url": "https://www.eventbrite.com/o/village-well-books-coffee-56207758273",
+    "neighborhood": "Culver City",
+    "lat": 34.0206816,
+    "lng": -118.396338
   }
 ]
