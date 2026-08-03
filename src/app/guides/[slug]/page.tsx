@@ -4,6 +4,7 @@ import PageLoader from '@/components/PageLoader';
 import { supabase } from '@/lib/supabase';
 import { notFound } from 'next/navigation';
 import { GuideWithItems } from '@/features/frequent-flyer/types/guides';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,6 +32,36 @@ async function getGuide(slug: string): Promise<GuideWithItems | null> {
         return null;
     }
     return data;
+}
+
+// Guides are the evergreen pages — they outlive any single listing, so each
+// carries its own title and description rather than inheriting the default.
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+    const guide = await getGuide(params.slug);
+    if (!guide) return { title: 'Guide not found' };
+
+    const where = guide.neighborhood ? `${guide.neighborhood}, Los Angeles` : 'Los Angeles';
+    const description =
+        guide.description?.trim() || `A Frequent Flyer guide to ${where}.`;
+
+    return {
+        title: `${guide.title} — a guide to ${where}`,
+        description,
+        alternates: { canonical: `/guides/${guide.slug}` },
+        openGraph: {
+            title: guide.title,
+            description,
+            url: `/guides/${guide.slug}`,
+            type: 'article',
+            images: guide.cover_image ? [guide.cover_image] : [],
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title: guide.title,
+            description,
+            images: guide.cover_image ? [guide.cover_image] : [],
+        },
+    };
 }
 
 export default async function GuideDetailPage({ params }: PageProps) {

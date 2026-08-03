@@ -113,7 +113,7 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
             left: 32, top: CANVAS_H - 80, originX: 'left', originY: 'top',
             fontFamily: 'Courier New', fontSize: 18, fill,
         });
-        const watermark = new fabric.IText('frequentflyer.la', {
+        const watermark = new fabric.IText('frequentflyerla.com', {
             left: 32, top: CANVAS_H - 44, originX: 'left', originY: 'top',
             fontFamily: 'Courier New', fontSize: 13,
             fill, opacity: 0.7, selectable: false,

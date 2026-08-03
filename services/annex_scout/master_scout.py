@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import time
 import hashlib
@@ -221,7 +222,15 @@ def looks_like_image(data):
 
 
 def upload_flyer(image_url, event_id, referer=None):
-    """Download an image URL and upload to Supabase storage. Returns public URL or None."""
+    """
+    Download an image URL and upload it to Supabase storage.
+
+    Always returns a (public_url, sha256_digest) pair — (None, None) on any
+    failure. Two early returns used to hand back a bare None, and the caller
+    unpacks two values, so a rejected image raised "cannot unpack non-iterable
+    NoneType object" and took the whole event down with it. That accounted for
+    98 of 110 errors in one backfill run.
+    """
     try:
         headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
@@ -233,14 +242,14 @@ def upload_flyer(image_url, event_id, referer=None):
 
         resp = requests.get(image_url, timeout=15, headers=headers)
         if resp.status_code != 200:
-            return None
+            return None, None
 
         data = resp.content
         # 1500 bytes still excludes tracking pixels and tiny icons, but keeps
         # well-compressed real flyers. The old 5000-byte floor was silently
         # discarding legitimate artwork.
         if len(data) < 1500 or not looks_like_image(data):
-            return None
+            return None, None
 
         path = f"flyers/{event_id}.jpg"
         supabase.storage.from_("event-flyers").upload(
@@ -492,6 +501,42 @@ def extract_best_image(page):
     return None
 
 
+def clean_time(value):
+    """
+    Normalise a model-supplied time to "HH:MM:SS", or None.
+
+    Gemini returns "8:30 PM", "20:30", "8PM", "" and occasionally prose. A bad
+    time is worse than none — it sends someone to a door at the wrong hour — so
+    anything that doesn't parse cleanly is dropped rather than salvaged.
+    """
+    if not value:
+        return None
+    text = str(value).strip().lower().replace(".", "")
+    if not text or text in ("hh:mm", "tbd", "n/a", "none"):
+        return None
+
+    m = re.match(r"^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$", text)
+    if not m:
+        return None
+    hour = int(m.group(1))
+    minute = int(m.group(2) or 0)
+    meridiem = m.group(3)
+
+    if meridiem:
+        if hour < 1 or hour > 12:
+            return None
+        if meridiem == "pm" and hour != 12:
+            hour += 12
+        if meridiem == "am" and hour == 12:
+            hour = 0
+    elif hour > 23:
+        return None
+
+    if minute > 59:
+        return None
+    return f"{hour:02d}:{minute:02d}:00"
+
+
 def distill_event_text(raw_text, limit=30000):
     """
     Shrink scraped body text to the portion most likely to contain event
@@ -616,6 +661,13 @@ def extract_event_links(page, base_url):
 def run_master_scout():
     with open('venues.json') as f:
         venues = json.load(f)
+
+    # FF_ONLY_VENUE=<substring> narrows a run to one venue — for testing a
+    # prompt change without a 40-venue, 20-minute pass.
+    only = os.getenv("FF_ONLY_VENUE", "").strip().lower()
+    if only:
+        venues = [v for v in venues if only in v["name"].lower()]
+        print(f"FF_ONLY_VENUE={only!r} → {len(venues)} venue(s)")
 
     now = datetime.now()
     today = now.strftime("%A, %B %d, %Y")
@@ -795,7 +847,14 @@ def run_master_scout():
                - If the text says nothing about what the event is, return "".
             6. "vibe_justification" is the opposite: it is INTERNAL only. Put your
                scoring rationale there, never in "description".
-            7. "price" is what it costs to get in, copied from the TEXT — e.g.
+            7. "start_time" / "end_time" are 24-hour "HH:MM", copied from the TEXT.
+               - Prefer the SHOW/set time over the DOORS time. If the text gives
+                 only doors, use it and say "Doors 7:30" in the description.
+               - Times after midnight belong to the night that started the
+                 evening before: "10PM-2AM" is start 22:00, end 02:00.
+               - ONLY state a time the text actually gives. Do NOT guess from
+                 the venue's opening hours. If the text doesn't say, return "".
+            8. "price" is what it costs to get in, copied from the TEXT — e.g.
                "$15", "$20-25", "Free", "Free with RSVP", "Sliding scale".
                - ONLY state a price the text actually gives. Do NOT guess, and
                  do NOT assume free just because no price is listed: most of
@@ -806,9 +865,9 @@ def run_master_scout():
             RETURN ONLY A JSON LIST:
             [
               {{
-                "event_name": "", "date": "YYYY-MM-DD", "talent_name": "",
-                "talent_ig": "@handle", "category": "", "vibe_score": 0, "vibe_justification": "",
-                "description": "", "price": "", "event_url": ""
+                "event_name": "", "date": "YYYY-MM-DD", "start_time": "HH:MM", "end_time": "HH:MM",
+                "talent_name": "", "talent_ig": "@handle", "category": "", "vibe_score": 0,
+                "vibe_justification": "", "description": "", "price": "", "event_url": ""
               }}
             ]
 
@@ -861,6 +920,11 @@ def run_master_scout():
                         "event_name": event['event_name'],
                         "event_date": event['date'],
                         "event_vibe": event['category'],
+                        # Times as printed by the venue (rule 7). None when the
+                        # page didn't say — the UI shows the date alone rather
+                        # than inventing an hour.
+                        "start_time": clean_time(event.get('start_time')),
+                        "end_time": clean_time(event.get('end_time')),
                         "venue_id": venue_id,
                         "talent_id": talent_id,
                         "metadata": {

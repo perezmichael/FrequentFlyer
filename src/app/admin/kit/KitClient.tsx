@@ -14,6 +14,7 @@ export interface KitEvent {
     venue: string;
     neighborhood: string;
     isPick: boolean;
+    sourceUrl: string | null;
 }
 
 /* Instagram portrait. The flyer sits above a cream caption panel, which is the
@@ -328,21 +329,33 @@ export default function KitClient({ events, from, to, activeDays }: {
                 style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${tileSize}px, 1fr))` }}
             >
                 {chosen.map(e => (
-                    <button
-                        key={e.id}
-                        onClick={() => download(e)}
-                        title={`Download ${e.title || 'slide'}`}
-                        className="group relative block w-full text-left"
-                    >
+                    <div key={e.id} className="flex flex-col gap-2">
                         <canvas
                             ref={el => { canvasRefs.current[e.id] = el; }}
-                            className="w-full rounded-[10px] border border-black/10 transition-transform duration-200 group-hover:-translate-y-0.5"
+                            className="w-full rounded-[10px] border border-black/10"
                             style={{ aspectRatio: `${W} / ${H}` }}
                         />
-                        <span className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-[10px] bg-ink/85 px-2 py-1.5 text-center font-space-mono text-[10px] uppercase tracking-[-0.44px] text-cream opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                        <button
+                            onClick={() => download(e)}
+                            className="rounded-full border border-black/40 px-3 py-1.5 font-space-mono text-[11px] uppercase tracking-[-0.44px] text-ink transition-colors hover:bg-ink hover:text-cream"
+                        >
                             Download PNG
-                        </span>
-                    </button>
+                        </button>
+                        {/* Open the event's own page to confirm the flyer and
+                            the listed time before this goes out. A plain link
+                            under the CTA — a hover-only corner badge was too
+                            small a target. */}
+                        {e.sourceUrl && (
+                            <a
+                                href={e.sourceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-center font-space-mono text-[10px] uppercase tracking-[-0.44px] text-brand underline underline-offset-2"
+                            >
+                                source ↗
+                            </a>
+                        )}
+                    </div>
                 ))}
             </div>
         </div>
