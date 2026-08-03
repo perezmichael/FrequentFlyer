@@ -15,6 +15,21 @@ export interface KitEvent {
     neighborhood: string;
     isPick: boolean;
     sourceUrl: string | null;
+    vibeScore: number | null;
+}
+
+/** Selection modes. "Suggested" is the only one that curates. */
+type Mode = 'suggested' | 'flyers' | 'all';
+
+/** Scores at or above this read as on-manifesto rather than merely real. */
+const SUGGEST_MIN_SCORE = 7;
+
+function pickFor(mode: Mode, events: KitEvent[]): KitEvent[] {
+    if (mode === 'all') return events.filter(e => e.title);
+    if (mode === 'flyers') return events.filter(e => e.flyerUrl && e.title);
+    return events.filter(
+        e => e.flyerUrl && e.title && (e.vibeScore ?? 0) >= SUGGEST_MIN_SCORE,
+    );
 }
 
 /* Instagram portrait. The flyer sits above a cream caption panel, which is the
@@ -90,11 +105,16 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, max
 export default function KitClient({ events, from, to, activeDays }: {
     events: KitEvent[]; from: string; to: string; activeDays: number | null;
 }) {
-    // Default to the events that actually have a flyer — the carousel format is
-    // flyer-driven, and a slide without one is a different (branded) look.
+    // Opens on Suggested: scored against vibedoc.md, not merely "has artwork".
+    const [mode, setMode] = useState<Mode>('suggested');
     const [selected, setSelected] = useState<Set<string>>(
-        () => new Set(events.filter(e => e.flyerUrl && e.title).map(e => e.id))
+        () => new Set(pickFor('suggested', events).map(e => e.id))
     );
+
+    const applyMode = (m: Mode) => {
+        setMode(m);
+        setSelected(new Set(pickFor(m, events).map(e => e.id)));
+    };
     const [fonts, setFonts] = useState<{ grotesk: string; mono: string } | null>(null);
     const [busy, setBusy] = useState(false);
     const [tileSize, setTileSize] = useState(170);
@@ -278,12 +298,26 @@ export default function KitClient({ events, from, to, activeDays }: {
                 >
                     {busy ? 'Downloading…' : `Download all (${chosen.length})`}
                 </button>
-                <button
-                    onClick={() => setSelected(new Set(events.filter(e => e.flyerUrl && e.title).map(e => e.id)))}
-                    className="rounded-full border border-black/30 px-5 py-2 font-space-mono text-[13px] uppercase tracking-[-0.44px] text-ink/70 hover:border-black/60"
-                >
-                    Reset to flyers only
-                </button>
+                {/* Suggested is the only one that curates. Flyers is what this
+                    page used to do by default — it picked 46 of 50 events one
+                    weekend and averaged a lower vibe score than the four it
+                    dropped, so it was filtering, not choosing. */}
+                {([
+                    ['suggested', 'Suggested', `on-manifesto (score ${SUGGEST_MIN_SCORE}+) with a flyer`],
+                    ['flyers', 'Flyers', 'anything with artwork'],
+                    ['all', 'All', 'everything in the window'],
+                ] as const).map(([m, label, hint]) => (
+                    <button
+                        key={m}
+                        onClick={() => applyMode(m)}
+                        title={hint}
+                        className={`rounded-full border px-4 py-2 font-space-mono text-[13px] uppercase tracking-[-0.44px] transition-colors ${
+                            mode === m ? 'bg-ink text-cream border-ink' : 'border-black/30 text-ink/70 hover:border-black/60'
+                        }`}
+                    >
+                        {label} ({pickFor(m, events).length})
+                    </button>
+                ))}
 
                 <div className="ml-auto flex items-center gap-2">
                     <span className="font-space-mono text-[11px] uppercase tracking-[-0.44px] text-ink/50">Size</span>
@@ -315,6 +349,9 @@ export default function KitClient({ events, from, to, activeDays }: {
                             }`}
                         >
                             {e.flyerUrl ? '' : '○ '}{e.title || '(untitled)'}
+                            {e.vibeScore !== null && (
+                                <span className={on ? 'ml-1.5 text-cream/60' : 'ml-1.5 text-ink/40'}>{e.vibeScore}</span>
+                            )}
                         </button>
                     );
                 })}
@@ -345,16 +382,24 @@ export default function KitClient({ events, from, to, activeDays }: {
                             the listed time before this goes out. A plain link
                             under the CTA — a hover-only corner badge was too
                             small a target. */}
-                        {e.sourceUrl && (
-                            <a
-                                href={e.sourceUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-center font-space-mono text-[10px] uppercase tracking-[-0.44px] text-brand underline underline-offset-2"
-                            >
-                                source ↗
-                            </a>
-                        )}
+                        <div className="flex items-center justify-center gap-2 font-space-mono text-[10px] uppercase tracking-[-0.44px]">
+                            {e.vibeScore !== null && (
+                                <span className="text-ink/45" title="Vibe score against vibedoc.md">
+                                    {e.vibeScore}/10
+                                </span>
+                            )}
+                            {e.isPick && <span className="text-brand" title="An FF Pick">★</span>}
+                            {e.sourceUrl && (
+                                <a
+                                    href={e.sourceUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-brand underline underline-offset-2"
+                                >
+                                    source ↗
+                                </a>
+                            )}
+                        </div>
                     </div>
                 ))}
             </div>

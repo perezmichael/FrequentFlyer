@@ -47,7 +47,7 @@ export default async function KitPage({
 
     const { data, error } = await supabase
         .from('events')
-        .select('id, event_name, event_date, start_time, end_time, flyer_url, event_vibe, curation_level, source_url, venues (name, neighborhood, url)')
+        .select('id, event_name, event_date, start_time, end_time, flyer_url, event_vibe, curation_level, source_url, metadata, venues (name, neighborhood, url)')
         .gte('event_date', from)
         .lte('event_date', to)
         .eq('status', 'approved')
@@ -69,6 +69,11 @@ export default async function KitPage({
         // The event's own page beats the venue calendar — it's what you'd
         // open to confirm the flyer and the time are actually right.
         sourceUrl: e.source_url || e.venues?.url || null,
+        // The scout already scores every event 1-10 against vibedoc.md. The
+        // kit ignored it and selected on "has a flyer", which this weekend
+        // picked 46 of 50 events and averaged a *lower* score than the ones
+        // it left out.
+        vibeScore: typeof e.metadata?.vibe_score === 'number' ? e.metadata.vibe_score : null,
     }));
 
     return <KitClient events={events} from={from} to={to} activeDays={Number.isFinite(days) && days > 0 ? days : null} />;
