@@ -106,6 +106,43 @@ nothing — "Music Performance" ×4, "DJ's" ×4, "Live Music Showcase", "Chess".
   `"<Vibe> at <Venue>"` so the card at least locates itself.
 - Clean the existing 22 in one pass.
 
+### 6b. Take per-item images from the venue's event block
+
+The image logic looks for `og:image` and stops. That's the *site-wide* image, so
+it's often wrong at the item level: generallees.com returns one dancefloor crowd
+shot for both its rooms — the wrong picture for Mahjong Monday, and identical
+across two venues.
+
+The right images were already on the page, inside the Events block, three DOM
+hops from each title. Walking up from an event's title to the nearest ancestor
+containing an `<img>` found all seven for General Lee's and The Bamboo Room,
+each one correct and distinct.
+
+- **Do:** in `extract_best_image` (used by `master_scout.py` and
+  `fetch_venue_images.py`), try per-item images near the matched event title
+  first; fall back to `og:image` only for the venue-level photo.
+- **Guard:** if the candidate equals the page's `og:image`, treat it as a
+  site-wide default rather than event art — that's the signal the block had no
+  image of its own.
+- Content-address uploads (`sha1`) as the flyer path already does, so a night
+  that reuses artwork stays one object rather than becoming a duplicate.
+
+Store per-night images on `recurring_events.metadata.image_url` — no migration
+needed, and `getRecurringEvents` already prefers it over the venue photo.
+
+### 6c. Fix the flaky venue-image fetcher
+
+`fetch_venue_images.py` fails on 25–26 of 30 venues with truncated
+`Page.goto: Navigation to "https://` errors, and **which** venues fail changes
+between runs — General Lee's and The Bamboo Room succeeded on a dry run then
+failed on apply; Gold-Diggers did the reverse. These are live sites, so it's
+transient redirect/navigation handling, not broken venues.
+
+Likely a `goto` interrupted by a client-side redirect. Try `wait_until=
+"domcontentloaded"` with a retry, rather than the default. Fixing it plausibly
+unlocks most of the remaining 26 and closes much of the image gap in item 5.
+Venue photo coverage is currently 35/68.
+
 ### 7. Mark FF Picks every week **[you]**
 
 Zero picks this weekend; two in the entire database. If taste is the
@@ -246,8 +283,10 @@ move, because the person asking is the person with the taste.
 
 ## Reference: state as of 2026-08-01
 
-- 210 upcoming approved events, 41 venues, 4 guides
+- 210 upcoming approved events, 43 venues, 4 guides
 - Flyer coverage 80%; start-time coverage 7% on scraped rows
+- Venue photo coverage 35/68; per-night images live on
+  `recurring_events.metadata.image_url`
 - Feed collapses series: 246 raw listings → ~143 cards
 - Scout last ran unattended 2026-07-23; everything since was manual
 - Live at `frequent-flyer.vercel.app`; `frequentflyer.la` not yet cut over
