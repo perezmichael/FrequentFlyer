@@ -65,6 +65,14 @@ function dateLine(e: KitEvent): string {
     return `${weekday} ${month}.${day}${time ? ` ${time}` : ''}`.toUpperCase();
 }
 
+/** "MONDAY AUG.3" — matches the caption's own date styling. */
+function dayHeading(date: string): string {
+    const d = new Date(`${date}T00:00:00`);
+    const weekday = d.toLocaleDateString('en-US', { weekday: 'long' });
+    const month = d.toLocaleDateString('en-US', { month: 'short' });
+    return `${weekday} ${month}.${d.getDate()}`.toUpperCase();
+}
+
 function loadImage(src: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
         const img = new Image();
@@ -152,6 +160,14 @@ export default function KitClient({ events, from, to, activeDays }: {
         () => visible.filter(e => selected.has(e.id)),
         [visible, selected]
     );
+
+    // Grouped by date so the set reads as a week rather than a pile. Only days
+    // that actually have slides get a heading.
+    const byDay = useMemo(() => {
+        const groups: Record<string, KitEvent[]> = {};
+        for (const e of chosen) (groups[e.date] = groups[e.date] || []).push(e);
+        return Object.keys(groups).sort().map(date => ({ date, items: groups[date] }));
+    }, [chosen]);
 
     const drawSlide = useCallback(async (canvas: HTMLCanvasElement, e: KitEvent, f: { grotesk: string; mono: string }) => {
         const ctx = canvas.getContext('2d');
@@ -414,11 +430,17 @@ export default function KitClient({ events, from, to, activeDays }: {
                 glance, so tiles pack full-width rather than capping at the
                 feed's 3 columns (which only exists because the feed shares the
                 screen with the map). */}
-            <div
-                className="mt-10 grid gap-4"
-                style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${tileSize}px, 1fr))` }}
-            >
-                {chosen.map(e => (
+            {byDay.map(({ date, items }) => (
+              <section key={date} className="mt-10">
+                <h2 className="font-space-mono text-[13px] uppercase tracking-[-0.44px] text-ink border-b border-black/10 pb-2 mb-4">
+                    {dayHeading(date)}
+                    <span className="text-ink/40"> · {items.length} {items.length === 1 ? 'slide' : 'slides'}</span>
+                </h2>
+                <div
+                    className="grid gap-4"
+                    style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${tileSize}px, 1fr))` }}
+                >
+                {items.map(e => (
                     <div key={e.id} className="flex flex-col gap-2">
                         <canvas
                             ref={el => { canvasRefs.current[e.id] = el; }}
@@ -455,7 +477,9 @@ export default function KitClient({ events, from, to, activeDays }: {
                         </div>
                     </div>
                 ))}
-            </div>
+                </div>
+              </section>
+            ))}
         </div>
     );
 }
