@@ -13,7 +13,30 @@ from datetime import datetime, timedelta, timezone
 
 # 1. Setup
 load_dotenv()
-supabase: Client = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_KEY"))
+def _env(name):
+    """
+    Read an env var, tolerating quotes and stray whitespace.
+
+    .env.local stores values quoted and python-dotenv strips those, so a value
+    copied by hand into CI arrives still wrapped in quotes. That surfaced as
+    supabase's opaque "Invalid URL" rather than anything naming the variable.
+    """
+    raw = (os.getenv(name) or "").strip()
+    if len(raw) >= 2 and raw[0] == raw[-1] and raw[0] in "\"'":
+        raw = raw[1:-1].strip()
+    return raw
+
+
+SUPABASE_URL = _env("SUPABASE_URL")
+SUPABASE_SERVICE_KEY = _env("SUPABASE_SERVICE_KEY")
+if not SUPABASE_URL.startswith("http"):
+    raise SystemExit(
+        f"SUPABASE_URL is missing or malformed (got {len(SUPABASE_URL)} chars). "
+        "It should look like https://<project>.supabase.co — check the secret "
+        "wasn't stored with surrounding quotes."
+    )
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 # Load the "Soul Doc" (Manifesto)
