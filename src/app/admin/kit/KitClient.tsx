@@ -115,9 +115,18 @@ export default function KitClient({ events, from, to, activeDays }: {
         setMode(m);
         setSelected(new Set(pickFor(m, events).map(e => e.id)));
     };
+
+    const toggleVenue = (name: string) => setMutedVenues(prev => {
+        const next = new Set(prev);
+        if (next.has(name)) next.delete(name); else next.add(name);
+        return next;
+    });
     const [fonts, setFonts] = useState<{ grotesk: string; mono: string } | null>(null);
     const [busy, setBusy] = useState(false);
     const [tileSize, setTileSize] = useState(170);
+    // Venue is the unit you actually shape a carousel in — dropping five
+    // CINEMA LANDs at once, not clicking five chips.
+    const [mutedVenues, setMutedVenues] = useState<Set<string>>(new Set());
     const canvasRefs = useRef<Record<string, HTMLCanvasElement | null>>({});
 
     useEffect(() => {
@@ -127,9 +136,21 @@ export default function KitClient({ events, from, to, activeDays }: {
         document.fonts.ready.then(() => setFonts({ grotesk, mono }));
     }, []);
 
+    const venues = useMemo(() => {
+        const counts: Record<string, number> = {};
+        for (const e of events) if (e.venue) counts[e.venue] = (counts[e.venue] || 0) + 1;
+        return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    }, [events]);
+
+    const visible = useMemo(
+        () => events.filter(e => !mutedVenues.has(e.venue)),
+        [events, mutedVenues],
+    );
+
+    // A muted venue drops out of the set even if the mode selected it.
     const chosen = useMemo(
-        () => events.filter(e => selected.has(e.id)),
-        [events, selected]
+        () => visible.filter(e => selected.has(e.id)),
+        [visible, selected]
     );
 
     const drawSlide = useCallback(async (canvas: HTMLCanvasElement, e: KitEvent, f: { grotesk: string; mono: string }) => {
@@ -267,7 +288,7 @@ export default function KitClient({ events, from, to, activeDays }: {
         <div className="min-h-screen bg-cream px-6 py-10">
             <h1 className="font-space-grotesk text-[32px] font-bold text-ink">Carousel kit</h1>
             <p className="font-space-mono text-[13px] uppercase tracking-[-0.44px] text-ink/60 mt-1">
-                {range} · {chosen.length} slides selected · {events.length} events in window
+                {range} · {chosen.length} slides selected · {visible.length} of {events.length} events in play
             </p>
 
             {/* A flyer often lands weeks before the date. Without this the kit
@@ -315,7 +336,7 @@ export default function KitClient({ events, from, to, activeDays }: {
                             mode === m ? 'bg-ink text-cream border-ink' : 'border-black/30 text-ink/70 hover:border-black/60'
                         }`}
                     >
-                        {label} ({pickFor(m, events).length})
+                        {label} ({pickFor(m, visible).length})
                     </button>
                 ))}
 
@@ -335,27 +356,59 @@ export default function KitClient({ events, from, to, activeDays }: {
                 </div>
             </div>
 
-            {/* Everything in the window, so nothing is silently dropped. */}
-            <div className="mt-8 flex flex-wrap gap-2">
-                {events.map(e => {
-                    const on = selected.has(e.id);
-                    return (
-                        <button
-                            key={e.id}
-                            onClick={() => toggle(e.id)}
-                            title={e.flyerUrl ? 'Has a flyer' : 'No flyer — renders as a branded card'}
-                            className={`rounded-full border px-3 py-1.5 font-space-mono text-[11px] uppercase tracking-[-0.44px] transition-colors ${
-                                on ? 'bg-ink text-cream border-ink' : 'border-black/30 text-ink/60'
-                            }`}
-                        >
-                            {e.flyerUrl ? '' : '○ '}{e.title || '(untitled)'}
-                            {e.vibeScore !== null && (
-                                <span className={on ? 'ml-1.5 text-cream/60' : 'ml-1.5 text-ink/40'}>{e.vibeScore}</span>
-                            )}
-                        </button>
-                    );
-                })}
+            {/* Venues first: the coarse dial. Muting one removes its events
+                from every mode at once. */}
+            <div className="mt-8">
+                <div className="font-space-mono text-[11px] uppercase tracking-[-0.44px] text-ink/50 mb-2">
+                    Venues — click to mute
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    {venues.map(([name, count]) => {
+                        const muted = mutedVenues.has(name);
+                        return (
+                            <button
+                                key={name}
+                                onClick={() => toggleVenue(name)}
+                                className={`rounded-full border px-3 py-1.5 font-space-mono text-[11px] uppercase tracking-[-0.44px] transition-colors ${
+                                    muted
+                                        ? 'border-black/20 text-ink/30 line-through'
+                                        : 'border-black/40 text-ink hover:border-black/70'
+                                }`}
+                            >
+                                {name} · {count}
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
+
+            {/* Per-event control, scoped to the venues still in play, behind a
+                disclosure — at the 30-day window this is 269 chips. */}
+            <details className="mt-5">
+                <summary className="cursor-pointer font-space-mono text-[11px] uppercase tracking-[-0.44px] text-ink/50">
+                    Individual events ({visible.length}) — click to add or drop
+                </summary>
+                <div className="mt-3 flex flex-wrap gap-2">
+                    {visible.map(e => {
+                        const on = selected.has(e.id);
+                        return (
+                            <button
+                                key={e.id}
+                                onClick={() => toggle(e.id)}
+                                title={e.flyerUrl ? 'Has a flyer' : 'No flyer — renders as a branded card'}
+                                className={`rounded-full border px-3 py-1.5 font-space-mono text-[11px] uppercase tracking-[-0.44px] transition-colors ${
+                                    on ? 'bg-ink text-cream border-ink' : 'border-black/30 text-ink/60'
+                                }`}
+                            >
+                                {e.flyerUrl ? '' : '○ '}{e.title || '(untitled)'}
+                                {e.vibeScore !== null && (
+                                    <span className={on ? 'text-cream/55' : 'text-ink/35'}> · {e.vibeScore}</span>
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+            </details>
 
             {/* Contact-sheet density: the whole point is judging the set at a
                 glance, so tiles pack full-width rather than capping at the
