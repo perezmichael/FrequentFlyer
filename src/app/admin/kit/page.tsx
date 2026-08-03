@@ -10,12 +10,15 @@ export const dynamic = 'force-dynamic';
  */
 function weekendWindow(now = new Date()) {
     const day = now.getDay(); // 0 Sun … 6 Sat
+    // Thu–Sun belong to the block already under way; Mon–Wed look ahead to the
+    // next one. Getting this wrong meant opening the kit on a Friday — exactly
+    // when you'd be posting — returned *next* weekend.
+    const offset =
+        day === 0 ? -3 :        // Sunday: back to Thursday
+        day >= 4 ? -(day - 4) : // Thu 0, Fri -1, Sat -2
+        4 - day;                // Mon–Wed: forward to Thursday
     const start = new Date(now);
-    if (day === 0) {
-        start.setDate(now.getDate() - 3); // Sunday belongs to the block that began Thursday
-    } else {
-        start.setDate(now.getDate() + ((4 - day + 7) % 7)); // next Thursday
-    }
+    start.setDate(now.getDate() + offset);
     const end = new Date(start);
     end.setDate(start.getDate() + 3);
     const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -44,7 +47,7 @@ export default async function KitPage({
 
     const { data, error } = await supabase
         .from('events')
-        .select('id, event_name, event_date, start_time, end_time, flyer_url, event_vibe, curation_level, venues (name, neighborhood)')
+        .select('id, event_name, event_date, start_time, end_time, flyer_url, event_vibe, curation_level, source_url, venues (name, neighborhood, url)')
         .gte('event_date', from)
         .lte('event_date', to)
         .eq('status', 'approved')
@@ -63,6 +66,9 @@ export default async function KitPage({
         venue: e.venues?.name || '',
         neighborhood: e.venues?.neighborhood || '',
         isPick: e.curation_level === 'ff_curated',
+        // The event's own page beats the venue calendar — it's what you'd
+        // open to confirm the flyer and the time are actually right.
+        sourceUrl: e.source_url || e.venues?.url || null,
     }));
 
     return <KitClient events={events} from={from} to={to} activeDays={Number.isFinite(days) && days > 0 ? days : null} />;
