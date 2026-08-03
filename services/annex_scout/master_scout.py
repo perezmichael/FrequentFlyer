@@ -222,7 +222,15 @@ def looks_like_image(data):
 
 
 def upload_flyer(image_url, event_id, referer=None):
-    """Download an image URL and upload to Supabase storage. Returns public URL or None."""
+    """
+    Download an image URL and upload it to Supabase storage.
+
+    Always returns a (public_url, sha256_digest) pair — (None, None) on any
+    failure. Two early returns used to hand back a bare None, and the caller
+    unpacks two values, so a rejected image raised "cannot unpack non-iterable
+    NoneType object" and took the whole event down with it. That accounted for
+    98 of 110 errors in one backfill run.
+    """
     try:
         headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
@@ -234,14 +242,14 @@ def upload_flyer(image_url, event_id, referer=None):
 
         resp = requests.get(image_url, timeout=15, headers=headers)
         if resp.status_code != 200:
-            return None
+            return None, None
 
         data = resp.content
         # 1500 bytes still excludes tracking pixels and tiny icons, but keeps
         # well-compressed real flyers. The old 5000-byte floor was silently
         # discarding legitimate artwork.
         if len(data) < 1500 or not looks_like_image(data):
-            return None
+            return None, None
 
         path = f"flyers/{event_id}.jpg"
         supabase.storage.from_("event-flyers").upload(
