@@ -7,7 +7,7 @@
  * previews don't advertise themselves to Google as the canonical site.
  */
 export const SITE_URL = (
-    process.env.NEXT_PUBLIC_SITE_URL || 'https://frequentflyer.la'
+    process.env.NEXT_PUBLIC_SITE_URL || 'https://frequentflyerla.com'
 ).replace(/\/$/, '');
 
 /** Absolute URL for a site-relative path. */

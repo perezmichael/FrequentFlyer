@@ -81,7 +81,7 @@ const DIRECTORY: Group[] = [
 ];
 
 function buildPrompt(origin: string): string {
-    return `You're contributing to Frequent Flyer — a curated map of Los Angeles events at frequentflyer.la. Insert event listings by POSTing JSON to our agent endpoint. Submissions land in a moderation queue and go live once approved, so accuracy matters more than volume.
+    return `You're contributing to Frequent Flyer — a curated map of Los Angeles events at frequentflyerla.com. Insert event listings by POSTing JSON to our agent endpoint. Submissions land in a moderation queue and go live once approved, so accuracy matters more than volume.
 
 # Endpoint
 POST ${origin}/api/agent/submit
@@ -165,7 +165,7 @@ export default function AgentsPage() {
     // Start with a stable fallback so server and client first-render match
     // (avoids a hydration mismatch on the prompt text), then swap in the real
     // origin after mount so the copied prompt targets the right host.
-    const [origin, setOrigin] = useState('https://frequentflyer.la');
+    const [origin, setOrigin] = useState('https://frequentflyerla.com');
     useEffect(() => setOrigin(window.location.origin), []);
     const prompt = buildPrompt(origin);
 

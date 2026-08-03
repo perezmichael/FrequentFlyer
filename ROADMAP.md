@@ -67,7 +67,7 @@ pick up times. The page-hash check would otherwise skip every unchanged venue.
 ### 4. Domain cutover **[you]** + push the SEO work
 
 These are coupled and neither means much alone. The SEO foundation is committed
-(`351d0ef`) but unpushed, and it advertises `frequentflyer.la`, which doesn't
+(`351d0ef`) but unpushed, and it advertises `frequentflyerla.com`, which doesn't
 resolve yet.
 
 - Point the domain at Vercel in GoDaddy; add it in the Vercel project.
@@ -289,4 +289,4 @@ move, because the person asking is the person with the taste.
   `recurring_events.metadata.image_url`
 - Feed collapses series: 246 raw listings → ~143 cards
 - Scout last ran unattended 2026-07-23; everything since was manual
-- Live at `frequent-flyer.vercel.app`; `frequentflyer.la` not yet cut over
+- Live at `frequent-flyer.vercel.app`; `frequentflyerla.com` not yet cut over
