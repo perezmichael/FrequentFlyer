@@ -329,47 +329,31 @@ export default function KitClient({ events, from, to, activeDays }: {
                 style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${tileSize}px, 1fr))` }}
             >
                 {chosen.map(e => (
-                    <div key={e.id} className="group relative">
+                    <div key={e.id} className="flex flex-col gap-2">
+                        <canvas
+                            ref={el => { canvasRefs.current[e.id] = el; }}
+                            className="w-full rounded-[10px] border border-black/10"
+                            style={{ aspectRatio: `${W} / ${H}` }}
+                        />
                         <button
                             onClick={() => download(e)}
-                            title={`Download ${e.title || 'slide'}`}
-                            className="block w-full text-left"
+                            className="rounded-full border border-black/40 px-3 py-1.5 font-space-mono text-[11px] uppercase tracking-[-0.44px] text-ink transition-colors hover:bg-ink hover:text-cream"
                         >
-                            <canvas
-                                ref={el => { canvasRefs.current[e.id] = el; }}
-                                className="w-full rounded-[10px] border border-black/10 transition-transform duration-200 group-hover:-translate-y-0.5"
-                                style={{ aspectRatio: `${W} / ${H}` }}
-                            />
-                            <span className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-[10px] bg-ink/85 px-2 py-1.5 text-center font-space-mono text-[10px] uppercase tracking-[-0.44px] text-cream opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                                Download PNG
-                            </span>
+                            Download PNG
                         </button>
-
-                        {/* Open the source to check the flyer and the listed
-                            time before this goes out. Sits outside the download
-                            button so one click can't do both. */}
+                        {/* Open the event's own page to confirm the flyer and
+                            the listed time before this goes out. A plain link
+                            under the CTA — a hover-only corner badge was too
+                            small a target. */}
                         {e.sourceUrl && (
                             <a
                                 href={e.sourceUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                title="Open the event's own page"
-                                className="absolute top-1.5 right-1.5 rounded-full bg-ink/85 px-2 py-1 font-space-mono text-[10px] uppercase tracking-[-0.44px] text-cream no-underline opacity-0 transition-opacity duration-200 group-hover:opacity-100 hover:bg-brand"
+                                className="text-center font-space-mono text-[10px] uppercase tracking-[-0.44px] text-brand underline underline-offset-2"
                             >
                                 source ↗
                             </a>
-                        )}
-
-                        {/* The caption renders date-only when the venue never
-                            published a time. Flag it here rather than letting a
-                            timeless slide reach Instagram unnoticed. */}
-                        {!e.startTime && (
-                            <span
-                                title="No start time on this event — the slide shows the date only"
-                                className="absolute top-1.5 left-1.5 rounded-full border border-brand bg-cream/95 px-2 py-1 font-space-mono text-[10px] uppercase tracking-[-0.44px] text-brand"
-                            >
-                                no time
-                            </span>
                         )}
                     </div>
                 ))}
