@@ -285,5 +285,19 @@
     "neighborhood": "Culver City",
     "lat": 34.0206816,
     "lng": -118.396338
+  },
+  {
+    "name": "The Bamboo Room",
+    "url": "https://generallees.com/the-bamboo-room/venue",
+    "neighborhood": "West LA",
+    "lat": 34.0398386,
+    "lng": -118.4647242
+  },
+  {
+    "name": "General Lee's",
+    "url": "https://generallees.com/general-lees/venue",
+    "neighborhood": "Chinatown",
+    "lat": 34.0658438,
+    "lng": -118.2375382
   }
 ]
