@@ -166,7 +166,7 @@ export async function getRecurringEvents(): Promise<RecurringEvent[]> {
         .from('recurring_events')
         .select(`
             id, event_name, category, day_of_week, start_time, end_time,
-            recurrence, description,
+            recurrence, description, metadata,
             venues (name, neighborhood, lat, lng, url, image_url)
         `)
         .eq('status', 'approved')
@@ -194,7 +194,11 @@ export async function getRecurringEvents(): Promise<RecurringEvent[]> {
         lat: e.venues?.lat ?? null,
         lng: e.venues?.lng ?? null,
         venue_url: e.venues?.url,
-        venue_image: e.venues?.image_url,
+        // A per-night image beats a generic venue photo: a mahjong table says
+        // what Mahjong Monday is, where one bar shot has to stand in for every
+        // night the room runs. Falls back to the venue photo, then to the
+        // branded card.
+        venue_image: e.metadata?.image_url || e.venues?.image_url,
     }));
 }
 
@@ -203,7 +207,7 @@ export async function getAdminRecurringEvents(): Promise<(RecurringEvent & { sta
         .from('recurring_events')
         .select(`
             id, event_name, category, day_of_week, start_time, end_time,
-            recurrence, description, status,
+            recurrence, description, status, metadata,
             venues (name, neighborhood, lat, lng, url, image_url)
         `)
         .order('day_of_week', { ascending: true })
@@ -231,6 +235,10 @@ export async function getAdminRecurringEvents(): Promise<(RecurringEvent & { sta
         lat: e.venues?.lat ?? null,
         lng: e.venues?.lng ?? null,
         venue_url: e.venues?.url,
-        venue_image: e.venues?.image_url,
+        // A per-night image beats a generic venue photo: a mahjong table says
+        // what Mahjong Monday is, where one bar shot has to stand in for every
+        // night the room runs. Falls back to the venue photo, then to the
+        // branded card.
+        venue_image: e.metadata?.image_url || e.venues?.image_url,
     }));
 }
