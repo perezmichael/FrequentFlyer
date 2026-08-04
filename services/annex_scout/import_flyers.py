@@ -26,7 +26,7 @@ from pathlib import Path
 from google import genai
 from google.genai import types
 
-from master_scout import supabase, clean_time, looks_like_image
+from master_scout import supabase, clean_time, looks_like_image, BOT_UA
 
 MODEL = "gemini-2.5-flash"
 DEFAULT_DIR = Path(__file__).resolve().parents[2] / "flyer-inbox"
@@ -162,31 +162,94 @@ def valid_date(value: str, today: date) -> str | None:
     return value
 
 
+def venue_key(name: str) -> str:
+    """
+    Normalise a venue name for matching.
+
+    "&" and "and" are the same word to a human and were not to the first
+    version of this: "STORIES BOOKS & CAFE" off a flyer failed to match
+    "Stories Books and Cafe" in the database and created a duplicate with no
+    map pin.
+    """
+    key = (name or "").lower()
+    key = key.replace("&", " and ")
+    key = re.sub(r"[^a-z0-9]+", " ", key).strip()
+    return re.sub(r"\s+", "", key)
+
+
+def geocode(name: str, neighborhood: str) -> tuple[float, float] | None:
+    """
+    Look up coordinates so a flyer-sourced venue gets a map pin.
+
+    Guarded by the same LA bounding box the rest of the pipeline uses: a
+    geocoder handed "Melody Lounge" will happily return one in another state,
+    and a confidently wrong pin is worse than none.
+    """
+    import time as _time
+    import requests as _requests
+
+    query = ", ".join(p for p in [name, neighborhood, "Los Angeles, CA"] if p)
+    try:
+        resp = _requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"format": "json", "limit": 1, "q": query},
+            headers={"User-Agent": BOT_UA},
+            timeout=15,
+        )
+        _time.sleep(1.1)  # Nominatim asks for one request per second
+        results = resp.json()
+    except Exception:
+        return None
+    if not results:
+        return None
+    try:
+        lat, lng = float(results[0]["lat"]), float(results[0]["lon"])
+    except (KeyError, ValueError, TypeError):
+        return None
+    if not (33.6 < lat < 34.4 and -118.9 < lng < -117.6):
+        return None
+    return lat, lng
+
+
 def find_or_create_venue(name: str, neighborhood: str, apply: bool) -> str | None:
     """
-    Match an existing venue by name before creating one — the whole venue list
-    is hand-curated and a near-duplicate ("Zebulon " vs "Zebulon") would split
-    a room in two on the map.
+    Match an existing venue before creating one — the venue list is
+    hand-curated, and a near-duplicate splits one room into two on the map.
     """
     if not name:
         return None
     existing = supabase.table("venues").select("id, name").execute().data or []
-    target = re.sub(r"[^a-z0-9]", "", name.lower())
+    target = venue_key(name)
+
     for v in existing:
-        if re.sub(r"[^a-z0-9]", "", (v.get("name") or "").lower()) == target:
+        if venue_key(v.get("name")) == target:
+            return v["id"]
+
+    # Second pass ignoring a leading "the", which flyers drop freely.
+    bare = re.sub(r"^the", "", target)
+    for v in existing:
+        if re.sub(r"^the", "", venue_key(v.get("name"))) == bare:
+            print(f"      matched existing venue \"{v['name']}\"")
             return v["id"]
 
     if not apply:
-        return "(new venue would be created)"
+        print(f"      would create venue \"{name}\"")
+        return "(new venue)"
 
-    # No coordinates: the flyer gives a street address at best, and a guessed
-    # pin is worse than none. Geocode it later from /admin.
-    created = supabase.table("venues").insert({
+    coords = geocode(name, neighborhood)
+    payload = {
         "name": name,
         "neighborhood": neighborhood or "Los Angeles",
         "trust_tier": "standard",
         "metadata": {"added_from": "flyer import"},
-    }).execute().data
+    }
+    if coords:
+        payload["lat"], payload["lng"] = coords
+        print(f"      created venue \"{name}\" — geocoded")
+    else:
+        print(f"      created venue \"{name}\" — NO PIN, needs an address")
+
+    created = supabase.table("venues").insert(payload).execute().data
     return created[0]["id"] if created else None
 
 
