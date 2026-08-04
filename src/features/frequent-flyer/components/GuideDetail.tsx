@@ -1,4 +1,5 @@
 import { GuideWithItems } from '../types/guides';
+import { withReferral } from '@/lib/outbound';
 import Link from 'next/link';
 
 interface GuideDetailProps {
@@ -79,7 +80,7 @@ export default function GuideDetail({ guide, onBack }: GuideDetailProps) {
                                     </p>
                                 )}
                                 {item.venues?.url && (
-                                    <a href={item.venues.url} target="_blank" rel="noopener noreferrer" className="font-space-mono text-[12px] text-black uppercase underline hover:no-underline">
+                                    <a href={withReferral(item.venues.url)} target="_blank" rel="noopener noreferrer" className="font-space-mono text-[12px] text-black uppercase underline hover:no-underline">
                                         Website ↗
                                     </a>
                                 )}
