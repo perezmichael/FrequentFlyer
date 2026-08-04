@@ -1,6 +1,6 @@
 import 'server-only';
 import { supabase } from '@/lib/supabase';
-import { Event } from '@/features/frequent-flyer/data/events';
+import { Event, formatPrice } from '@/features/frequent-flyer/data/events';
 import { GuideWithItems } from '@/features/frequent-flyer/types/guides';
 import { RecurringEvent } from '@/features/frequent-flyer/data/recurringEvents';
 
@@ -54,7 +54,7 @@ export async function getEvents(): Promise<Event[]> {
         // which is why descriptions read as AI commentary about the event rather
         // than about what actually happens. Never surface it.
         description: e.metadata?.description || 'No description available',
-        price: e.metadata?.price || null,
+        price: formatPrice(e.metadata?.price),
         // Never invent coordinates: an un-geocoded venue is skipped on the
         // map, not dropped onto a downtown default.
         lat: e.venues?.lat ?? null,
@@ -68,6 +68,7 @@ export async function getEvents(): Promise<Event[]> {
         // Prefer the event's own page (scraped source_url) over the venue calendar.
         url: e.source_url || e.venues?.url,
         curationLevel: e.curation_level || 'scraped',
+        vibeScore: typeof e.metadata?.vibe_score === 'number' ? e.metadata.vibe_score : null,
     }));
 }
 
@@ -114,7 +115,7 @@ export async function getEventById(id: string): Promise<Event | null> {
         // which is why descriptions read as AI commentary about the event rather
         // than about what actually happens. Never surface it.
         description: e.metadata?.description || 'No description available',
-        price: e.metadata?.price || null,
+        price: formatPrice(e.metadata?.price),
         // Never invent coordinates: an un-geocoded venue is skipped on the
         // map, not dropped onto a downtown default.
         lat: e.venues?.lat ?? null,
@@ -127,6 +128,7 @@ export async function getEventById(id: string): Promise<Event | null> {
         vibe: e.event_vibe ? [e.event_vibe] : ['Event'],
         url: e.source_url || e.venues?.url,
         curationLevel: e.curation_level || 'scraped',
+        vibeScore: typeof e.metadata?.vibe_score === 'number' ? e.metadata.vibe_score : null,
     };
 }
 

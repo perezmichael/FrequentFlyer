@@ -24,8 +24,10 @@ interface HomeClientProps {
 
 // A unified item that can be either a one-off event or a recurring one
 type UnifiedItem =
-    | { kind: 'event'; data: Event; sortDay: number }
-    | { kind: 'recurring'; data: RecurringEvent; sortDay: number };
+    // sortDate is the YYYY-MM-DD each item NEXT happens, so a weekly night and
+    // a one-off can be ordered against each other.
+    | { kind: 'event'; data: Event; sortDay: number; sortDate: string }
+    | { kind: 'recurring'; data: RecurringEvent; sortDay: number; sortDate: string };
 
 // How far ahead the feed looks. Wide enough that opening the app cold shows a
 // full picture of what's coming up (then filters narrow it), not just today.
@@ -33,6 +35,39 @@ const WINDOW_DAYS = 30;
 
 // Recurring events use a different shape than one-off events. Project one into
 // the Event shape so the map and the detail sheet can treat everything the same.
+/**
+ * The next date a weekly night actually happens, as YYYY-MM-DD.
+ *
+ * A recurring row only knows its weekday, so it had nothing to sort against
+ * and every one of them was pushed ahead of every dated event — the feed
+ * opened with 25 happy hours before anything happening this week. Giving it a
+ * real date lets it sit in the day it belongs to.
+ */
+function nextOccurrence(dayOfWeek: number, from = new Date()): string {
+    const d = new Date(from);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + ((dayOfWeek - d.getDay() + 7) % 7));
+    // Local, not toISOString — that would shift to UTC and land a day early
+    // in LA, the same bug that once made the day pills wrong.
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/**
+ * Rank within a single day: a pick leads, then anything with real artwork,
+ * then the scout's score. Ordering was previously whatever Postgres returned,
+ * which put a branded card fifth and the day's only pick fourth.
+ */
+function dayRank(item: UnifiedItem): number {
+    if (item.kind === 'recurring') {
+        // No curation_level on recurring nights yet; rank them on artwork.
+        return hasRealImage(item.data.venue_image) ? 1 : 2;
+    }
+    const e = item.data;
+    if (e.curationLevel === 'ff_curated') return 0;
+    return hasRealImage(e.image) ? 1 : 2;
+}
+
 function recurringToEvent(re: RecurringEvent): Event {
     return {
         id: `recurring-${re.id}`,
@@ -71,7 +106,7 @@ function recurringSeriesKey(re: RecurringEvent): string {
 const seenImages = new Set<string>();
 
 // A card standing in for one or more dates of the same show.
-type Listing = {
+type Listing = ({
     kind: 'event';
     data: Event;
     /** How many dates this card represents in the current view. */
@@ -83,6 +118,11 @@ type Listing = {
     data: RecurringEvent;
     /** Extra weekday rows folded into this card. */
     extraDays: number;
+}) & {
+    /** YYYY-MM-DD this card next happens — both kinds sort against it. */
+    sortDate: string;
+    /** 0 pick, 1 has artwork, 2 branded card. Orders within a day. */
+    rank: number;
 };
 
 export default function HomeClient({ initialEvents, recurringEvents = [] }: HomeClientProps) {
@@ -115,13 +155,22 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
             // already appends T00:00:00; this now matches it.
             const eventDate = new Date(`${event.date}T00:00:00`);
             if (eventDate >= windowStart && eventDate <= windowEnd) {
-                items.push({ kind: 'event', data: event, sortDay: eventDate.getDay() });
+                items.push({
+                    kind: 'event', data: event,
+                    sortDay: eventDate.getDay(), sortDate: event.date,
+                });
             }
         }
 
-        // Recurring events — each maps to its day_of_week
+        // Recurring nights sit on their NEXT occurrence, so a Monday mahjong
+        // appears under Monday rather than permanently at the top. Only the
+        // next one — showing all four Mondays in the window would put 25
+        // weekly nights back in front of everything.
         for (const re of recurringEvents) {
-            items.push({ kind: 'recurring', data: re, sortDay: re.day_of_week });
+            items.push({
+                kind: 'recurring', data: re,
+                sortDay: re.day_of_week, sortDate: nextOccurrence(re.day_of_week),
+            });
         }
 
         return items;
@@ -148,6 +197,23 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
 
     // How many picks exist at all — the toggle hides itself when there are none,
     // so an empty filter can't be tapped into a dead end.
+    const weekPicks = useMemo(() => {
+        const start = new Date(); start.setHours(0, 0, 0, 0);
+        const end = new Date(start); end.setDate(start.getDate() + 7);
+        const iso = (d: Date) => {
+            const pad = (n: number) => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        };
+        const from = iso(start), to = iso(end);
+        return unifiedItems
+            .filter(i => i.kind === 'event'
+                && i.data.curationLevel === 'ff_curated'
+                && i.sortDate >= from && i.sortDate <= to)
+            .sort((a, b) => a.sortDate < b.sortDate ? -1 : a.sortDate > b.sortDate ? 1 : 0)
+            .slice(0, 6)
+            .map(i => i.data as Event);
+    }, [unifiedItems]);
+
     const pickCount = useMemo(
         () => unifiedItems.filter(i => i.kind === 'event' && i.data.curationLevel === 'ff_curated').length,
         [unifiedItems]
@@ -179,20 +245,20 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
     const listings = useMemo<Listing[]>(() => {
         // Plain object, not a Map: the dynamically imported <Map> component
         // above shadows the global Map constructor in this module.
-        const bySeries: Record<string, { data: Event; dates: number; lastDate: string }> = {};
+        const bySeries: Record<string, { data: Event; dates: number; lastDate: string; sortDate: string; rank: number }> = {};
         const order: string[] = [];
         const out: Listing[] = [];
 
         // Recurring nights first, so a dated event can supersede one: the
         // events row carries a real date, flyer and tickets link, which the
         // recurring row doesn't.
-        const byRecurring: Record<string, { data: RecurringEvent; extraDays: number }> = {};
+        const byRecurring: Record<string, { data: RecurringEvent; extraDays: number; sortDate: string; rank: number }> = {};
         const recurringOrder: string[] = [];
         for (const item of filteredItems) {
             if (item.kind !== 'recurring') continue;
             const key = recurringSeriesKey(item.data);
             if (!byRecurring[key]) {
-                byRecurring[key] = { data: item.data, extraDays: 0 };
+                byRecurring[key] = { data: item.data, extraDays: 0, sortDate: item.sortDate, rank: dayRank(item) };
                 recurringOrder.push(key);
             } else {
                 // "33 Taps Happy Hour" is seven rows, one per weekday.
@@ -207,7 +273,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
             if (byRecurring[key]) delete byRecurring[key];
             const seen = bySeries[key];
             if (!seen) {
-                bySeries[key] = { data: item.data, dates: 1, lastDate: item.data.date };
+                bySeries[key] = { data: item.data, dates: 1, lastDate: item.data.date, sortDate: item.sortDate, rank: dayRank(item) };
                 order.push(key);
             } else {
                 seen.dates += 1;
@@ -219,16 +285,27 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
 
         for (const k of recurringOrder) {
             const v = byRecurring[k];
-            if (v) out.push({ kind: 'recurring', data: v.data, extraDays: v.extraDays });
+            if (v) out.push({ kind: 'recurring', data: v.data, extraDays: v.extraDays, sortDate: v.sortDate, rank: v.rank });
         }
         for (const v of order.map(k => bySeries[k])) {
-            out.push({ kind: 'event', data: v.data, dates: v.dates, lastDate: v.lastDate });
+            out.push({ kind: 'event', data: v.data, dates: v.dates, lastDate: v.lastDate, sortDate: v.sortDate, rank: v.rank });
         }
-        // Soonest first, so a collapsed series sits where its next date falls.
+        // Chronology is the spine — people plan by day, so a Friday show must
+        // never sit above a Tuesday one. Within a day, quality decides: a pick
+        // leads, then anything with real artwork, then the scout's score, then
+        // title so the order is stable between renders.
+        //
+        // Recurring nights used to sort with an empty date, which put all 25 of
+        // them ahead of every dated event; they now carry their next occurrence.
         out.sort((a, b) => {
-            const da = a.kind === 'event' ? a.data.date : '';
-            const db = b.kind === 'event' ? b.data.date : '';
-            return da < db ? -1 : da > db ? 1 : 0;
+            if (a.sortDate !== b.sortDate) return a.sortDate < b.sortDate ? -1 : 1;
+            if (a.rank !== b.rank) return a.rank - b.rank;
+            const sa = a.kind === 'event' ? (a.data.vibeScore ?? 0) : 0;
+            const sb = b.kind === 'event' ? (b.data.vibeScore ?? 0) : 0;
+            if (sa !== sb) return sb - sa;
+            const ta = a.kind === 'event' ? a.data.title : a.data.event_name;
+            const tb = b.kind === 'event' ? b.data.title : b.data.event_name;
+            return (ta || '').localeCompare(tb || '');
         });
         return out;
     }, [filteredItems]);
@@ -325,7 +402,34 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                         )}
                     </header>
 
-                    {listings.length > 0 ? (
+                    {listings.length > 0 ? (<>
+                        {/* Picks lead, but as their own section rather than
+                            pinned into the feed — inline they'd break the
+                            timeline, running Aug 4 to Aug 15 and then snapping
+                            back. Hidden entirely when a filter is on, or when
+                            a quiet week leaves nothing curated, so it never
+                            renders an empty shelf. */}
+                        {weekPicks.length > 0 && !picksOnly && dayFilter === null && !neighborhoodFilter && (
+                            <section className={styles.picksStrip}>
+                                <div className={styles.picksHeader}>
+                                    <h2 className={styles.picksTitle}>★ This week&rsquo;s picks</h2>
+                                    <button className={styles.picksAll} onClick={() => setPicksOnly(true)}>
+                                        see all {pickCount} →
+                                    </button>
+                                </div>
+                                <div className={styles.picksRow}>
+                                    {weekPicks.map(e => (
+                                        <div key={`pick-${e.id}`} className={styles.picksItem}>
+                                            <EventCard2
+                                                event={e}
+                                                onClick={() => setDetailEvent(e)}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+
                         <div className={`${styles.grid} stagger-in`}>
                             {(() => { seenImages.clear(); return null; })()}
                             {listings.map((item) => {
@@ -367,6 +471,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                                 }
                             })}
                         </div>
+                        </>
                     ) : (
                         <div className={styles.noResults}>
                             <h3 className="font-space-mono uppercase tracking-[-0.44px]">nothing on this filter. criminal.</h3>

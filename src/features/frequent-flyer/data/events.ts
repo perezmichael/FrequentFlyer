@@ -25,6 +25,8 @@ export interface Event {
     url?: string | null;
     /** 'scraped' | 'ff_curated' | 'promoted' — drives tiered card treatment. */
     curationLevel?: 'scraped' | 'ff_curated' | 'promoted';
+    /** The scout's 1-10 score against vibedoc.md; orders cards within a day. */
+    vibeScore?: number | null;
 }
 
 // "7 PM" / "7:30 PM" from a "HH:MM[:SS]" string.
@@ -42,6 +44,21 @@ function formatTime(t: string): string {
  * than run them together — a narrow stamp wrapping mid-time reads as
  * "WED, AUG 5 · 6" / "PM", which is worse than two deliberate lines.
  */
+/**
+ * Tidy a scraped price string.
+ *
+ * Eventbrite renders "From" and "$13.39" as separate nodes, so the scraper
+ * concatenated them into "From$13.39". Normalising on read fixes every
+ * surface at once and keeps future scrapes clean without a re-run.
+ */
+export function formatPrice(price?: string | null): string | null {
+    if (!price) return null;
+    return price
+        .replace(/([A-Za-z])(\$)/g, '$1 $2')  // From$13 -> From $13
+        .replace(/\s+/g, ' ')
+        .trim() || null;
+}
+
 export function formatEventDateParts(
     date: string,
     startTime?: string | null,
