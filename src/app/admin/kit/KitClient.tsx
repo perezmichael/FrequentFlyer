@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { resolveVibeEmoji } from '@/features/frequent-flyer/data/vibeEmoji';
+import { updateEvent, setEventCuration } from '@/app/actions';
 
 export interface KitEvent {
     id: string;
@@ -110,18 +111,19 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, max
     return lines;
 }
 
-export default function KitClient({ events, from, to, activeDays }: {
+export default function KitClient({ events: rawEvents, from, to, activeDays }: {
     events: KitEvent[]; from: string; to: string; activeDays: number | null;
 }) {
     // Opens on Suggested: scored against vibedoc.md, not merely "has artwork".
     const [mode, setMode] = useState<Mode>('suggested');
     const [selected, setSelected] = useState<Set<string>>(
-        () => new Set(pickFor('suggested', events).map(e => e.id))
+        () => new Set(pickFor('suggested', rawEvents).map(e => e.id))
     );
 
     const applyMode = (m: Mode) => {
         setMode(m);
-        setSelected(new Set(pickFor(m, events).map(e => e.id)));
+        // pickFor reads flyer/title/score — none of which are editable here.
+        setSelected(new Set(pickFor(m, rawEvents).map(e => e.id)));
     };
 
     const toggleVenue = (name: string) => setMutedVenues(prev => {
@@ -135,6 +137,11 @@ export default function KitClient({ events, from, to, activeDays }: {
     // Venue is the unit you actually shape a carousel in — dropping five
     // CINEMA LANDs at once, not clicking five chips.
     const [mutedVenues, setMutedVenues] = useState<Set<string>>(new Set());
+    // Edits made here, layered over what the server sent. Saving redraws the
+    // slide in place — the alternative is finding the event among 300 in
+    // /admin, fixing it, coming back and reloading.
+    const [edits, setEdits] = useState<Record<string, Partial<KitEvent>>>({});
+    const [saving, setSaving] = useState<string | null>(null);
     const canvasRefs = useRef<Record<string, HTMLCanvasElement | null>>({});
 
     useEffect(() => {
@@ -143,6 +150,11 @@ export default function KitClient({ events, from, to, activeDays }: {
         const mono = styles.getPropertyValue('--font-space-mono').trim() || 'monospace';
         document.fonts.ready.then(() => setFonts({ grotesk, mono }));
     }, []);
+
+    const events = useMemo(
+        () => rawEvents.map(e => (edits[e.id] ? { ...e, ...edits[e.id] } : e)),
+        [rawEvents, edits],
+    );
 
     const venues = useMemo(() => {
         const counts: Record<string, number> = {};
@@ -290,6 +302,35 @@ export default function KitClient({ events, from, to, activeDays }: {
             await new Promise(r => setTimeout(r, 400)); // browsers throttle rapid-fire downloads
         }
         setBusy(false);
+    };
+
+    /** Persist a time edit, then redraw that slide in place. */
+    const saveTimes = async (e: KitEvent, startTime: string, endTime: string) => {
+        setSaving(e.id);
+        try {
+            const toDb = (v: string) => (v ? `${v}:00` : null);
+            await updateEvent(e.id, { start_time: toDb(startTime), end_time: toDb(endTime) });
+            setEdits(prev => ({
+                ...prev,
+                [e.id]: { ...prev[e.id], startTime: toDb(startTime), endTime: toDb(endTime) },
+            }));
+        } catch (err) {
+            alert(`Could not save the time: ${err instanceof Error ? err.message : String(err)}`);
+        } finally {
+            setSaving(null);
+        }
+    };
+
+    const togglePick = async (e: KitEvent) => {
+        setSaving(e.id);
+        try {
+            await setEventCuration(e.id, e.isPick ? 'scraped' : 'ff_curated');
+            setEdits(prev => ({ ...prev, [e.id]: { ...prev[e.id], isPick: !e.isPick } }));
+        } catch (err) {
+            alert(`Could not change the pick: ${err instanceof Error ? err.message : String(err)}`);
+        } finally {
+            setSaving(null);
+        }
     };
 
     const toggle = (id: string) => setSelected(prev => {
@@ -457,13 +498,50 @@ export default function KitClient({ events, from, to, activeDays }: {
                             the listed time before this goes out. A plain link
                             under the CTA — a hover-only corner badge was too
                             small a target. */}
+                        {/* Fix a missing time without leaving the page: read it
+                            off the source, type it, and the slide redraws. */}
+                        <form
+                            onSubmit={ev => {
+                                ev.preventDefault();
+                                const f = new FormData(ev.currentTarget as HTMLFormElement);
+                                saveTimes(e, String(f.get('start') || ''), String(f.get('end') || ''));
+                            }}
+                            className="flex items-center justify-center gap-1"
+                        >
+                            <input
+                                type="time" name="start" defaultValue={(e.startTime || '').slice(0, 5)}
+                                aria-label="Start time"
+                                className="w-[74px] rounded border border-black/25 bg-transparent px-1 py-0.5 font-space-mono text-[10px] text-ink"
+                            />
+                            <input
+                                type="time" name="end" defaultValue={(e.endTime || '').slice(0, 5)}
+                                aria-label="End time"
+                                className="w-[74px] rounded border border-black/25 bg-transparent px-1 py-0.5 font-space-mono text-[10px] text-ink"
+                            />
+                            <button
+                                type="submit" disabled={saving === e.id}
+                                className="rounded border border-black/40 px-1.5 py-0.5 font-space-mono text-[10px] uppercase tracking-[-0.44px] text-ink hover:bg-ink hover:text-cream disabled:opacity-40"
+                            >
+                                {saving === e.id ? '…' : 'save'}
+                            </button>
+                        </form>
+
                         <div className="flex items-center justify-center gap-2 font-space-mono text-[10px] uppercase tracking-[-0.44px]">
                             {e.vibeScore !== null && (
                                 <span className="text-ink/45" title="Vibe score against vibedoc.md">
                                     {e.vibeScore}/10
                                 </span>
                             )}
-                            {e.isPick && <span className="text-brand" title="An FF Pick">★</span>}
+                            <button
+                                onClick={() => togglePick(e)}
+                                disabled={saving === e.id}
+                                title={e.isPick ? 'An FF Pick — click to unset' : 'Mark as an FF Pick'}
+                                className={`uppercase tracking-[-0.44px] disabled:opacity-40 ${
+                                    e.isPick ? 'text-brand' : 'text-ink/35 hover:text-brand'
+                                }`}
+                            >
+                                {e.isPick ? '★ pick' : '☆ pick'}
+                            </button>
                             {e.sourceUrl && (
                                 <a
                                     href={e.sourceUrl}
