@@ -2,7 +2,7 @@
 
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Event, formatEventDateTime } from '@/features/frequent-flyer/data/events';
+import { Event, formatEventDateParts } from '@/features/frequent-flyer/data/events';
 import L from 'leaflet';
 import { useEffect, useState, useMemo } from 'react';
 
@@ -326,11 +326,14 @@ function EventPopup({
                         </div>
                     )}
                     <div className="flex items-center justify-between gap-2">
-                        {/* Was {event.date} — the raw ISO string, "2026-08-05".
-                            The shared formatter gives "Wed, Aug 5 · 8:00 PM"
-                            and picks up the times the scout now extracts. */}
-                        <span className="stamp text-[11px]">
-                            {formatEventDateTime(event.date, event.startTime, event.endTime)}
+                        {/* Date and time stack deliberately. Run together they
+                            wrapped mid-time in this narrow stamp — "WED, AUG 5
+                            · 6" above a lone "PM". */}
+                        <span className="stamp text-[11px] leading-[1.35] text-center">
+                            {(() => {
+                                const { date, time } = formatEventDateParts(event.date, event.startTime, event.endTime);
+                                return time ? <>{date}<br />{time}</> : date;
+                            })()}
                         </span>
                         <span className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-brand flex items-center gap-1 whitespace-nowrap">
                             View details

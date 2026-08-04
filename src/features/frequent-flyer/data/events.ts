@@ -37,21 +37,37 @@ function formatTime(t: string): string {
 
 // Combine an event's date and optional start/end times into a display string,
 // e.g. "Sat, Aug 1 · 7 PM – 2 AM". Falls back to the raw date if unparseable.
-export function formatEventDateTime(
+/**
+ * The date and time as separate strings, for places that stack them rather
+ * than run them together — a narrow stamp wrapping mid-time reads as
+ * "WED, AUG 5 · 6" / "PM", which is worse than two deliberate lines.
+ */
+export function formatEventDateParts(
     date: string,
     startTime?: string | null,
     endTime?: string | null,
-): string {
+): { date: string; time: string | null } {
     const d = new Date(`${date}T00:00:00`);
     const datePart = isNaN(d.getTime())
         ? date
         : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
-    if (!startTime) return datePart;
+    if (!startTime) return { date: datePart, time: null };
     const timePart = endTime
         ? `${formatTime(startTime)} – ${formatTime(endTime)}`
         : formatTime(startTime);
-    return `${datePart} · ${timePart}`;
+    return { date: datePart, time: timePart };
+}
+
+export function formatEventDateTime(
+    date: string,
+    startTime?: string | null,
+    endTime?: string | null,
+): string {
+    // Same source as formatEventDateParts, so the one-line and stacked
+    // renderings can't disagree about a date.
+    const { date: datePart, time } = formatEventDateParts(date, startTime, endTime);
+    return time ? `${datePart} · ${time}` : datePart;
 }
 
 export const events: Event[] = [
