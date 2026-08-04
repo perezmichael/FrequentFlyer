@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { resolveVibeEmoji } from '@/features/frequent-flyer/data/vibeEmoji';
 import EventEditorSheet, { EditorEvent } from '@/features/admin/components/EventEditorSheet';
+import CoverSlide from './CoverSlide';
 
 export interface KitEvent {
     id: string;
@@ -324,6 +325,14 @@ export default function KitClient({ events: rawEvents, from, to, activeDays }: {
 
     const range = `${new Date(`${from}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(`${to}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
 
+    // The cover carries weekdays too — "Monday Aug 4 – Sunday Aug 10" reads as
+    // a week, where "Aug 4 – Aug 10" reads as a filter.
+    const coverRange = (() => {
+        const fmt = (iso: string) => new Date(`${iso}T00:00:00`)
+            .toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+        return `${fmt(from)} – ${fmt(to)}`;
+    })();
+
     return (
         <div className="min-h-screen bg-cream px-6 py-10">
             <h1 className="font-space-grotesk text-[32px] font-bold text-ink">Carousel kit</h1>
@@ -395,6 +404,8 @@ export default function KitClient({ events: rawEvents, from, to, activeDays }: {
                     ))}
                 </div>
             </div>
+
+            <CoverSlide dateRange={coverRange} fonts={fonts} />
 
             {/* Venues first: the coarse dial. Muting one removes its events
                 from every mode at once. */}
