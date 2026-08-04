@@ -197,6 +197,23 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
 
     // How many picks exist at all — the toggle hides itself when there are none,
     // so an empty filter can't be tapped into a dead end.
+    const weekPicks = useMemo(() => {
+        const start = new Date(); start.setHours(0, 0, 0, 0);
+        const end = new Date(start); end.setDate(start.getDate() + 7);
+        const iso = (d: Date) => {
+            const pad = (n: number) => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        };
+        const from = iso(start), to = iso(end);
+        return unifiedItems
+            .filter(i => i.kind === 'event'
+                && i.data.curationLevel === 'ff_curated'
+                && i.sortDate >= from && i.sortDate <= to)
+            .sort((a, b) => a.sortDate < b.sortDate ? -1 : a.sortDate > b.sortDate ? 1 : 0)
+            .slice(0, 6)
+            .map(i => i.data as Event);
+    }, [unifiedItems]);
+
     const pickCount = useMemo(
         () => unifiedItems.filter(i => i.kind === 'event' && i.data.curationLevel === 'ff_curated').length,
         [unifiedItems]
@@ -385,7 +402,34 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                         )}
                     </header>
 
-                    {listings.length > 0 ? (
+                    {listings.length > 0 ? (<>
+                        {/* Picks lead, but as their own section rather than
+                            pinned into the feed — inline they'd break the
+                            timeline, running Aug 4 to Aug 15 and then snapping
+                            back. Hidden entirely when a filter is on, or when
+                            a quiet week leaves nothing curated, so it never
+                            renders an empty shelf. */}
+                        {weekPicks.length > 0 && !picksOnly && dayFilter === null && !neighborhoodFilter && (
+                            <section className={styles.picksStrip}>
+                                <div className={styles.picksHeader}>
+                                    <h2 className={styles.picksTitle}>★ This week&rsquo;s picks</h2>
+                                    <button className={styles.picksAll} onClick={() => setPicksOnly(true)}>
+                                        see all {pickCount} →
+                                    </button>
+                                </div>
+                                <div className={styles.picksRow}>
+                                    {weekPicks.map(e => (
+                                        <div key={`pick-${e.id}`} className={styles.picksItem}>
+                                            <EventCard2
+                                                event={e}
+                                                onClick={() => setDetailEvent(e)}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+
                         <div className={`${styles.grid} stagger-in`}>
                             {(() => { seenImages.clear(); return null; })()}
                             {listings.map((item) => {
@@ -427,6 +471,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                                 }
                             })}
                         </div>
+                        </>
                     ) : (
                         <div className={styles.noResults}>
                             <h3 className="font-space-mono uppercase tracking-[-0.44px]">nothing on this filter. criminal.</h3>
