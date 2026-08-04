@@ -20,6 +20,8 @@ export interface FlyerEvent {
   price?: string | null;
   neighborhood: string;
   vibe?: string[];
+  /** 'ff_curated' earns the pick stamp; anything else renders plain. */
+  curationLevel?: string;
 }
 
 interface FlyerCardProps {
@@ -120,6 +122,14 @@ export default function FlyerCard({ image, event }: FlyerCardProps) {
             transition={{ duration: 0.4, ease: "easeOut" }}
           >
             <div className="content-stretch flex flex-col gap-[12px] items-start max-w-full">
+              {/* The pick stamp, on flyer artwork rather than cream — so it
+                  reads on a dark image the way the cards do on the feed. */}
+              {event.curationLevel === 'ff_curated' && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-flyer px-2 py-0.5 font-space-mono text-[11px] font-bold uppercase tracking-[-0.44px] text-flyer">
+                  ★ FF Pick
+                </span>
+              )}
+
               {/* Title and description */}
               <div className="content-stretch flex flex-col gap-[6px] items-start w-full whitespace-pre-wrap">
                 <p className="font-space-grotesk font-bold leading-[32px] text-flyer text-[32px] tracking-[-0.48px] uppercase w-full">

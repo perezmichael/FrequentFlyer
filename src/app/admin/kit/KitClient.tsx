@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { resolveVibeEmoji } from '@/features/frequent-flyer/data/vibeEmoji';
+import EventEditorSheet, { EditorEvent } from '@/features/admin/components/EventEditorSheet';
 
 export interface KitEvent {
     id: string;
@@ -15,6 +16,24 @@ export interface KitEvent {
     neighborhood: string;
     isPick: boolean;
     sourceUrl: string | null;
+    vibeScore: number | null;
+    status: string;
+    lockedFields: string[];
+    scrapedValues: Record<string, string | null>;
+}
+
+/** Selection modes. "Suggested" is the only one that curates. */
+type Mode = 'suggested' | 'flyers' | 'all';
+
+/** Scores at or above this read as on-manifesto rather than merely real. */
+const SUGGEST_MIN_SCORE = 7;
+
+function pickFor(mode: Mode, events: KitEvent[]): KitEvent[] {
+    if (mode === 'all') return events.filter(e => e.title);
+    if (mode === 'flyers') return events.filter(e => e.flyerUrl && e.title);
+    return events.filter(
+        e => e.flyerUrl && e.title && (e.vibeScore ?? 0) >= SUGGEST_MIN_SCORE,
+    );
 }
 
 /* Instagram portrait. The flyer sits above a cream caption panel, which is the
@@ -48,6 +67,14 @@ function dateLine(e: KitEvent): string {
     const end = clockTime(e.endTime);
     const time = start && end ? `${start} - ${end}` : start;
     return `${weekday} ${month}.${day}${time ? ` ${time}` : ''}`.toUpperCase();
+}
+
+/** "MONDAY AUG.3" — matches the caption's own date styling. */
+function dayHeading(date: string): string {
+    const d = new Date(`${date}T00:00:00`);
+    const weekday = d.toLocaleDateString('en-US', { weekday: 'long' });
+    const month = d.toLocaleDateString('en-US', { month: 'short' });
+    return `${weekday} ${month}.${d.getDate()}`.toUpperCase();
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -87,17 +114,37 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, max
     return lines;
 }
 
-export default function KitClient({ events, from, to, activeDays }: {
+export default function KitClient({ events: rawEvents, from, to, activeDays }: {
     events: KitEvent[]; from: string; to: string; activeDays: number | null;
 }) {
-    // Default to the events that actually have a flyer — the carousel format is
-    // flyer-driven, and a slide without one is a different (branded) look.
+    // Opens on Suggested: scored against vibedoc.md, not merely "has artwork".
+    const [mode, setMode] = useState<Mode>('suggested');
     const [selected, setSelected] = useState<Set<string>>(
-        () => new Set(events.filter(e => e.flyerUrl && e.title).map(e => e.id))
+        () => new Set(pickFor('suggested', rawEvents).map(e => e.id))
     );
+
+    const applyMode = (m: Mode) => {
+        setMode(m);
+        // pickFor reads flyer/title/score — none of which are editable here.
+        setSelected(new Set(pickFor(m, rawEvents).map(e => e.id)));
+    };
+
+    const toggleVenue = (name: string) => setMutedVenues(prev => {
+        const next = new Set(prev);
+        if (next.has(name)) next.delete(name); else next.add(name);
+        return next;
+    });
     const [fonts, setFonts] = useState<{ grotesk: string; mono: string } | null>(null);
     const [busy, setBusy] = useState(false);
     const [tileSize, setTileSize] = useState(170);
+    // Venue is the unit you actually shape a carousel in — dropping five
+    // CINEMA LANDs at once, not clicking five chips.
+    const [mutedVenues, setMutedVenues] = useState<Set<string>>(new Set());
+    // Edits made here, layered over what the server sent. Saving redraws the
+    // slide in place — the alternative is finding the event among 300 in
+    // /admin, fixing it, coming back and reloading.
+    const [edits, setEdits] = useState<Record<string, Partial<KitEvent>>>({});
+    const [editingId, setEditingId] = useState<string | null>(null);
     const canvasRefs = useRef<Record<string, HTMLCanvasElement | null>>({});
 
     useEffect(() => {
@@ -107,10 +154,35 @@ export default function KitClient({ events, from, to, activeDays }: {
         document.fonts.ready.then(() => setFonts({ grotesk, mono }));
     }, []);
 
-    const chosen = useMemo(
-        () => events.filter(e => selected.has(e.id)),
-        [events, selected]
+    const events = useMemo(
+        () => rawEvents.map(e => (edits[e.id] ? { ...e, ...edits[e.id] } : e)),
+        [rawEvents, edits],
     );
+
+    const venues = useMemo(() => {
+        const counts: Record<string, number> = {};
+        for (const e of events) if (e.venue) counts[e.venue] = (counts[e.venue] || 0) + 1;
+        return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    }, [events]);
+
+    const visible = useMemo(
+        () => events.filter(e => !mutedVenues.has(e.venue)),
+        [events, mutedVenues],
+    );
+
+    // A muted venue drops out of the set even if the mode selected it.
+    const chosen = useMemo(
+        () => visible.filter(e => selected.has(e.id)),
+        [visible, selected]
+    );
+
+    // Grouped by date so the set reads as a week rather than a pile. Only days
+    // that actually have slides get a heading.
+    const byDay = useMemo(() => {
+        const groups: Record<string, KitEvent[]> = {};
+        for (const e of chosen) (groups[e.date] = groups[e.date] || []).push(e);
+        return Object.keys(groups).sort().map(date => ({ date, items: groups[date] }));
+    }, [chosen]);
 
     const drawSlide = useCallback(async (canvas: HTMLCanvasElement, e: KitEvent, f: { grotesk: string; mono: string }) => {
         const ctx = canvas.getContext('2d');
@@ -235,6 +307,15 @@ export default function KitClient({ events, from, to, activeDays }: {
         setBusy(false);
     };
 
+    // Clicking a slide opens the shared editor. Everything the tile used to
+    // edit inline lives there now, alongside status and the venue's original
+    // values — one editor, two mount points.
+    const editing = events.find(e => e.id === editingId) || null;
+
+    const applyPatch = (id: string, patch: Partial<KitEvent>) => {
+        setEdits(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+    };
+
     const toggle = (id: string) => setSelected(prev => {
         const next = new Set(prev);
         if (next.has(id)) next.delete(id); else next.add(id);
@@ -247,7 +328,7 @@ export default function KitClient({ events, from, to, activeDays }: {
         <div className="min-h-screen bg-cream px-6 py-10">
             <h1 className="font-space-grotesk text-[32px] font-bold text-ink">Carousel kit</h1>
             <p className="font-space-mono text-[13px] uppercase tracking-[-0.44px] text-ink/60 mt-1">
-                {range} · {chosen.length} slides selected · {events.length} events in window
+                {range} · {chosen.length} slides selected · {visible.length} of {events.length} events in play
             </p>
 
             {/* A flyer often lands weeks before the date. Without this the kit
@@ -278,12 +359,26 @@ export default function KitClient({ events, from, to, activeDays }: {
                 >
                     {busy ? 'Downloading…' : `Download all (${chosen.length})`}
                 </button>
-                <button
-                    onClick={() => setSelected(new Set(events.filter(e => e.flyerUrl && e.title).map(e => e.id)))}
-                    className="rounded-full border border-black/30 px-5 py-2 font-space-mono text-[13px] uppercase tracking-[-0.44px] text-ink/70 hover:border-black/60"
-                >
-                    Reset to flyers only
-                </button>
+                {/* Suggested is the only one that curates. Flyers is what this
+                    page used to do by default — it picked 46 of 50 events one
+                    weekend and averaged a lower vibe score than the four it
+                    dropped, so it was filtering, not choosing. */}
+                {([
+                    ['suggested', 'Suggested', `on-manifesto (score ${SUGGEST_MIN_SCORE}+) with a flyer`],
+                    ['flyers', 'Flyers', 'anything with artwork'],
+                    ['all', 'All', 'everything in the window'],
+                ] as const).map(([m, label, hint]) => (
+                    <button
+                        key={m}
+                        onClick={() => applyMode(m)}
+                        title={hint}
+                        className={`rounded-full border px-4 py-2 font-space-mono text-[13px] uppercase tracking-[-0.44px] transition-colors ${
+                            mode === m ? 'bg-ink text-cream border-ink' : 'border-black/30 text-ink/70 hover:border-black/60'
+                        }`}
+                    >
+                        {label} ({pickFor(m, visible).length})
+                    </button>
+                ))}
 
                 <div className="ml-auto flex items-center gap-2">
                     <span className="font-space-mono text-[11px] uppercase tracking-[-0.44px] text-ink/50">Size</span>
@@ -301,38 +396,81 @@ export default function KitClient({ events, from, to, activeDays }: {
                 </div>
             </div>
 
-            {/* Everything in the window, so nothing is silently dropped. */}
-            <div className="mt-8 flex flex-wrap gap-2">
-                {events.map(e => {
-                    const on = selected.has(e.id);
-                    return (
-                        <button
-                            key={e.id}
-                            onClick={() => toggle(e.id)}
-                            title={e.flyerUrl ? 'Has a flyer' : 'No flyer — renders as a branded card'}
-                            className={`rounded-full border px-3 py-1.5 font-space-mono text-[11px] uppercase tracking-[-0.44px] transition-colors ${
-                                on ? 'bg-ink text-cream border-ink' : 'border-black/30 text-ink/60'
-                            }`}
-                        >
-                            {e.flyerUrl ? '' : '○ '}{e.title || '(untitled)'}
-                        </button>
-                    );
-                })}
+            {/* Venues first: the coarse dial. Muting one removes its events
+                from every mode at once. */}
+            <div className="mt-8">
+                <div className="font-space-mono text-[11px] uppercase tracking-[-0.44px] text-ink/50 mb-2">
+                    Venues — click to mute
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    {venues.map(([name, count]) => {
+                        const muted = mutedVenues.has(name);
+                        return (
+                            <button
+                                key={name}
+                                onClick={() => toggleVenue(name)}
+                                className={`rounded-full border px-3 py-1.5 font-space-mono text-[11px] uppercase tracking-[-0.44px] transition-colors ${
+                                    muted
+                                        ? 'border-black/20 text-ink/30 line-through'
+                                        : 'border-black/40 text-ink hover:border-black/70'
+                                }`}
+                            >
+                                {name} · {count}
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
+
+            {/* Per-event control, scoped to the venues still in play, behind a
+                disclosure — at the 30-day window this is 269 chips. */}
+            <details className="mt-5">
+                <summary className="cursor-pointer font-space-mono text-[11px] uppercase tracking-[-0.44px] text-ink/50">
+                    Individual events ({visible.length}) — click to add or drop
+                </summary>
+                <div className="mt-3 flex flex-wrap gap-2">
+                    {visible.map(e => {
+                        const on = selected.has(e.id);
+                        return (
+                            <button
+                                key={e.id}
+                                onClick={() => toggle(e.id)}
+                                title={e.flyerUrl ? 'Has a flyer' : 'No flyer — renders as a branded card'}
+                                className={`rounded-full border px-3 py-1.5 font-space-mono text-[11px] uppercase tracking-[-0.44px] transition-colors ${
+                                    on ? 'bg-ink text-cream border-ink' : 'border-black/30 text-ink/60'
+                                }`}
+                            >
+                                {e.flyerUrl ? '' : '○ '}{e.title || '(untitled)'}
+                                {e.vibeScore !== null && (
+                                    <span className={on ? 'text-cream/55' : 'text-ink/35'}> · {e.vibeScore}</span>
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+            </details>
 
             {/* Contact-sheet density: the whole point is judging the set at a
                 glance, so tiles pack full-width rather than capping at the
                 feed's 3 columns (which only exists because the feed shares the
                 screen with the map). */}
-            <div
-                className="mt-10 grid gap-4"
-                style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${tileSize}px, 1fr))` }}
-            >
-                {chosen.map(e => (
+            {byDay.map(({ date, items }) => (
+              <section key={date} className="mt-10">
+                <h2 className="font-space-mono text-[13px] uppercase tracking-[-0.44px] text-ink border-b border-black/10 pb-2 mb-4">
+                    {dayHeading(date)}
+                    <span className="text-ink/40"> · {items.length} {items.length === 1 ? 'slide' : 'slides'}</span>
+                </h2>
+                <div
+                    className="grid gap-4"
+                    style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${tileSize}px, 1fr))` }}
+                >
+                {items.map(e => (
                     <div key={e.id} className="flex flex-col gap-2">
                         <canvas
                             ref={el => { canvasRefs.current[e.id] = el; }}
-                            className="w-full rounded-[10px] border border-black/10"
+                            onClick={() => setEditingId(e.id)}
+                            title="Edit this event"
+                            className="w-full cursor-pointer rounded-[10px] border border-black/10 transition-opacity hover:opacity-90"
                             style={{ aspectRatio: `${W} / ${H}` }}
                         />
                         <button
@@ -345,19 +483,63 @@ export default function KitClient({ events, from, to, activeDays }: {
                             the listed time before this goes out. A plain link
                             under the CTA — a hover-only corner badge was too
                             small a target. */}
-                        {e.sourceUrl && (
-                            <a
-                                href={e.sourceUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-center font-space-mono text-[10px] uppercase tracking-[-0.44px] text-brand underline underline-offset-2"
-                            >
-                                source ↗
-                            </a>
-                        )}
+                        <div className="flex items-center justify-center gap-2 font-space-mono text-[10px] uppercase tracking-[-0.44px]">
+                            {e.vibeScore !== null && (
+                                <span className="text-ink/45" title="Vibe score against vibedoc.md">
+                                    {e.vibeScore}/10
+                                </span>
+                            )}
+                            {!e.startTime && <span className="text-brand" title="No start time — the caption shows the date alone">no time</span>}
+                            {e.isPick && <span className="text-brand" title="An FF Pick">★</span>}
+                            <button onClick={() => setEditingId(e.id)} className="text-ink/50 underline underline-offset-2 hover:text-ink">
+                                edit
+                            </button>
+                            {e.sourceUrl && (
+                                <a href={e.sourceUrl} target="_blank" rel="noopener noreferrer"
+                                    className="text-brand underline underline-offset-2">
+                                    source ↗
+                                </a>
+                            )}
+                        </div>
                     </div>
                 ))}
-            </div>
+                </div>
+              </section>
+            ))}
+
+            {editing && (
+                <EventEditorSheet
+                    event={toEditorEvent(editing)}
+                    onClose={() => setEditingId(null)}
+                    onSaved={patch => applyPatch(editing.id, fromEditorPatch(patch))}
+                />
+            )}
         </div>
     );
+}
+
+/** KitEvent → the sheet's shape. */
+function toEditorEvent(e: KitEvent): EditorEvent {
+    return {
+        id: e.id, title: e.title, date: e.date,
+        startTime: e.startTime, endTime: e.endTime,
+        vibe: e.vibe, flyerUrl: e.flyerUrl, isPick: e.isPick,
+        status: e.status, venue: e.venue, neighborhood: e.neighborhood,
+        sourceUrl: e.sourceUrl, vibeScore: e.vibeScore,
+        lockedFields: e.lockedFields, scrapedValues: e.scrapedValues,
+    };
+}
+
+/** …and back, so a save redraws the slide without a refetch. */
+function fromEditorPatch(p: Partial<EditorEvent>): Partial<KitEvent> {
+    const out: Partial<KitEvent> = {};
+    if ('title' in p) out.title = p.title!;
+    if ('date' in p) out.date = p.date!;
+    if ('startTime' in p) out.startTime = p.startTime ?? null;
+    if ('endTime' in p) out.endTime = p.endTime ?? null;
+    if ('vibe' in p) out.vibe = p.vibe ?? null;
+    if ('flyerUrl' in p) out.flyerUrl = p.flyerUrl ?? null;
+    if ('isPick' in p) out.isPick = p.isPick!;
+    if ('status' in p) out.status = p.status!;
+    return out;
 }

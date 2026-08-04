@@ -970,7 +970,7 @@ def run_master_scout():
                     # reads…", curly vs straight quotes), and exact matching
                     # inserted each variant as a separate row — duplicate cards
                     # in the feed.
-                    same_slot = supabase.table("events").select("id, status, event_name") \
+                    same_slot = supabase.table("events").select("id, status, event_name, metadata") \
                         .eq("event_date", event['date']) \
                         .eq("venue_id", venue_id).execute().data
                     existing = [r for r in same_slot
@@ -980,7 +980,28 @@ def run_master_scout():
                         is_new = False
                         event_id = existing[0]['id']
                         # Refresh scraped fields; leave status/curation alone.
-                        supabase.table("events").update(event_payload).eq("id", event_id).execute()
+                        # An editor's correction outranks the venue's page.
+                        # Without this, a title or time fixed by hand is
+                        # replaced by the next run and the admin editor
+                        # becomes a treadmill.
+                        locked = (existing[0].get('metadata') or {}).get('editor_locked') or []
+                        payload = {k: v for k, v in event_payload.items() if k not in locked}
+                        if 'metadata' in payload and locked:
+                            # Don't let a refreshed metadata blob drop the lock
+                            # list or the stored originals.
+                            prior = existing[0].get('metadata') or {}
+                            payload['metadata'] = {
+                                **payload['metadata'],
+                                'editor_locked': locked,
+                                **({'scraped_values': prior['scraped_values']}
+                                   if 'scraped_values' in prior else {}),
+                            }
+                            for key in locked:
+                                if key in ('description', 'price'):
+                                    payload['metadata'][key] = prior.get(key, payload['metadata'].get(key))
+                        if locked:
+                            print(f"   🔒 Keeping editor values for: {', '.join(locked)}")
+                        supabase.table("events").update(payload).eq("id", event_id).execute()
                     else:
                         is_new = True
                         event_payload["status"] = "pending"
