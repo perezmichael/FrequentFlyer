@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import { getEventById } from '@/lib/queries';
 import { formatEventDateTime } from '@/features/frequent-flyer/data/events';
 import { absoluteUrl } from '@/lib/site';
+import { withReferral } from '@/lib/outbound';
 import { hasRealImage } from '@/features/frequent-flyer/data/vibePlaceholders';
 import GeneratedFlyer from '@/features/frequent-flyer/components/GeneratedFlyer';
 import ShareButton from '@/features/frequent-flyer/components/ShareButton';
@@ -167,7 +168,7 @@ export default async function EventPage({ params }: { params: { id: string } }) 
                     <div className="mt-6 flex flex-col gap-3">
                         {event.url && (
                             <a
-                                href={event.url}
+                                href={withReferral(event.url)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className={styles.ticketButton}

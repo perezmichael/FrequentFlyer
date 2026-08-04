@@ -256,7 +256,7 @@ def upload_flyer(image_url, event_id, referer=None):
     """
     try:
         headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+            "User-Agent": BOT_UA,
             "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
         }
         # Some venue CDNs reject hotlinks without a same-origin referer.
@@ -301,7 +301,7 @@ def search_event_image(event_name, venue_name):
         token_resp = requests.get(
             "https://duckduckgo.com/",
             params={"q": query},
-            headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"},
+            headers={"User-Agent": BOT_UA},
             timeout=10,
         )
         # Extract vqd token from the page
@@ -328,7 +328,7 @@ def search_event_image(event_name, venue_name):
                 "p": "1",
             },
             headers={
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+                "User-Agent": BOT_UA,
                 "Referer": "https://duckduckgo.com/",
             },
             timeout=10,
@@ -522,6 +522,66 @@ def extract_best_image(page):
         pass
 
     return None
+
+
+# ---------------------------------------------------------------------------
+# Being a good guest
+#
+# The scout reads public listings and links back, but it was announcing itself
+# as an anonymous Chrome install. If the plan is to walk into a venue and say
+# "we send you traffic", the bot should be recognisable in their logs as us,
+# with a URL that explains what it is and how to be removed.
+# ---------------------------------------------------------------------------
+BOT_UA = (
+    "FrequentFlyerBot/1.0 (+https://frequentflyerla.com/agents; "
+    "LA events listings; contact via the site)"
+)
+
+# Playwright still needs a browser engine string — venue sites break without
+# one — so identify ourselves on the end of a real UA rather than replacing it.
+BROWSER_UA = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 " + BOT_UA
+)
+
+_robots_cache = {}
+
+
+def robots_allows(url):
+    """
+    True when a venue's robots.txt permits fetching this URL.
+
+    Cached per host, and fails OPEN: an unreachable or malformed robots.txt
+    shouldn't silently empty the calendar. A venue that wants us gone can say
+    so and be believed on the next run.
+    """
+    from urllib.parse import urlparse
+    from urllib.robotparser import RobotFileParser
+
+    try:
+        parts = urlparse(url)
+        if not parts.scheme.startswith("http"):
+            return True
+        host = f"{parts.scheme}://{parts.netloc}"
+    except Exception:
+        return True
+
+    if host not in _robots_cache:
+        parser = RobotFileParser()
+        parser.set_url(f"{host}/robots.txt")
+        try:
+            parser.read()
+            _robots_cache[host] = parser
+        except Exception:
+            _robots_cache[host] = None  # unreachable — treat as permissive
+
+    parser = _robots_cache[host]
+    if parser is None:
+        return True
+    try:
+        return parser.can_fetch(BOT_UA, url)
+    except Exception:
+        return True
 
 
 def clean_time(value):
@@ -724,12 +784,18 @@ def run_master_scout():
                 print(f"\n⏭️  {v['name']}: no events URL, coords-only entry — skipping scrape.")
                 continue
 
+            # Ask before entering. A venue that disallows crawling gets
+            # skipped rather than scraped politely-but-anyway.
+            if not robots_allows(v['url']):
+                print(f"\n🚫 {v['name']}: robots.txt disallows this path — skipping.")
+                continue
+
             print(f"\n🛰️  SCOUTING: {v['name']} ({v['neighborhood']})...")
 
             # Fresh browser context per venue — prevents one venue's navigation
             # crash from poisoning subsequent venues
             context = browser.new_context(
-                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+                user_agent=BROWSER_UA,
                 viewport={"width": 1280, "height": 800},
                 locale="en-US",
                 timezone_id="America/Los_Angeles"
