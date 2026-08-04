@@ -2,9 +2,11 @@ import type { MetadataRoute } from 'next';
 import { getEvents, getGuides } from '@/lib/queries';
 import { absoluteUrl } from '@/lib/site';
 
-// Rebuilt hourly. Events expire and the scout adds new ones daily, so a
-// statically generated sitemap would go stale within a day.
-export const revalidate = 3600;
+// Rendered per request. The queries behind it use cache: 'no-store', so Next
+// can't prerender this at build time — it tried, logged a "Dynamic server
+// usage" error, and fell back to dynamic anyway. Saying so up front keeps the
+// build log clean and matches what actually ships.
+export const dynamic = 'force-dynamic';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const now = new Date();

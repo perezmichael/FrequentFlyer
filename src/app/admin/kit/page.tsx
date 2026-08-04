@@ -47,7 +47,7 @@ export default async function KitPage({
 
     const { data, error } = await supabase
         .from('events')
-        .select('id, event_name, event_date, start_time, end_time, flyer_url, event_vibe, curation_level, source_url, metadata, venues (name, neighborhood, url)')
+        .select('id, event_name, event_date, start_time, end_time, flyer_url, event_vibe, curation_level, source_url, status, metadata, venues (name, neighborhood, url)')
         .gte('event_date', from)
         .lte('event_date', to)
         .eq('status', 'approved')
@@ -74,6 +74,11 @@ export default async function KitPage({
         // picked 46 of 50 events and averaged a *lower* score than the ones
         // it left out.
         vibeScore: typeof e.metadata?.vibe_score === 'number' ? e.metadata.vibe_score : null,
+        // Everything here is status 'approved' by the query above, but the
+        // sheet is shared with /admin and shows status either way.
+        status: e.status || 'approved',
+        lockedFields: Array.isArray(e.metadata?.editor_locked) ? e.metadata.editor_locked : [],
+        scrapedValues: e.metadata?.scraped_values || {},
     }));
 
     return <KitClient events={events} from={from} to={to} activeDays={Number.isFinite(days) && days > 0 ? days : null} />;
