@@ -46,7 +46,10 @@ def build_prompt(today: date) -> str:
     you to know the year. Give the model today's date so it can resolve that,
     and tell it plainly to leave blank whatever isn't printed.
     """
-    horizon = today + timedelta(days=365)
+    # 120 days, not a year: an undated flyer resolving 11 months out is almost
+    # always a year-off mistake rather than a real listing.
+    horizon = today + timedelta(days=120)
+    year, next_year = today.year, today.year + 1
     return f"""
 You are reading a single event flyer for a Los Angeles events listing.
 
@@ -72,8 +75,12 @@ RULES
      "Canyon Sunday Pop-Up: Nice Bite", "Milk Crate Mondays w/ Alex Santos".
    - If it lists a bill of several acts, join the headliners: "Isolate, Boy Grim".
    - Only return "" if the image genuinely has no legible headline text.
-3. "date": flyers rarely print the year. Resolve each printed day/month to the
-   NEXT occurrence on or after {today}, and never past {horizon}.
+3. "date": flyers rarely print the year. When no year is printed, assume the
+   CURRENT year ({year}) — use {next_year} ONLY if that date has already passed.
+   A flyer saying "FRI AUG 7" read on {today} is {year}-08-07, three days away;
+   it is NOT {next_year}. Do not reason from the printed weekday: flyers get
+   weekdays wrong, and the day/month is the reliable part.
+   Never return a date past {horizon}.
    A poster listing "AUG 02 · AUG 09 · AUG 16" is three objects, each with its
    own title reflecting that date's act where the flyer names one.
 4. "start_time"/"end_time": 24-hour "HH:MM". Prefer the show time over doors;
@@ -133,8 +140,15 @@ def read_flyer(path: Path, prompt: str) -> list[dict]:
     return [e for e in entries if isinstance(e, dict)]
 
 
+FAR_FUTURE_DAYS = 200
+
+
 def valid_date(value: str, today: date) -> str | None:
-    """A date must parse, and must not be in the past."""
+    """
+    A date must parse, must not be in the past, and must not be absurdly far
+    out. An undated flyer that resolves 11 months ahead is a year-off error,
+    not a listing — that happened to two of the first nine real flyers.
+    """
     if not value or not re.match(r"^\d{4}-\d{2}-\d{2}$", value):
         return None
     try:
@@ -142,6 +156,8 @@ def valid_date(value: str, today: date) -> str | None:
     except ValueError:
         return None
     if parsed < today:
+        return None
+    if (parsed - today).days > FAR_FUTURE_DAYS:
         return None
     return value
 
@@ -200,9 +216,13 @@ def main():
     if not inbox.is_dir():
         sys.exit(f"No such folder: {inbox}")
 
+    # Recursive: a downloader extension drops a folder per collection, and
+    # requiring a flat directory just means moving files around by hand.
     files = sorted(
-        p for p in inbox.iterdir()
-        if p.suffix.lower() in IMAGE_SUFFIXES and not p.name.startswith(".")
+        p for p in inbox.rglob("*")
+        if p.is_file()
+        and p.suffix.lower() in IMAGE_SUFFIXES
+        and not p.name.startswith(".")
     )
     if not files:
         print(f"{inbox} has no images.")
@@ -210,7 +230,9 @@ def main():
 
     today = date.today()
     prompt = build_prompt(today)
-    print(f"{'APPLY' if apply else 'DRY RUN'} — reading {len(files)} flyer(s)\n")
+    folders = {p.parent for p in files}
+    where = "" if len(folders) <= 1 else f" across {len(folders)} folders"
+    print(f"{'APPLY' if apply else 'DRY RUN'} — reading {len(files)} flyer(s){where}\n")
 
     created = skipped = 0
     for path in files:
