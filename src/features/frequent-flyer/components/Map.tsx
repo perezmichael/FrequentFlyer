@@ -2,7 +2,7 @@
 
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Event } from '@/features/frequent-flyer/data/events';
+import { Event, formatEventDateTime } from '@/features/frequent-flyer/data/events';
 import L from 'leaflet';
 import { useEffect, useState, useMemo } from 'react';
 
@@ -315,8 +315,23 @@ function EventPopup({
                 >
                     <div className="text-base font-bold mb-1 text-ink leading-tight font-space-grotesk">{event.title}</div>
                     <div className="text-sm text-black/55 mb-3 font-space-mono">{event.location}</div>
+                    {/* The pick stamp belongs anywhere an event appears — it's
+                        the one editorial claim the app makes, and it was
+                        missing from the map. */}
+                    {event.curationLevel === 'ff_curated' && (
+                        <div className="mb-2">
+                            <span className="inline-flex items-center gap-1 rounded-full border border-brand px-2 py-0.5 font-space-mono text-[10px] font-bold uppercase tracking-[-0.44px] text-brand">
+                                ★ FF Pick
+                            </span>
+                        </div>
+                    )}
                     <div className="flex items-center justify-between gap-2">
-                        <span className="stamp text-[11px]">{event.date}</span>
+                        {/* Was {event.date} — the raw ISO string, "2026-08-05".
+                            The shared formatter gives "Wed, Aug 5 · 8:00 PM"
+                            and picks up the times the scout now extracts. */}
+                        <span className="stamp text-[11px]">
+                            {formatEventDateTime(event.date, event.startTime, event.endTime)}
+                        </span>
                         <span className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-brand flex items-center gap-1 whitespace-nowrap">
                             View details
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
