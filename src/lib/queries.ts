@@ -68,6 +68,7 @@ export async function getEvents(): Promise<Event[]> {
         // Prefer the event's own page (scraped source_url) over the venue calendar.
         url: e.source_url || e.venues?.url,
         curationLevel: e.curation_level || 'scraped',
+        vibeScore: typeof e.metadata?.vibe_score === 'number' ? e.metadata.vibe_score : null,
     }));
 }
 
@@ -127,6 +128,7 @@ export async function getEventById(id: string): Promise<Event | null> {
         vibe: e.event_vibe ? [e.event_vibe] : ['Event'],
         url: e.source_url || e.venues?.url,
         curationLevel: e.curation_level || 'scraped',
+        vibeScore: typeof e.metadata?.vibe_score === 'number' ? e.metadata.vibe_score : null,
     };
 }
 

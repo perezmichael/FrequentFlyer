@@ -25,6 +25,8 @@ export interface Event {
     url?: string | null;
     /** 'scraped' | 'ff_curated' | 'promoted' — drives tiered card treatment. */
     curationLevel?: 'scraped' | 'ff_curated' | 'promoted';
+    /** The scout's 1-10 score against vibedoc.md; orders cards within a day. */
+    vibeScore?: number | null;
 }
 
 // "7 PM" / "7:30 PM" from a "HH:MM[:SS]" string.
