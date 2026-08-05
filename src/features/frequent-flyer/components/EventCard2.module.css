@@ -150,3 +150,19 @@
     color: rgba(255, 255, 255, 0.55);
     text-align: center;
 }
+
+/* Compact (picks strip): the stamp sits on its own line so the title gets the
+   full card width, and the title is capped at two lines so one long name
+   can't set the height of every card in the row. */
+.pickStacked {
+    align-self: flex-start;
+    margin-left: 0;
+    margin-bottom: 4px;
+}
+
+.titleClamped {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}

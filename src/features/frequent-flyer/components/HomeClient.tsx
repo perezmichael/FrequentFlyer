@@ -144,7 +144,9 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
         const windowStart = new Date();
         windowStart.setHours(0, 0, 0, 0);
         const windowEnd = new Date(windowStart);
-        windowEnd.setDate(windowStart.getDate() + WINDOW_DAYS);
+        // "See all picks" means all of them — a pick five weeks out is still a
+        // pick, and capping it at the feed's 30 days silently hid some.
+        windowEnd.setDate(windowStart.getDate() + (picksOnly ? 3650 : WINDOW_DAYS));
         windowEnd.setHours(23, 59, 59, 999);
 
         for (const event of initialEvents) {
@@ -174,7 +176,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
         }
 
         return items;
-    }, [initialEvents, recurringEvents]);
+    }, [initialEvents, recurringEvents, picksOnly]);
 
     // Filter by day + neighborhood
     const filteredItems = useMemo(() => {
@@ -197,9 +199,20 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
 
     // How many picks exist at all — the toggle hides itself when there are none,
     // so an empty filter can't be tapped into a dead end.
+    /**
+     * Picks between today and the end of this week (Sunday).
+     *
+     * "This week's picks" was a rolling seven days while "see all" showed
+     * thirty — two different weeks in one component, and neither matched the
+     * range the Instagram post covers. Sunday is the boundary people actually
+     * mean, and every pick inside it shows: the row scrolls, so there's no
+     * reason to cap it and hide a night you starred.
+     */
     const weekPicks = useMemo(() => {
         const start = new Date(); start.setHours(0, 0, 0, 0);
-        const end = new Date(start); end.setDate(start.getDate() + 7);
+        const end = new Date(start);
+        // 0 = Sunday, so a Sunday today ends today rather than jumping a week.
+        end.setDate(start.getDate() + ((7 - start.getDay()) % 7));
         const iso = (d: Date) => {
             const pad = (n: number) => String(n).padStart(2, '0');
             return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -210,7 +223,6 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                 && i.data.curationLevel === 'ff_curated'
                 && i.sortDate >= from && i.sortDate <= to)
             .sort((a, b) => a.sortDate < b.sortDate ? -1 : a.sortDate > b.sortDate ? 1 : 0)
-            .slice(0, 6)
             .map(i => i.data as Event);
     }, [unifiedItems]);
 
@@ -422,6 +434,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                                         <div key={`pick-${e.id}`} className={styles.picksItem}>
                                             <EventCard2
                                                 event={e}
+                                                compact
                                                 onClick={() => setDetailEvent(e)}
                                             />
                                         </div>
