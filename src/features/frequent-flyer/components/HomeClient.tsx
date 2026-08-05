@@ -20,6 +20,14 @@ const Map = dynamic(() => import('@/features/frequent-flyer/components/Map'), {
 interface HomeClientProps {
     initialEvents: Event[];
     recurringEvents?: RecurringEvent[];
+    /**
+     * Open scoped to one neighborhood — the /[neighborhood] landing pages.
+     *
+     * Seeds the filter rather than locking it: someone who lands on
+     * /long-beach from a flyer should still be able to look at the rest of LA
+     * without hitting a wall. The canonical name as venues store it.
+     */
+    initialNeighborhood?: string;
 }
 
 // A unified item that can be either a one-off event or a recurring one
@@ -125,11 +133,11 @@ type Listing = ({
     rank: number;
 };
 
-export default function HomeClient({ initialEvents, recurringEvents = [] }: HomeClientProps) {
+export default function HomeClient({ initialEvents, recurringEvents = [], initialNeighborhood }: HomeClientProps) {
     const today = new Date().getDay(); // 0=Sun
     // Default to All so a cold open shows everything upcoming, not just today.
     const [dayFilter, setDayFilter] = useState<number | null>(null);
-    const [neighborhoodFilter, setNeighborhoodFilter] = useState<string | null>(null);
+    const [neighborhoodFilter, setNeighborhoodFilter] = useState<string | null>(initialNeighborhood ?? null);
     const [picksOnly, setPicksOnly] = useState(false);
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
     const [detailEvent, setDetailEvent] = useState<Event | null>(null);
@@ -207,6 +215,10 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
      * range the Instagram post covers. Sunday is the boundary people actually
      * mean, and every pick inside it shows: the row scrolls, so there's no
      * reason to cap it and hide a night you starred.
+     *
+     * Scoped to the neighborhood when one is active, so a /[neighborhood]
+     * landing page leads with that area's picks instead of a strip full of
+     * places a twenty-mile drive away.
      */
     const weekPicks = useMemo(() => {
         const start = new Date(); start.setHours(0, 0, 0, 0);
@@ -221,14 +233,19 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
         return unifiedItems
             .filter(i => i.kind === 'event'
                 && i.data.curationLevel === 'ff_curated'
+                && (!neighborhoodFilter || i.data.neighborhood === neighborhoodFilter)
                 && i.sortDate >= from && i.sortDate <= to)
             .sort((a, b) => a.sortDate < b.sortDate ? -1 : a.sortDate > b.sortDate ? 1 : 0)
             .map(i => i.data as Event);
-    }, [unifiedItems]);
+    }, [unifiedItems, neighborhoodFilter]);
 
+    // Counts the same set "see all" will land on, neighborhood included —
+    // otherwise the strip offers "see all 21" and the filtered view shows 3.
     const pickCount = useMemo(
-        () => unifiedItems.filter(i => i.kind === 'event' && i.data.curationLevel === 'ff_curated').length,
-        [unifiedItems]
+        () => unifiedItems.filter(i => i.kind === 'event'
+            && i.data.curationLevel === 'ff_curated'
+            && (!neighborhoodFilter || i.data.neighborhood === neighborhoodFilter)).length,
+        [unifiedItems, neighborhoodFilter]
     );
 
     // Derive neighborhoods from all items
@@ -360,8 +377,12 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                 {/* Left: Unified event list */}
                 <div className={`${styles.listContainer} ${mobileTab !== 'list' ? styles.hiddenMobile : ''}`}>
                     <header className={styles.header}>
+                        {/* Names the area when one is in view. On a
+                            /[neighborhood] landing page this is the first thing
+                            someone arriving from a printed flyer reads, and it
+                            has to confirm they're in the right place. */}
                         <h1 className={`${styles.title} font-space-grotesk`}>
-                            What&apos;s happening
+                            What&apos;s happening{neighborhoodFilter ? ` in ${neighborhoodFilter}` : ''}
                         </h1>
 
                         {/* Says what's actually on screen. The heading used to
@@ -374,6 +395,20 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                             {picksOnly ? ' · FF Picks' : dayFilter !== null ? ` · ${DAY_NAMES_SHORT[dayFilter]}s` : ` · next ${WINDOW_DAYS} days`}
                             {neighborhoodFilter ? ` · ${neighborhoodFilter}` : ' · across LA'}
                         </p>
+
+                        {/* A neighborhood page is an entry point, not a cage —
+                            someone who scanned a Long Beach flyer may well want
+                            to see the rest of the city. Only shown when the page
+                            itself is scoped; the pills already cover the case
+                            where you filtered your own way here. */}
+                        {initialNeighborhood && (
+                            <a
+                                href="/"
+                                className="inline-block mt-[6px] font-space-mono uppercase text-[11px] tracking-[-0.44px] text-brand underline-offset-4 hover:underline"
+                            >
+                                ← everything across LA
+                            </a>
+                        )}
 
                         {/* Day-of-week pills */}
                         <FilterPillRow
@@ -421,7 +456,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [] }: Home
                             back. Hidden entirely when a filter is on, or when
                             a quiet week leaves nothing curated, so it never
                             renders an empty shelf. */}
-                        {weekPicks.length > 0 && !picksOnly && dayFilter === null && !neighborhoodFilter && (
+                        {weekPicks.length > 0 && !picksOnly && dayFilter === null && (
                             <section className={styles.picksStrip}>
                                 <div className={styles.picksHeader}>
                                     <h2 className={styles.picksTitle}>★ This week&rsquo;s picks</h2>

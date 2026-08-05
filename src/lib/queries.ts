@@ -144,6 +144,58 @@ export async function getVenues() {
     return data || [];
 }
 
+export type NeighborhoodSummary = {
+    /** The canonical name as venues store it, e.g. "Echo Park". */
+    name: string;
+    /** Upcoming one-off events. */
+    events: number;
+    /** Approved recurring nights. */
+    recurring: number;
+};
+
+/**
+ * Neighborhoods that currently have something to show, with counts.
+ *
+ * Backs the /[neighborhood] routes and their sitemap entries. Derived from the
+ * data rather than a hardcoded list: a neighborhood earns a page by having
+ * events in it, and loses the page when it runs dry. That's deliberate — a
+ * printed QR code pointing at an empty page is worse than a 404, because the
+ * person scanning it has already walked over to read the flyer.
+ *
+ * 'Unknown' is excluded. It's the fallback for a venue with no neighborhood
+ * set, not a place anyone can go.
+ */
+export async function getNeighborhoods(): Promise<NeighborhoodSummary[]> {
+    const [eventsRes, recurringRes] = await Promise.all([
+        supabase
+            .from('events')
+            .select('venues(neighborhood)')
+            .eq('status', 'approved')
+            .gte('event_date', todayInLA()),
+        supabase
+            .from('recurring_events')
+            .select('venues(neighborhood)')
+            .eq('status', 'approved'),
+    ]);
+
+    if (eventsRes.error) console.error('Error fetching event neighborhoods:', eventsRes.error);
+    if (recurringRes.error) console.error('Error fetching recurring neighborhoods:', recurringRes.error);
+
+    const tally = new Map<string, NeighborhoodSummary>();
+    const bump = (raw: any, key: 'events' | 'recurring') => {
+        const name = raw?.venues?.neighborhood;
+        if (!name || name === 'Unknown') return;
+        const row = tally.get(name) ?? { name, events: 0, recurring: 0 };
+        row[key] += 1;
+        tally.set(name, row);
+    };
+
+    for (const row of eventsRes.data || []) bump(row, 'events');
+    for (const row of recurringRes.data || []) bump(row, 'recurring');
+
+    return [...tally.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export async function getGuides(): Promise<GuideWithItems[]> {
     const { data, error } = await supabase
         .from('guides')
