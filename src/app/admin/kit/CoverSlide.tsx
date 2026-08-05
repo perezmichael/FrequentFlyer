@@ -33,6 +33,57 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     });
 }
 
+/** Normalise any CSS colour into the 6-digit hex <input type="color"> wants. */
+function toHexColor(c: string): string {
+    if (!c) return '#000000';
+    if (c.startsWith('#')) {
+        return c.length === 4 ? '#' + c.slice(1).split('').map(x => x + x).join('') : c.slice(0, 7);
+    }
+    const m = c.match(/\d+/g);
+    if (m && m.length >= 3) {
+        const h = (n: string) => Number(n).toString(16).padStart(2, '0');
+        return `#${h(m[0])}${h(m[1])}${h(m[2])}`;
+    }
+    return '#000000';
+}
+
+/**
+ * The handful of colours the artwork is actually made of.
+ *
+ * Sampling a downscaled copy and bucketing into a coarse RGB grid is enough —
+ * the point isn't a perfect quantiser, it's giving you type colours that came
+ * out of your own image rather than out of a generic picker.
+ */
+function extractPalette(img: HTMLImageElement, count = 6): string[] {
+    const w = 64, h = 80;
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return [];
+    ctx.drawImage(img, 0, 0, w, h);
+
+    const { data } = ctx.getImageData(0, 0, w, h);
+    const buckets = new Map<string, { r: number; g: number; b: number; n: number }>();
+    for (let i = 0; i < data.length; i += 4) {
+        if (data[i + 3] < 128) continue;               // skip transparent
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        // 32-step grid: fine enough to separate hues, coarse enough that
+        // near-identical pixels land together.
+        const key = `${r >> 5}-${g >> 5}-${b >> 5}`;
+        const cur = buckets.get(key);
+        if (cur) { cur.r += r; cur.g += g; cur.b += b; cur.n++; }
+        else buckets.set(key, { r, g, b, n: 1 });
+    }
+
+    return [...buckets.values()]
+        .sort((a, b) => b.n - a.n)
+        .slice(0, count)
+        .map(v => {
+            const hx = (n: number) => Math.round(n / v.n).toString(16).padStart(2, '0');
+            return `#${hx(v.r)}${hx(v.g)}${hx(v.b)}`;
+        });
+}
+
 /** Greedy wrap measured against the live context. */
 function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
     const words = text.split(/\s+/).filter(Boolean);
@@ -62,6 +113,18 @@ export default function CoverSlide({
     const [artName, setArtName] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+    // Type colours. Defaults are the brand's, but artwork wins often enough
+    // that every one of them is overridable.
+    const [headlineColor, setHeadlineColor] = useState(CREAM);
+    const [dateColor, setDateColor] = useState('#9BE7D2');
+    const [teaserColor, setTeaserColor] = useState('#F2EFA0');
+    const [sidebarColor, setSidebarColor] = useState(BRICK);
+    const [sidebarTextColor, setSidebarTextColor] = useState(CREAM);
+    /** Colours lifted out of the uploaded artwork. */
+    const [palette, setPalette] = useState<string[]>([]);
+    /** Which field an eyedropper click should fill, if any. */
+    const [picking, setPicking] = useState<null | 'headline' | 'date' | 'teaser' | 'sidebar' | 'sidebarText'>(null);
 
     useEffect(() => { setRangeLine(dateRange); }, [dateRange]);
 
@@ -107,12 +170,12 @@ export default function CoverSlide({
         // Brick either way. A dark translucent band over dark artwork read as
         // a smudge — the wordmark was legible but the band wasn't, and it's
         // the one element tying the cover to the rest of the brand.
-        ctx.fillStyle = BRICK;
+        ctx.fillStyle = sidebarColor;
         ctx.fillRect(0, 0, SIDEBAR_W, H);
         ctx.save();
         ctx.translate(SIDEBAR_W / 2, H - 60);
         ctx.rotate(-Math.PI / 2);
-        ctx.fillStyle = CREAM;
+        ctx.fillStyle = sidebarTextColor;
         ctx.textAlign = 'left';
         ctx.font = `700 34px ${fonts.mono}, monospace`;
         ctx.fillText('FREQUENT FLYER EVENTS', 0, 12);
@@ -124,7 +187,7 @@ export default function CoverSlide({
         let y = 150;
 
         ctx.textAlign = 'left';
-        ctx.fillStyle = CREAM;
+        ctx.fillStyle = headlineColor;
         ctx.font = `700 76px ${fonts.grotesk}, sans-serif`;
         for (const line of wrap(ctx, headline, maxW)) {
             ctx.fillText(line, left, y);
@@ -133,19 +196,20 @@ export default function CoverSlide({
 
         // --- the three arrows that sit under the headline ----------------
         y += 8;
+        ctx.fillStyle = headlineColor;
         ctx.font = `700 48px ${fonts.grotesk}, sans-serif`;
         ctx.fillText('→ → →', left, y);
         y += 76;
 
         // --- date range and optional teaser ------------------------------
         ctx.font = `700 30px ${fonts.mono}, monospace`;
-        ctx.fillStyle = '#9BE7D2';
+        ctx.fillStyle = dateColor;
         for (const line of wrap(ctx, rangeLine.toUpperCase(), maxW)) {
             ctx.fillText(line, left, y);
             y += 40;
         }
         if (teaser.trim()) {
-            ctx.fillStyle = '#F2EFA0';
+            ctx.fillStyle = teaserColor;
             for (const line of wrap(ctx, teaser.toUpperCase(), maxW)) {
                 ctx.fillText(line, left, y);
                 y += 40;
@@ -163,9 +227,43 @@ export default function CoverSlide({
         }
 
         setError(null);
-    }, [artUrl, headline, rangeLine, teaser, fonts]);
+    }, [artUrl, headline, rangeLine, teaser, fonts,
+        headlineColor, dateColor, teaserColor, sidebarColor, sidebarTextColor]);
 
     useEffect(() => { draw(); }, [draw]);
+
+    // Read the artwork's own colours so the swatches are its colours.
+    useEffect(() => {
+        if (!artUrl) { setPalette([]); return; }
+        let cancelled = false;
+        loadImage(artUrl)
+            .then(img => { if (!cancelled) setPalette(extractPalette(img)); })
+            .catch(() => { if (!cancelled) setPalette([]); });
+        return () => { cancelled = true; };
+    }, [artUrl]);
+
+    /**
+     * Eyedropper. Reads the pixel under the click straight off the rendered
+     * canvas, so it samples the composited slide — artwork, scrim and all —
+     * which is what you're actually looking at.
+     */
+    const onCanvasClick = (ev: React.MouseEvent<HTMLCanvasElement>) => {
+        if (!picking) return;
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = Math.round((ev.clientX - rect.left) * (W / rect.width));
+        const y = Math.round((ev.clientY - rect.top) * (H / rect.height));
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return;
+        const [r, g, b] = ctx.getImageData(x, y, 1, 1).data;
+        const hex = `#${[r, g, b].map(n => n.toString(16).padStart(2, '0')).join('')}`;
+        ({
+            headline: setHeadlineColor, date: setDateColor, teaser: setTeaserColor,
+            sidebar: setSidebarColor, sidebarText: setSidebarTextColor,
+        })[picking](hex);
+        setPicking(null);
+    };
 
     const onPickArt = (file: File | undefined) => {
         if (!file) return;
@@ -201,9 +299,15 @@ export default function CoverSlide({
                 <div className="md:w-[220px] shrink-0">
                     <canvas
                         ref={canvasRef}
+                        onClick={onCanvasClick}
                         className="w-full rounded-[10px] border border-black/10"
-                        style={{ aspectRatio: `${W} / ${H}` }}
+                        style={{ aspectRatio: `${W} / ${H}`, cursor: picking ? 'crosshair' : 'default' }}
                     />
+                    {picking && (
+                        <p className="mt-1 text-center font-space-mono text-[10px] uppercase tracking-[-0.44px] text-brand">
+                            click the slide to sample a colour
+                        </p>
+                    )}
                     <button
                         onClick={download}
                         className="mt-2 w-full rounded-full border border-black/40 px-3 py-1.5 font-space-mono text-[11px] uppercase tracking-[-0.44px] text-ink transition-colors hover:bg-ink hover:text-cream"
@@ -244,6 +348,70 @@ export default function CoverSlide({
                         <input id="cover-teaser" className={field} value={teaser}
                             placeholder="scroll for the free ones"
                             onChange={e => setTeaser(e.target.value)} />
+                    </div>
+
+                    <div className="pt-1">
+                        <p className={label}>Colours</p>
+                        {palette.length === 0 && (
+                            <p className="mb-2 font-space-mono text-[10px] uppercase tracking-[-0.44px] text-ink/40">
+                                upload artwork to pull its palette
+                            </p>
+                        )}
+                        <div className="space-y-2">
+                            {([
+                                ['Headline', headlineColor, setHeadlineColor, 'headline'],
+                                ['Date', dateColor, setDateColor, 'date'],
+                                ['Teaser', teaserColor, setTeaserColor, 'teaser'],
+                                ['Side bar', sidebarColor, setSidebarColor, 'sidebar'],
+                                ['Side bar text', sidebarTextColor, setSidebarTextColor, 'sidebarText'],
+                            ] as const).map(([name, value, set, key]) => (
+                                <div key={key} className="flex items-center gap-2">
+                                    <span className="w-[86px] shrink-0 font-space-mono text-[10px] uppercase tracking-[-0.44px] text-ink/55">
+                                        {name}
+                                    </span>
+
+                                    {/* Colours out of the artwork, then the brand's own. */}
+                                    {[...palette, CREAM, INK, BRICK].slice(0, 9).map((c, i) => (
+                                        <button
+                                            key={`${key}-${c}-${i}`}
+                                            type="button"
+                                            onClick={() => set(c)}
+                                            title={c}
+                                            className="rounded-full border border-black/20"
+                                            style={{
+                                                width: 18, height: 18, background: c,
+                                                outline: toHexColor(value).toLowerCase() === toHexColor(c).toLowerCase()
+                                                    ? `2px solid ${BRICK}` : 'none',
+                                                outlineOffset: 2,
+                                            }}
+                                        />
+                                    ))}
+
+                                    <label
+                                        title="Custom colour"
+                                        className="relative shrink-0 cursor-pointer overflow-hidden rounded-full border border-black/20"
+                                        style={{ width: 18, height: 18, background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)' }}
+                                    >
+                                        <input
+                                            type="color" value={toHexColor(value)}
+                                            onChange={e => set(e.target.value)}
+                                            className="absolute inset-0 cursor-pointer opacity-0"
+                                        />
+                                    </label>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setPicking(picking === key ? null : key)}
+                                        title="Sample a colour from the slide"
+                                        className={`shrink-0 rounded-full border px-2 py-0.5 font-space-mono text-[10px] uppercase tracking-[-0.44px] ${
+                                            picking === key ? 'border-brand bg-brand text-cream' : 'border-black/30 text-ink/60 hover:border-black/60'
+                                        }`}
+                                    >
+                                        pick
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
                     {error && (
