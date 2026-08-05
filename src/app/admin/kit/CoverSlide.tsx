@@ -158,6 +158,18 @@ function balancedHeadline(
     return best ? best.lines : wrap(ctx, text, maxWidth);
 }
 
+/**
+ * A soft dark halo behind the letterforms.
+ *
+ * Set before drawing text and cleared after, so it never leaks into the next
+ * shape — a stray shadow on the sidebar rectangle is a very visible bug.
+ */
+function applyHalo(ctx: CanvasRenderingContext2D, on: boolean) {
+    ctx.shadowColor = on ? 'rgba(0,0,0,0.55)' : 'transparent';
+    ctx.shadowBlur = on ? 14 : 0;
+    ctx.shadowOffsetY = on ? 2 : 0;
+}
+
 export default function CoverSlide({
     dateRange,
     fonts,
@@ -188,6 +200,10 @@ export default function CoverSlide({
     // How hard to darken behind the type. Bright artwork barely needs it, and
     // a fixed scrim was flattening images that didn't.
     const [scrim, setScrim] = useState<'none' | 'light' | 'strong'>('light');
+    // Shadow the letterforms instead of the picture. A scrim buys legibility
+    // by dulling the artwork; a halo behind the type buys it without touching
+    // the image, which is how posters have always handled this.
+    const [halo, setHalo] = useState(true);
 
     useEffect(() => { setRangeLine(dateRange); }, [dateRange]);
 
@@ -237,6 +253,7 @@ export default function CoverSlide({
         // Brick either way. A dark translucent band over dark artwork read as
         // a smudge — the wordmark was legible but the band wasn't, and it's
         // the one element tying the cover to the rest of the brand.
+        applyHalo(ctx, false);      // never shadow the band itself
         ctx.fillStyle = sidebarColor;
         ctx.fillRect(0, 0, SIDEBAR_W, H);
         ctx.save();
@@ -245,6 +262,8 @@ export default function CoverSlide({
         ctx.fillStyle = sidebarTextColor;
         ctx.textAlign = 'left';
         ctx.font = `700 34px ${fonts.mono}, monospace`;
+        // The band already gives this contrast; a halo here just muddies it.
+        applyHalo(ctx, false);
         ctx.fillText('FREQUENT FLYER EVENTS', 0, 12);
         ctx.restore();
 
@@ -254,6 +273,7 @@ export default function CoverSlide({
         let y = 150;
 
         ctx.textAlign = 'left';
+        applyHalo(ctx, halo);
         ctx.fillStyle = headlineColor;
         ctx.font = `700 76px ${fonts.grotesk}, sans-serif`;
         for (const line of balancedHeadline(ctx, headline, maxW)) {
@@ -284,6 +304,7 @@ export default function CoverSlide({
         }
 
         // --- logo, bottom right ------------------------------------------
+        applyHalo(ctx, false);
         try {
             const logo = await loadImage('/images/fflogo20.png');
             const lw = 210;
@@ -294,7 +315,7 @@ export default function CoverSlide({
         }
 
         setError(null);
-    }, [artUrl, headline, rangeLine, teaser, fonts, scrim,
+    }, [artUrl, headline, rangeLine, teaser, fonts, scrim, halo,
         headlineColor, dateColor, teaserColor, sidebarColor, sidebarTextColor]);
 
     useEffect(() => { draw(); }, [draw]);
@@ -416,6 +437,20 @@ export default function CoverSlide({
                                 ))}
                             </div>
                         )}
+
+                        <label className="mt-2 flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="checkbox" checked={halo}
+                                onChange={e => setHalo(e.target.checked)}
+                                className="accent-brand"
+                            />
+                            <span className="font-space-mono text-[10px] uppercase tracking-[-0.44px] text-ink/55">
+                                Shadow behind text
+                            </span>
+                            <span className="font-space-mono text-[10px] uppercase tracking-[-0.44px] text-ink/35">
+                                — lets you keep the scrim off
+                            </span>
+                        </label>
                     </div>
 
                     <div>
