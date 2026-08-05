@@ -23,13 +23,21 @@ export interface KitEvent {
     scrapedValues: Record<string, string | null>;
 }
 
-/** Selection modes. "Suggested" is the only one that curates. */
-type Mode = 'suggested' | 'flyers' | 'all';
+/**
+ * Selection modes.
+ *
+ * "Picks" is the one that matches how the week actually runs: you mark picks
+ * in /admin — including anything imported from the flyer inbox, which is
+ * usually a pick too — and then build the carousel from them. Without it the
+ * kit offered no way to see the decisions you'd just made.
+ */
+type Mode = 'picks' | 'suggested' | 'flyers' | 'all';
 
 /** Scores at or above this read as on-manifesto rather than merely real. */
 const SUGGEST_MIN_SCORE = 7;
 
 function pickFor(mode: Mode, events: KitEvent[]): KitEvent[] {
+    if (mode === 'picks') return events.filter(e => e.isPick && e.title);
     if (mode === 'all') return events.filter(e => e.title);
     if (mode === 'flyers') return events.filter(e => e.flyerUrl && e.title);
     return events.filter(
@@ -118,10 +126,13 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, max
 export default function KitClient({ events: rawEvents, from, to, activeDays }: {
     events: KitEvent[]; from: string; to: string; activeDays: number | null;
 }) {
-    // Opens on Suggested: scored against vibedoc.md, not merely "has artwork".
-    const [mode, setMode] = useState<Mode>('suggested');
+    // Opens on Picks when the week has any — that's the list you came to
+    // build from. Falls back to Suggested on a week with none, so the kit is
+    // never empty on arrival.
+    const initialMode: Mode = rawEvents.some(e => e.isPick) ? 'picks' : 'suggested';
+    const [mode, setMode] = useState<Mode>(initialMode);
     const [selected, setSelected] = useState<Set<string>>(
-        () => new Set(pickFor('suggested', rawEvents).map(e => e.id))
+        () => new Set(pickFor(initialMode, rawEvents).map(e => e.id))
     );
 
     const applyMode = (m: Mode) => {
@@ -373,6 +384,7 @@ export default function KitClient({ events: rawEvents, from, to, activeDays }: {
                     weekend and averaged a lower vibe score than the four it
                     dropped, so it was filtering, not choosing. */}
                 {([
+                    ['picks', '★ Picks', 'the ones you marked in /admin'],
                     ['suggested', 'Suggested', `on-manifesto (score ${SUGGEST_MIN_SCORE}+) with a flyer`],
                     ['flyers', 'Flyers', 'anything with artwork'],
                     ['all', 'All', 'everything in the window'],
