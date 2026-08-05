@@ -98,6 +98,66 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
     return lines;
 }
 
+/**
+ * Words a line shouldn't end on. The eye expects what follows a preposition
+ * or article, so breaking after one strands it.
+ */
+const WEAK_LINE_ENDINGS = new Set([
+    'a', 'an', 'the', 'in', 'on', 'at', 'to', 'of', 'for', 'and', 'or',
+    'with', 'from', 'by', 'this', 'your',
+]);
+
+/**
+ * Wrap a headline across two lines, choosing the break deliberately.
+ *
+ * Greedy wrapping filled the first line and left whatever didn't fit, which on
+ * "Things to do in LA this week" stranded "week" alone. Pure balance — the
+ * most even split — gives "Things to do in / LA this week", which is even but
+ * breaks after a preposition.
+ *
+ * So: score each candidate on how uneven the lines are, then penalise any
+ * break that leaves a function word dangling.
+ *
+ * That still won't always match your ear — on the default headline it picks
+ * "Things to do / in LA this week" where you might want "Things to do in LA /
+ * this week", and both are defensible. A "|" anywhere in the headline forces
+ * the break there, so taste beats the heuristic when you want it to.
+ */
+function balancedHeadline(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    maxWidth: number,
+): string[] {
+    // Manual override: "Things to do in LA | this week" breaks exactly there.
+    if (text.includes('|')) {
+        return text.split('|').map(part => part.trim()).filter(Boolean);
+    }
+
+    const words = text.trim().split(/\s+/).filter(Boolean);
+    if (words.length < 2) return [text];
+    if (ctx.measureText(text).width <= maxWidth) return [text];
+
+    const width = (s: string) => ctx.measureText(s).width;
+    // A break has to be worth more than this much imbalance to be taken.
+    const WEAK_PENALTY = maxWidth * 0.45;
+
+    let best: { lines: string[]; score: number } | null = null;
+    for (let i = 1; i < words.length; i++) {
+        const first = words.slice(0, i).join(' ');
+        const second = words.slice(i).join(' ');
+        const w1 = width(first), w2 = width(second);
+        // Both halves must fit; otherwise fall through to the greedy wrap.
+        if (w1 > maxWidth || w2 > maxWidth) continue;
+
+        let score = Math.abs(w1 - w2);
+        if (WEAK_LINE_ENDINGS.has(words[i - 1].toLowerCase())) score += WEAK_PENALTY;
+        if (!best || score < best.score) best = { lines: [first, second], score };
+    }
+
+    // Three lines or more (a long custom headline) — greedy is fine there.
+    return best ? best.lines : wrap(ctx, text, maxWidth);
+}
+
 export default function CoverSlide({
     dateRange,
     fonts,
@@ -125,6 +185,9 @@ export default function CoverSlide({
     const [palette, setPalette] = useState<string[]>([]);
     /** Which field an eyedropper click should fill, if any. */
     const [picking, setPicking] = useState<null | 'headline' | 'date' | 'teaser' | 'sidebar' | 'sidebarText'>(null);
+    // How hard to darken behind the type. Bright artwork barely needs it, and
+    // a fixed scrim was flattening images that didn't.
+    const [scrim, setScrim] = useState<'none' | 'light' | 'strong'>('light');
 
     useEffect(() => { setRangeLine(dateRange); }, [dateRange]);
 
@@ -149,14 +212,18 @@ export default function CoverSlide({
                     (W - art.width * scale) / 2, (H - art.height * scale) / 2,
                     art.width * scale, art.height * scale,
                 );
-                // Type sits over photography, so it needs a floor to read
-                // against — a top-down scrim rather than dimming the whole
-                // image and dulling the art.
-                const scrim = ctx.createLinearGradient(0, 0, 0, H * 0.62);
-                scrim.addColorStop(0, 'rgba(0,0,0,0.55)');
-                scrim.addColorStop(1, 'rgba(0,0,0,0)');
-                ctx.fillStyle = scrim;
-                ctx.fillRect(0, 0, W, H * 0.62);
+                // Type sits over photography, so it usually needs a floor to
+                // read against — a top-down gradient rather than an overall
+                // dim, which would flatten the artwork. Strength is a control:
+                // a bright illustration often needs none at all.
+                const alpha = scrim === 'none' ? 0 : scrim === 'strong' ? 0.72 : 0.45;
+                if (alpha > 0) {
+                    const grad = ctx.createLinearGradient(0, 0, 0, H * 0.62);
+                    grad.addColorStop(0, `rgba(0,0,0,${alpha})`);
+                    grad.addColorStop(1, 'rgba(0,0,0,0)');
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(0, 0, W, H * 0.62);
+                }
             } catch {
                 setError('That file could not be read as an image.');
                 return;
@@ -189,7 +256,7 @@ export default function CoverSlide({
         ctx.textAlign = 'left';
         ctx.fillStyle = headlineColor;
         ctx.font = `700 76px ${fonts.grotesk}, sans-serif`;
-        for (const line of wrap(ctx, headline, maxW)) {
+        for (const line of balancedHeadline(ctx, headline, maxW)) {
             ctx.fillText(line, left, y);
             y += 84;
         }
@@ -227,7 +294,7 @@ export default function CoverSlide({
         }
 
         setError(null);
-    }, [artUrl, headline, rangeLine, teaser, fonts,
+    }, [artUrl, headline, rangeLine, teaser, fonts, scrim,
         headlineColor, dateColor, teaserColor, sidebarColor, sidebarTextColor]);
 
     useEffect(() => { draw(); }, [draw]);
@@ -329,12 +396,35 @@ export default function CoverSlide({
                         <p className="mt-1 font-space-mono text-[10px] uppercase tracking-[-0.44px] text-ink/40">
                             {artName ? `using ${artName}` : 'no artwork — falling back to the branded cover'}
                         </p>
+
+                        {artUrl && (
+                            <div className="mt-2 flex items-center gap-2">
+                                <span className="font-space-mono text-[10px] uppercase tracking-[-0.44px] text-ink/55">
+                                    Darken behind type
+                                </span>
+                                {(['none', 'light', 'strong'] as const).map(level => (
+                                    <button
+                                        key={level}
+                                        type="button"
+                                        onClick={() => setScrim(level)}
+                                        className={`rounded-full border px-2.5 py-0.5 font-space-mono text-[10px] uppercase tracking-[-0.44px] ${
+                                            scrim === level ? 'bg-ink text-cream border-ink' : 'border-black/30 text-ink/60 hover:border-black/60'
+                                        }`}
+                                    >
+                                        {level}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     <div>
                         <label className={label} htmlFor="cover-headline">Headline</label>
                         <input id="cover-headline" className={field} value={headline}
                             onChange={e => setHeadline(e.target.value)} />
+                        <p className="mt-1 font-space-mono text-[10px] uppercase tracking-[-0.44px] text-ink/40">
+                            lines balance automatically — type | to force a break
+                        </p>
                     </div>
 
                     <div>
