@@ -24,15 +24,15 @@
     "name": "Dynasty Typewriter",
     "url": "https://www.dynastytypewriter.com/calendar-squad-up",
     "neighborhood": "Koreatown",
-    "lat": 34.0610,
+    "lat": 34.061,
     "lng": -118.2831
   },
   {
     "name": "Lyric Hyperion",
     "url": "https://lyrichyperion.com/tickets",
     "neighborhood": "Silver Lake",
-    "lat": 34.1030,
-    "lng": -118.2750
+    "lat": 34.103,
+    "lng": -118.275
   },
   {
     "name": "The Elysian",
@@ -81,7 +81,7 @@
     "url": "https://www.storiesla.com/events",
     "neighborhood": "Echo Park",
     "lat": 34.0784,
-    "lng": -118.2620
+    "lng": -118.262
   },
   {
     "name": "Akbar",
@@ -101,14 +101,14 @@
     "name": "Avenue 50 Studio",
     "url": "https://www.avenue50studio.org/events",
     "neighborhood": "Highland Park",
-    "lat": 34.1120,
+    "lat": 34.112,
     "lng": -118.1994
   },
   {
     "name": "The Smell",
     "url": "https://www.thesmell.org",
     "neighborhood": "DTLA",
-    "lat": 34.0480,
+    "lat": 34.048,
     "lng": -118.2478
   },
   {
@@ -186,7 +186,7 @@
     "url": "https://npuevents.com",
     "neighborhood": "Chinatown",
     "lat": 34.0625,
-    "lng": -118.2390
+    "lng": -118.239
   },
   {
     "name": "Tabula Rasa Bar",
@@ -214,14 +214,14 @@
     "url": "https://www.thirstycrowbar.com",
     "neighborhood": "Silver Lake",
     "lat": 34.0873,
-    "lng": -118.2620
+    "lng": -118.262
   },
   {
     "name": "Cafe Tondo",
     "url": "https://www.cafetondo.com",
     "neighborhood": "Chinatown",
     "lat": 34.0635,
-    "lng": -118.2390
+    "lng": -118.239
   },
   {
     "name": "Homage Brewing",
@@ -235,7 +235,7 @@
     "url": "https://www.clubdisintegration.com",
     "neighborhood": "Chinatown",
     "lat": 34.0625,
-    "lng": -118.2390
+    "lng": -118.239
   },
   {
     "name": "Cafe Triste",
@@ -248,8 +248,8 @@
     "name": "Treehouse",
     "url": "https://www.treehousela.com",
     "neighborhood": "Chinatown",
-    "lat": 34.0630,
-    "lng": -118.2380
+    "lat": 34.063,
+    "lng": -118.238
   },
   {
     "name": "No Smoking Bar",
@@ -264,5 +264,40 @@
     "neighborhood": "Culver City",
     "lat": 34.0228,
     "lng": -118.3968
+  },
+  {
+    "name": "The Virgil",
+    "url": null,
+    "neighborhood": "Silver Lake",
+    "lat": 34.091047,
+    "lng": -118.2870625
+  },
+  {
+    "name": "Vandell",
+    "url": null,
+    "neighborhood": "Los Feliz",
+    "lat": 34.1073013,
+    "lng": -118.287281
+  },
+  {
+    "name": "Village Well",
+    "url": "https://www.eventbrite.com/o/village-well-books-coffee-56207758273",
+    "neighborhood": "Culver City",
+    "lat": 34.0206816,
+    "lng": -118.396338
+  },
+  {
+    "name": "The Bamboo Room",
+    "url": "https://generallees.com/the-bamboo-room/venue",
+    "neighborhood": "West LA",
+    "lat": 34.0398386,
+    "lng": -118.4647242
+  },
+  {
+    "name": "General Lee's",
+    "url": "https://generallees.com/general-lees/venue",
+    "neighborhood": "Chinatown",
+    "lat": 34.0658438,
+    "lng": -118.2375382
   }
 ]

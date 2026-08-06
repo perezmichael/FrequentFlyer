@@ -3,6 +3,8 @@ import { EB_Garamond, Space_Grotesk, Space_Mono } from "next/font/google";
 import { Suspense } from "react";
 import "./globals.css";
 import NavbarWrapper from "@/components/NavbarWrapper";
+import { Analytics } from "@vercel/analytics/next";
+import { SITE_URL, SITE_NAME, SITE_TAGLINE, IS_INDEXABLE } from "@/lib/site";
 
 const ebGaramond = EB_Garamond({
   subsets: ["latin"],
@@ -23,8 +25,38 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Frequent Flyer",
-  description: "Local events search and vibe check.",
+  // metadataBase makes every relative OG/canonical URL resolve absolutely.
+  // Without it, share previews silently ship relative image paths that no
+  // scraper can fetch.
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    // Page titles read "Silver Lake Nights · Frequent Flyer".
+    template: `%s · ${SITE_NAME}`,
+  },
+  description:
+    "A curated map of what's happening in Los Angeles this week — shows, DJ nights, readings and the recurring nights worth becoming a regular at.",
+  applicationName: SITE_NAME,
+  keywords: [
+    'things to do in Los Angeles',
+    'LA events this week',
+    'weekly events Los Angeles',
+    'recurring nights LA',
+    'live music Los Angeles',
+  ],
+  openGraph: {
+    type: 'website',
+    siteName: SITE_NAME,
+    locale: 'en_US',
+    url: SITE_URL,
+    title: `${SITE_NAME} — ${SITE_TAGLINE}`,
+    description:
+      "A curated map of what's happening in Los Angeles this week, plus the recurring nights worth becoming a regular at.",
+  },
+  twitter: { card: 'summary_large_image' },
+  robots: IS_INDEXABLE
+    ? { index: true, follow: true }
+    : { index: false, follow: false },
 };
 
 export default function RootLayout({
@@ -39,6 +71,9 @@ export default function RootLayout({
           <NavbarWrapper />
         </Suspense>
         <main>{children}</main>
+        {/* Page views and referrers, so a post's effect is measurable.
+            Cookieless, so no consent banner is required. */}
+        <Analytics />
       </body>
     </html>
   );

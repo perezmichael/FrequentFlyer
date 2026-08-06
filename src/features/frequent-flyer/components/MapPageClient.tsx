@@ -64,19 +64,19 @@ export default function MapPageClient({ initialEvents, guides, venues }: MapPage
             // Or maybe guides are just routes?
             // The requirement says "filters to show venues, events, guides".
             // Let's treat Guides as a pin at the first location of the guide?
-            const guideItems: Event[] = guides.map(g => {
+            const guideItems: Event[] = guides.map((g): Event | null => {
                 const firstItem = g.items?.[0]?.venues;
                 if (!firstItem) return null;
                 return {
                     id: `guide-${g.id}`,
                     title: g.title,
                     date: 'Guide',
-                    location: g.neighborhood,
-                    description: g.description,
+                    location: g.neighborhood || 'Los Angeles',
+                    description: g.description || '',
                     lat: firstItem.lat,
                     lng: firstItem.lng,
-                    image: g.cover_image,
-                    neighborhood: g.neighborhood,
+                    image: g.cover_image || '/placeholder.jpg',
+                    neighborhood: g.neighborhood || 'Unknown',
                     vibe: ['Guide']
                 };
             }).filter((i): i is Event => i !== null);

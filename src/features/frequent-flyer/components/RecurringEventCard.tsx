@@ -2,18 +2,21 @@
 
 import { RecurringEvent, formatRecurringSchedule } from '@/features/frequent-flyer/data/recurringEvents';
 import { RECURRING_CATEGORIES } from '@/features/frequent-flyer/data/recurringCategories';
-import { hasRealImage, getVibePlaceholder } from '@/features/frequent-flyer/data/vibePlaceholders';
+import { hasRealImage } from '@/features/frequent-flyer/data/vibePlaceholders';
+import GeneratedFlyer from './GeneratedFlyer';
 import styles from './EventCard2.module.css';
 
 interface RecurringEventCardProps {
     event: RecurringEvent;
     onClick?: () => void;
     id?: string;
+    /** Other weekdays folded into this card (a nightly happy hour is stored as
+     *  one row per day, which rendered as seven identical cards). */
+    extraDays?: number;
 }
 
-export default function RecurringEventCard({ event, onClick, id }: RecurringEventCardProps) {
+export default function RecurringEventCard({ event, onClick, id, extraDays = 0 }: RecurringEventCardProps) {
     const showImage = hasRealImage(event.venue_image);
-    const placeholder = getVibePlaceholder(event.category);
 
     return (
         <div id={id} className={styles.card} onClick={onClick}>
@@ -22,11 +25,7 @@ export default function RecurringEventCard({ event, onClick, id }: RecurringEven
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={event.venue_image!} alt={event.venue_name} className={styles.image} />
                 ) : (
-                    <div className={styles.placeholder} style={{ background: placeholder.bg }}>
-                        <span className={styles.placeholderEmoji}>{placeholder.emoji}</span>
-                        <span className={styles.placeholderVibe}>{event.category}</span>
-                        <span className={styles.placeholderNeighborhood}>{event.neighborhood}</span>
-                    </div>
+                    <GeneratedFlyer title={event.event_name} vibe={event.category} neighborhood={event.neighborhood} />
                 )}
             </div>
 
@@ -43,6 +42,11 @@ export default function RecurringEventCard({ event, onClick, id }: RecurringEven
                 <div className={styles.info}>
                     {formatRecurringSchedule(event.day_of_week, event.start_time, event.end_time)}
                 </div>
+                {extraDays > 0 && (
+                    <div className={styles.seriesNote}>
+                        + {extraDays} more {extraDays === 1 ? 'day' : 'days'}
+                    </div>
+                )}
                 {event.description && (
                     <div className={styles.info} style={{ marginTop: 4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                         {event.description}

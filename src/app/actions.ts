@@ -133,6 +133,23 @@ export async function approveEvent(id: string) {
     revalidateEventPaths();
 }
 
+const ALLOWED_CURATION_LEVELS = new Set(['scraped', 'ff_curated', 'promoted'] as const);
+
+/**
+ * Set an event's curation level — independent of status.
+ *
+ * Approving says "this is real, show it". Curating says "I'd go to this".
+ * They're different claims, and only the second one is taste, so it gets its
+ * own control rather than riding on approve.
+ */
+export async function setEventCuration(id: string, level: string) {
+    await assertAdmin();
+    if (!isNonEmptyString(id)) throw new Error('Invalid event id');
+    if (!ALLOWED_CURATION_LEVELS.has(level as any)) throw new Error('Invalid curation level');
+    await supabase.from('events').update({ curation_level: level }).eq('id', id);
+    revalidateEventPaths();
+}
+
 export async function rejectEvent(id: string) {
     await assertAdmin();
     if (!isNonEmptyString(id)) throw new Error('Invalid event id');
@@ -164,6 +181,14 @@ export async function setEventsStatus(ids: string[], status: string) {
     revalidateEventPaths();
 }
 
+/**
+ * Fields the scout rewrites on every re-match. An editor's value for one of
+ * these has to be recorded as deliberate, or tomorrow's 10am run replaces it.
+ */
+const SCOUT_OWNED_FIELDS = new Set([
+    'event_name', 'event_date', 'start_time', 'end_time', 'event_vibe',
+]);
+
 export async function updateEvent(id: string, updates: Record<string, unknown>) {
     await assertAdmin();
     if (!isNonEmptyString(id)) throw new Error('Invalid event id');
@@ -176,9 +201,41 @@ export async function updateEvent(id: string, updates: Record<string, unknown>) 
 
     if (Object.keys(safeUpdates).length === 0) return;
 
-    await supabase.from('events').update(safeUpdates).eq('id', id);
-    revalidatePath('/');
-    revalidatePath('/admin');
+    // Read the current row so we can record what the venue said before this
+    // edit, and mark which fields the editor now owns.
+    const { data: current } = await supabase
+        .from('events')
+        .select('event_name, event_date, start_time, end_time, event_vibe, metadata')
+        .eq('id', id)
+        .maybeSingle();
+
+    const metadata: Record<string, unknown> = { ...((current?.metadata as object) || {}) };
+    const locked = new Set<string>(
+        Array.isArray(metadata.editor_locked) ? (metadata.editor_locked as string[]) : [],
+    );
+    // Keep the scraped original the first time a field is overridden, so the
+    // divergence stays visible and nothing the venue published is lost.
+    const scrapedValues: Record<string, unknown> = {
+        ...((metadata.scraped_values as object) || {}),
+    };
+
+    for (const key of Object.keys(safeUpdates)) {
+        if (!SCOUT_OWNED_FIELDS.has(key)) continue;
+        if (!locked.has(key) && current && key in current) {
+            scrapedValues[key] = (current as Record<string, unknown>)[key];
+        }
+        locked.add(key);
+    }
+
+    metadata.editor_locked = Array.from(locked);
+    if (Object.keys(scrapedValues).length > 0) metadata.scraped_values = scrapedValues;
+
+    await supabase
+        .from('events')
+        .update({ ...safeUpdates, metadata })
+        .eq('id', id);
+
+    revalidateEventPaths();
 }
 
 export async function uploadEventFlyer(id: string, fileBase64: string) {

@@ -2,7 +2,7 @@
 
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Event } from '@/features/frequent-flyer/data/events';
+import { Event, formatEventDateParts } from '@/features/frequent-flyer/data/events';
 import L from 'leaflet';
 import { useEffect, useState, useMemo } from 'react';
 
@@ -15,10 +15,18 @@ L.Icon.Default.mergeOptions({
     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
+/** An event known to have real coordinates — safe to plot. */
+type PlacedEvent = Event & { lat: number; lng: number };
+
+const isPlaced = (e: Event): e is PlacedEvent =>
+    Number.isFinite(e.lat) && Number.isFinite(e.lng);
+
 interface MapProps {
     events?: Event[]; // Optional now
     selectedEventId?: string | null;
     onMarkerClick?: (id: string) => void;
+    // Open the full event detail sheet (from the popup's "View details").
+    onEventOpen?: (event: Event) => void;
     // New prop for Guide Routes
     route?: {
         coordinates: [number, number][];
@@ -32,6 +40,9 @@ interface MapProps {
 function MapUpdater({ center }: { center: [number, number] }) {
     const map = useMap();
     useEffect(() => {
+        // Guard against events with missing/NaN coordinates — flyTo throws
+        // "Invalid LatLng object: (NaN, NaN)" and takes the whole map down.
+        if (!Number.isFinite(center[0]) || !Number.isFinite(center[1])) return;
         map.flyTo(center, 13, { duration: 1.5 });
     }, [center, map]);
     return null;
@@ -58,7 +69,7 @@ function CustomControls({ isFullscreen, onToggleFullscreen }: { isFullscreen: bo
     return (
         <div className={`absolute ${positionClass} flex flex-col gap-2 z-[1000]`}>
             <button
-                className="w-8 h-8 bg-white border border-gray-200 rounded-lg flex items-center justify-center cursor-pointer shadow-sm transition-all hover:bg-gray-50 hover:shadow-md active:translate-y-0 text-gray-800"
+                className="w-8 h-8 bg-cream border border-black/40 rounded-lg flex items-center justify-center cursor-pointer shadow-sm transition-all hover:bg-black hover:text-cream hover:shadow-md active:translate-y-0 text-ink"
                 onClick={() => map.zoomIn()}
                 title="Zoom In"
             >
@@ -68,7 +79,7 @@ function CustomControls({ isFullscreen, onToggleFullscreen }: { isFullscreen: bo
                 </svg>
             </button>
             <button
-                className="w-8 h-8 bg-white border border-gray-200 rounded-lg flex items-center justify-center cursor-pointer shadow-sm transition-all hover:bg-gray-50 hover:shadow-md active:translate-y-0 text-gray-800"
+                className="w-8 h-8 bg-cream border border-black/40 rounded-lg flex items-center justify-center cursor-pointer shadow-sm transition-all hover:bg-black hover:text-cream hover:shadow-md active:translate-y-0 text-ink"
                 onClick={() => map.zoomOut()}
                 title="Zoom Out"
             >
@@ -77,7 +88,7 @@ function CustomControls({ isFullscreen, onToggleFullscreen }: { isFullscreen: bo
                 </svg>
             </button>
             <button
-                className="w-8 h-8 bg-white border border-gray-200 rounded-lg flex items-center justify-center cursor-pointer shadow-sm transition-all hover:bg-gray-50 hover:shadow-md active:translate-y-0 text-gray-800"
+                className="w-8 h-8 bg-cream border border-black/40 rounded-lg flex items-center justify-center cursor-pointer shadow-sm transition-all hover:bg-black hover:text-cream hover:shadow-md active:translate-y-0 text-ink"
                 onClick={onToggleFullscreen}
                 title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
             >
@@ -96,16 +107,12 @@ function CustomControls({ isFullscreen, onToggleFullscreen }: { isFullscreen: bo
 }
 
 // Vibe to Emoji Mapping
-import { VIBES } from '@/features/frequent-flyer/data/vibes';
-import { RECURRING_CATEGORIES } from '@/features/frequent-flyer/data/recurringCategories';
+import { resolveVibeEmoji, representativeEmoji } from '@/features/frequent-flyer/data/vibeEmoji';
 
-// Extract just the emoji from a label like "🎶 Music" → "🎶". One-off events
-// use VIBES keys ("Nightlife"); recurring events use their own category
-// vocabulary ("Dance Night"), so we check both before falling back to 📍.
-const getVibeEmoji = (vibe: string): string => {
-    const label = VIBES[vibe] || RECURRING_CATEGORIES[vibe] || '';
-    return label.split(' ')[0] || '📍';
-};
+// The scout writes free-text categories ("Music (DJ Set)", "Standup Comedy"),
+// so exact lookups miss and everything became a generic 📍. resolveVibeEmoji
+// falls back to keyword matching — see data/vibeEmoji.ts.
+const getVibeEmoji = (vibe: string): string => resolveVibeEmoji(vibe);
 
 // Single event at a location — small emoji dot
 const createSingleIcon = (vibes: string[]) => {
@@ -113,13 +120,13 @@ const createSingleIcon = (vibes: string[]) => {
     return L.divIcon({
         className: 'custom-map-marker',
         html: `<div style="
-            background: white;
+            background: #FFFAEB;
             width: 32px;
             height: 32px;
             border-radius: 50%;
             font-size: 14px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-            border: 1.5px solid rgba(0,0,0,0.08);
+            box-shadow: 0 3px 8px rgba(26,26,26,0.3);
+            border: 1.5px solid rgba(26,26,26,0.55);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -129,27 +136,45 @@ const createSingleIcon = (vibes: string[]) => {
     });
 };
 
-// Multiple events at the same location — count badge
-const createClusterIcon = (count: number) => {
+// Multiple events at the same location — representative emoji + count badge
+const createClusterIcon = (count: number, emoji: string) => {
     return L.divIcon({
         className: 'custom-map-marker',
-        html: `<div style="
-            background: #111;
-            color: white;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            font-size: 13px;
-            font-weight: 700;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.35);
-            border: 2px solid white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Space Grotesk', sans-serif;
-        ">${count}</div>`,
-        iconSize: [36, 36],
-        iconAnchor: [18, 18],
+        html: `<div style="position: relative; width: 38px; height: 38px;">
+            <div style="
+                background: #FFFAEB;
+                width: 38px;
+                height: 38px;
+                border-radius: 50%;
+                font-size: 16px;
+                box-shadow: 0 3px 10px rgba(26,26,26,0.35);
+                border: 1.5px solid rgba(26,26,26,0.55);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            ">${emoji}</div>
+            <div style="
+                position: absolute;
+                top: -5px;
+                right: -5px;
+                background: #1a1a1a;
+                color: #FFFAEB;
+                min-width: 17px;
+                height: 17px;
+                border-radius: 9px;
+                padding: 0 4px;
+                font-size: 10px;
+                font-weight: 700;
+                font-family: 'Space Mono', monospace;
+                box-shadow: 0 1px 4px rgba(26,26,26,0.4);
+                border: 1.5px solid #FFFAEB;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            ">${count}</div>
+        </div>`,
+        iconSize: [38, 38],
+        iconAnchor: [19, 19],
     });
 };
 
@@ -157,21 +182,55 @@ const createClusterIcon = (count: number) => {
 function MapResizer({ isFullscreen, resizeSignal }: { isFullscreen: boolean; resizeSignal?: string | number }) {
     const map = useMap();
 
+    // Observe the actual container size. On mount the split-layout container is
+    // often still 0×0 (or grows 0→full as CSS settles), which left Leaflet
+    // thinking it was tiny and never fetching tiles for the real viewport —
+    // hence the grey/cream gaps. Recalc on real size changes so tiles fill.
+    //
+    // Debounced and de-duped on purpose: on Android Chrome the URL bar
+    // collapses/expands while scrolling, which resizes this container
+    // repeatedly mid-gesture. Calling invalidateSize() on every one of those
+    // (it re-lays out panes and refetches tiles) made the map stutter and
+    // flash. Coalesce the burst into a single call once the size settles.
     useEffect(() => {
-        // Wait for CSS transition/render to finish. This also recovers from the
-        // Leaflet "mounted while display:none" case (e.g. the mobile Map tab):
-        // when the container becomes visible the map still thinks it's 0×0 and
-        // renders grey, so we recalc its size once it's on screen.
-        const timer = setTimeout(() => {
-            map.invalidateSize();
-        }, 100);
+        const container = map.getContainer();
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        let lastW = 0;
+        let lastH = 0;
+
+        const ro = new ResizeObserver((entries) => {
+            const rect = entries[0]?.contentRect;
+            if (!rect) return;
+            const w = Math.round(rect.width);
+            const h = Math.round(rect.height);
+            if (w === lastW && h === lastH) return;
+            lastW = w;
+            lastH = h;
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(() => map.invalidateSize(), 120);
+        });
+
+        ro.observe(container);
+        const kick = setTimeout(() => map.invalidateSize(), 100);
+        return () => {
+            ro.disconnect();
+            if (timer) clearTimeout(timer);
+            clearTimeout(kick);
+        };
+    }, [map]);
+
+    // Also react to explicit signals (mobile tab switch, fullscreen toggle),
+    // which change visibility without necessarily resizing the container.
+    useEffect(() => {
+        const timer = setTimeout(() => map.invalidateSize(), 120);
         return () => clearTimeout(timer);
     }, [map, isFullscreen, resizeSignal]);
 
     return null;
 }
 
-import { hasRealImage, getVibePlaceholder } from '@/features/frequent-flyer/data/vibePlaceholders';
+import { hasRealImage } from '@/features/frequent-flyer/data/vibePlaceholders';
+import GeneratedFlyer from './GeneratedFlyer';
 
 // Popup that supports cycling through multiple events at the same venue
 function EventPopup({
@@ -179,18 +238,19 @@ function EventPopup({
     index,
     onIndexChange,
     onClose,
+    onEventOpen,
 }: {
-    group: Event[];
+    group: PlacedEvent[];
     index: number;
     onIndexChange: (i: number) => void;
     onClose: () => void;
+    onEventOpen?: (event: Event) => void;
 }) {
     const map = useMap();
     const event = group[index];
     const total = group.length;
     const [positionClass, setPositionClass] = useState('');
     const showImage = hasRealImage(event.image);
-    const placeholder = getVibePlaceholder(event.vibe?.[0]);
 
     useEffect(() => {
         if (!event) return;
@@ -217,15 +277,7 @@ function EventPopup({
                             className="w-full h-full object-cover block"
                         />
                     ) : (
-                        <div
-                            className="w-full h-full flex flex-col items-center justify-center gap-1"
-                            style={{ background: placeholder.bg }}
-                        >
-                            <span style={{ fontSize: '2rem', lineHeight: 1 }}>{placeholder.emoji}</span>
-                            <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.9)' }}>
-                                {event.vibe?.[0] || 'Event'}
-                            </span>
-                        </div>
+                        <GeneratedFlyer title={event.title} vibe={event.vibe?.[0]} neighborhood={event.neighborhood} />
                     )}
 
                     {/* Cycle controls — only shown when multiple events at this venue */}
@@ -255,31 +307,61 @@ function EventPopup({
                     )}
                 </div>
 
-                {/* Event info */}
-                <div className="p-4">
-                    <div className="text-base font-semibold mb-1 text-gray-900 leading-tight">{event.title}</div>
-                    <div className="text-sm text-gray-500 mb-2">{event.location}</div>
-                    <div className="mt-2 flex flex-col gap-1">
-                        <div className="font-semibold text-gray-900 text-base">Free</div>
-                        <div className="text-xs text-gray-500">{event.date}</div>
+                {/* Event info — click to open the full detail sheet */}
+                <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onEventOpen && onEventOpen(event); }}
+                    className="w-full text-left block p-4 bg-cream cursor-pointer transition-colors hover:bg-black/[0.04]"
+                >
+                    <div className="text-base font-bold mb-1 text-ink leading-tight font-space-grotesk">{event.title}</div>
+                    <div className="text-sm text-black/55 mb-3 font-space-mono">{event.location}</div>
+                    {/* The pick stamp belongs anywhere an event appears — it's
+                        the one editorial claim the app makes, and it was
+                        missing from the map. */}
+                    {event.curationLevel === 'ff_curated' && (
+                        <div className="mb-2">
+                            <span className="inline-flex items-center gap-1 rounded-full border border-brand px-2 py-0.5 font-space-mono text-[10px] font-bold uppercase tracking-[-0.44px] text-brand">
+                                ★ FF Pick
+                            </span>
+                        </div>
+                    )}
+                    <div className="flex items-center justify-between gap-2">
+                        {/* Date and time stack deliberately. Run together they
+                            wrapped mid-time in this narrow stamp — "WED, AUG 5
+                            · 6" above a lone "PM". */}
+                        <span className="stamp text-[11px] leading-[1.35] text-center">
+                            {(() => {
+                                const { date, time } = formatEventDateParts(event.date, event.startTime, event.endTime);
+                                return time ? <>{date}<br />{time}</> : date;
+                            })()}
+                        </span>
+                        <span className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-brand flex items-center gap-1 whitespace-nowrap">
+                            View details
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </span>
                     </div>
-                </div>
+                </button>
             </div>
         </Popup>
     );
 }
 
-export default function Map({ events = [], selectedEventId, onMarkerClick, route, resizeSignal }: MapProps) {
+export default function Map({ events = [], selectedEventId, onMarkerClick, onEventOpen, route, resizeSignal }: MapProps) {
     const [isFullscreen, setIsFullscreen] = useState(false);
-    const [activeGroup, setActiveGroup] = useState<Event[] | null>(null);
+    const [activeGroup, setActiveGroup] = useState<PlacedEvent[] | null>(null);
     const [activeGroupIndex, setActiveGroupIndex] = useState(0);
 
-    const selectedEvent = events.find(e => e.id === selectedEventId);
+    // Only a geolocated selection can drive the map center.
+    const selectedEventRaw = events.find(e => e.id === selectedEventId);
+    const selectedEvent = selectedEventRaw && isPlaced(selectedEventRaw) ? selectedEventRaw : undefined;
 
     // Group events by venue location to avoid overlapping markers
     const locationGroups = useMemo(() => {
-        const groups: Record<string, Event[]> = {};
+        const groups: Record<string, PlacedEvent[]> = {};
         for (const event of events) {
+            if (!isPlaced(event)) continue;
             const key = `${event.lat.toFixed(4)},${event.lng.toFixed(4)}`;
             if (!groups[key]) groups[key] = [];
             groups[key].push(event);
@@ -287,7 +369,18 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, route
         return Object.values(groups);
     }, [events]);
 
-    const handleMarkerClick = (group: Event[]) => {
+    // LA is spread out, so open on a metro-wide view centered on the middle of
+    // all pins rather than a fixed downtown point. One pin per venue → centroid
+    // of the venues, not of every event, so a busy venue doesn't drag it.
+    const centroid: [number, number] = useMemo(() => {
+        if (locationGroups.length === 0) return [34.05, -118.29];
+        const pts = locationGroups.map(g => g[0]);
+        const lat = pts.reduce((s, e) => s + e.lat, 0) / pts.length;
+        const lng = pts.reduce((s, e) => s + e.lng, 0) / pts.length;
+        return [lat, lng];
+    }, [locationGroups]);
+
+    const handleMarkerClick = (group: PlacedEvent[]) => {
         setActiveGroup(group);
         setActiveGroupIndex(0);
         onMarkerClick && onMarkerClick(group[0].id);
@@ -298,10 +391,13 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, route
         if (activeGroup) onMarkerClick && onMarkerClick(activeGroup[i].id);
     };
 
-    // Determine center: 1. Selected Event, 2. First Event, 3. Default LA
+    // Determine center: selected event, else the metro-wide centroid.
     const center: [number, number] = selectedEvent
         ? [selectedEvent.lat, selectedEvent.lng]
-        : (events.length > 0 ? [events[0].lat, events[0].lng] : [34.0782, -118.2606]);
+        : centroid;
+    // Open zoomed out enough to show the LA spread; tighten for a single venue
+    // or when an event is selected.
+    const initialZoom = selectedEvent ? 13 : (locationGroups.length > 1 ? 11 : 13);
 
     const toggleFullscreen = () => {
         setIsFullscreen(!isFullscreen);
@@ -310,11 +406,17 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, route
     return (
         <div
             className={`relative w-full h-full ${isFullscreen ? 'fixed !top-0 !left-0 !w-[100vw] !h-[100vh] z-[9999] rounded-none' : ''}`}
+            // Pass the wrapper's radius down: border-radius doesn't inherit on
+            // its own, so without this the map's `inherit` would resolve against
+            // this div (0) instead of the page's map wrapper.
+            style={{ borderRadius: isFullscreen ? 0 : 'inherit' }}
         >
             <MapContainer
                 center={center}
-                zoom={13}
-                style={{ height: '100%', width: '100%', borderRadius: isFullscreen ? '0' : '16px' }}
+                zoom={initialZoom}
+                // Radius follows the wrapper (inherit) so each page decides:
+                // rounded card on desktop, full-bleed square on mobile.
+                style={{ height: '100%', width: '100%', borderRadius: isFullscreen ? '0' : 'inherit' }}
                 zoomControl={false}
             >
                 <TileLayer
@@ -333,7 +435,7 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, route
                     const first = group[0];
                     const icon = group.length === 1
                         ? createSingleIcon(first.vibe)
-                        : createClusterIcon(group.length);
+                        : createClusterIcon(group.length, representativeEmoji(group.map(e => e.vibe?.[0])));
                     return (
                         <Marker
                             key={`${first.lat},${first.lng}`}
@@ -352,6 +454,7 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, route
                         group={activeGroup}
                         index={activeGroupIndex}
                         onIndexChange={handleCycleIndex}
+                        onEventOpen={onEventOpen}
                         onClose={() => {
                             setActiveGroup(null);
                             onMarkerClick && onMarkerClick('');
@@ -364,7 +467,7 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, route
                     <>
                         <Polyline
                             positions={route.coordinates}
-                            pathOptions={{ color: route.color || '#3b82f6', weight: 4, opacity: 0.8 }}
+                            pathOptions={{ color: route.color || '#C2371B', weight: 4, opacity: 0.8 }}
                         />
                         <RouteUpdater coordinates={route.coordinates} />
                         {/* Render Simple Dots for Route Points if no events are passed (optional enhancement) */}
@@ -374,7 +477,7 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, route
                                 position={coord}
                                 icon={L.divIcon({
                                     className: 'route-dot',
-                                    html: `<div style="background: ${route.color || '#3b82f6'}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>`,
+                                    html: `<div style="background: ${route.color || '#C2371B'}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>`,
                                     iconSize: [12, 12]
                                 })}
                             />

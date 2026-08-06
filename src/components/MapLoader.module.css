@@ -87,6 +87,22 @@
     to { transform: rotate(-360deg); }
 }
 
+/* Continuous rotation is a vestibular trigger, and these three run forever
+   while the map loads. Under reduced motion the rings hold still and the
+   caret stops blinking — the loader still reads as "working" from its
+   presence and copy. */
+@media (prefers-reduced-motion: reduce) {
+    .ringOuter,
+    .ring,
+    .cursor {
+        animation: none;
+    }
+    .ringOuter,
+    .ring {
+        opacity: 0.55;
+    }
+}
+
 @keyframes blink {
     0%, 100% { opacity: 1; }
     50% { opacity: 0; }

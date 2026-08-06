@@ -135,7 +135,7 @@ export default function CreatorStudio() {
                 }
 
                 // Add a "Produced by Frequent Flyer" watermark
-                const watermark = new fabric.IText('frequentflyer.la', {
+                const watermark = new fabric.IText('frequentflyerla.com', {
                     fontSize: 14,
                     fontFamily: 'Courier New',
                     fill: style.fontColor || '#333',

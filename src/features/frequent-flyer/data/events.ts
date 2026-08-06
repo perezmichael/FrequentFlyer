@@ -6,11 +6,27 @@ export interface Event {
     endTime?: string | null;
     location: string;
     description: string;
-    lat: number;
-    lng: number;
+    /**
+     * Venue coordinates. Null when the venue hasn't been geocoded — the map
+     * skips those pins rather than inventing a location. (These used to default
+     * to downtown LA, which stacked every un-geocoded venue's events onto one
+     * bogus DTLA pin.)
+     */
+    lat: number | null;
+    lng: number | null;
     image: string;
     neighborhood: string;
     vibe: string[];
+    /** Door price as the venue states it ("$15", "Free with RSVP"). Null when
+     *  unknown — the UI stays silent rather than guessing, since it used to
+     *  claim "Free entry" on every event including ticketed shows. */
+    price?: string | null;
+    /** Link out to the event's own page (falls back to the venue calendar). */
+    url?: string | null;
+    /** 'scraped' | 'ff_curated' | 'promoted' — drives tiered card treatment. */
+    curationLevel?: 'scraped' | 'ff_curated' | 'promoted';
+    /** The scout's 1-10 score against vibedoc.md; orders cards within a day. */
+    vibeScore?: number | null;
 }
 
 // "7 PM" / "7:30 PM" from a "HH:MM[:SS]" string.
@@ -23,21 +39,52 @@ function formatTime(t: string): string {
 
 // Combine an event's date and optional start/end times into a display string,
 // e.g. "Sat, Aug 1 · 7 PM – 2 AM". Falls back to the raw date if unparseable.
-export function formatEventDateTime(
+/**
+ * The date and time as separate strings, for places that stack them rather
+ * than run them together — a narrow stamp wrapping mid-time reads as
+ * "WED, AUG 5 · 6" / "PM", which is worse than two deliberate lines.
+ */
+/**
+ * Tidy a scraped price string.
+ *
+ * Eventbrite renders "From" and "$13.39" as separate nodes, so the scraper
+ * concatenated them into "From$13.39". Normalising on read fixes every
+ * surface at once and keeps future scrapes clean without a re-run.
+ */
+export function formatPrice(price?: string | null): string | null {
+    if (!price) return null;
+    return price
+        .replace(/([A-Za-z])(\$)/g, '$1 $2')  // From$13 -> From $13
+        .replace(/\s+/g, ' ')
+        .trim() || null;
+}
+
+export function formatEventDateParts(
     date: string,
     startTime?: string | null,
     endTime?: string | null,
-): string {
+): { date: string; time: string | null } {
     const d = new Date(`${date}T00:00:00`);
     const datePart = isNaN(d.getTime())
         ? date
         : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
-    if (!startTime) return datePart;
+    if (!startTime) return { date: datePart, time: null };
     const timePart = endTime
         ? `${formatTime(startTime)} – ${formatTime(endTime)}`
         : formatTime(startTime);
-    return `${datePart} · ${timePart}`;
+    return { date: datePart, time: timePart };
+}
+
+export function formatEventDateTime(
+    date: string,
+    startTime?: string | null,
+    endTime?: string | null,
+): string {
+    // Same source as formatEventDateParts, so the one-line and stacked
+    // renderings can't disagree about a date.
+    const { date: datePart, time } = formatEventDateParts(date, startTime, endTime);
+    return time ? `${datePart} · ${time}` : datePart;
 }
 
 export const events: Event[] = [

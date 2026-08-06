@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import EventEditorSheet, { EditorEvent } from './EventEditorSheet';
 import { useRouter } from 'next/navigation';
 import { Event } from '@/features/frequent-flyer/data/events';
 import AdminEventCard from './AdminEventCard';
@@ -22,6 +23,13 @@ type AdminEvent = Event & {
     vibe_score?: number;
     source?: string;
     flyer_url?: string;
+    startTime?: string | null;
+    endTime?: string | null;
+    venueName?: string;
+    sourceUrl?: string | null;
+    eventVibe?: string | null;
+    lockedFields?: string[];
+    scrapedValues?: Record<string, string | null>;
 };
 
 interface AdminEventListProps {
@@ -132,6 +140,33 @@ function isMissingFlyer(e: AdminEvent): boolean {
 // ---------------------------------------------------------------------------
 
 export default function AdminEventList({ events }: AdminEventListProps) {
+    // The same editor the carousel kit uses, so the two can't drift.
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [patches, setPatches] = useState<Record<string, Partial<AdminEvent>>>({});
+
+    const editingSheet: EditorEvent | null = (() => {
+        if (!editingId) return null;
+        const raw = events.find(e => e.id === editingId);
+        if (!raw) return null;
+        const e = { ...raw, ...patches[editingId] };
+        return {
+            id: e.id,
+            title: e.title,
+            date: e.date,
+            startTime: e.startTime ?? null,
+            endTime: e.endTime ?? null,
+            vibe: e.eventVibe ?? (e.vibe?.[0] ?? null),
+            flyerUrl: e.flyer_url || null,
+            isPick: (e.curationLevel || 'scraped') === 'ff_curated',
+            status: e.status || 'pending',
+            venue: e.venueName || e.location || '',
+            neighborhood: e.neighborhood || '',
+            sourceUrl: e.sourceUrl ?? null,
+            vibeScore: typeof e.vibe_score === 'number' ? e.vibe_score : null,
+            lockedFields: e.lockedFields || [],
+            scrapedValues: e.scrapedValues || {},
+        };
+    })();
     const router = useRouter();
 
     // Filters
@@ -811,6 +846,7 @@ export default function AdminEventList({ events }: AdminEventListProps) {
                                         onApprove={() => approve(event.id)}
                                         onReject={() => reject(event.id)}
                                         onFocus={() => setFocusedId(event.id)}
+                                        onEdit={() => setEditingId(event.id)}
                                     />
                                 ))}
                             </div>
@@ -821,6 +857,28 @@ export default function AdminEventList({ events }: AdminEventListProps) {
                 <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border-2 border-dashed rounded-xl">
                     <p>No {statusFilter} events found.</p>
                 </div>
+            )}
+
+            {editingSheet && (
+                <EventEditorSheet
+                    event={editingSheet}
+                    onClose={() => setEditingId(null)}
+                    onSaved={patch => setPatches(prev => ({
+                        ...prev,
+                        [editingSheet.id]: {
+                            ...prev[editingSheet.id],
+                            ...(patch.title !== undefined ? { title: patch.title } : {}),
+                            ...(patch.date !== undefined ? { date: patch.date } : {}),
+                            ...(patch.startTime !== undefined ? { startTime: patch.startTime } : {}),
+                            ...(patch.endTime !== undefined ? { endTime: patch.endTime } : {}),
+                            ...(patch.vibe !== undefined ? { eventVibe: patch.vibe } : {}),
+                            ...(patch.flyerUrl !== undefined ? { flyer_url: patch.flyerUrl ?? '' } : {}),
+                            ...(patch.status !== undefined ? { status: patch.status } : {}),
+                            ...(patch.isPick !== undefined
+                                ? { curationLevel: patch.isPick ? 'ff_curated' : 'scraped' } : {}),
+                        },
+                    }))}
+                />
             )}
 
             {/* Toast stack */}

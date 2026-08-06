@@ -9,8 +9,9 @@ export interface RecurringEvent {
     description: string | null;
     venue_name: string;
     neighborhood: string;
-    lat: number;
-    lng: number;
+    /** Null when the venue hasn't been geocoded — never faked to a default. */
+    lat: number | null;
+    lng: number | null;
     venue_url?: string;
     venue_image?: string;
 }

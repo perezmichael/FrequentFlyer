@@ -4,6 +4,20 @@
     gap: 12px;
     cursor: pointer;
     position: relative;
+    transition: transform 0.35s cubic-bezier(0.22, 1.4, 0.36, 1);
+}
+
+.card:hover {
+    transform: translateY(-3px);
+}
+
+.card:active {
+    transform: translateY(-1px) scale(0.985);
+    transition-duration: 0.1s;
+}
+
+.card:hover .image {
+    transform: scale(1.04);
 }
 
 .imageContainer {
@@ -20,21 +34,6 @@
     height: 100%;
     object-fit: cover;
     transition: transform 0.3s ease;
-}
-
-.heartButton {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    z-index: 2;
-    transition: transform 0.2s;
-}
-
-.heartButton:hover {
-    transform: scale(1.1);
 }
 
 .content {
@@ -57,6 +56,28 @@
     margin-bottom: 2px;
 }
 
+/* FF Pick — the brand's one editorial endorsement. Brick on cream, uppercase
+   mono with the pill tracking, hairline outline: the same stamp language as
+   the vibe chips, so it reads as part of the system rather than a badge
+   bolted on. */
+.pick {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    margin-left: 8px;
+    padding: 2px 7px;
+    border: 1px solid var(--ff-accent);
+    border-radius: var(--ff-radius-pill);
+    color: var(--ff-accent);
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: var(--ff-tracking-pill);
+    white-space: nowrap;
+}
+
 .rating {
     display: flex;
     align-items: center;
@@ -71,6 +92,15 @@
     font-size: 0.9rem;
     color: var(--secondary-foreground);
     line-height: 1.3;
+}
+
+.seriesNote {
+    margin-top: 2px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: -0.44px;
+    color: var(--ff-accent);
 }
 
 .price {
@@ -119,4 +149,20 @@
     text-transform: uppercase;
     color: rgba(255, 255, 255, 0.55);
     text-align: center;
+}
+
+/* Compact (picks strip): the stamp sits on its own line so the title gets the
+   full card width, and the title is capped at two lines so one long name
+   can't set the height of every card in the row. */
+.pickStacked {
+    align-self: flex-start;
+    margin-left: 0;
+    margin-bottom: 4px;
+}
+
+.titleClamped {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }

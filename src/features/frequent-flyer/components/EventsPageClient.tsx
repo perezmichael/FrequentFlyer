@@ -232,7 +232,7 @@ export default function EventsPageClient({ initialEvents, recurringEvents = [] }
             {tab !== 'regulars' && (
                 <div className="page-container pb-[80px]">
                     {filteredEvents.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[32px] w-full">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[32px] w-full stagger-in">
                             {filteredEvents.map((event) => (
                                 <FlyerCard
                                     key={event.id}
@@ -242,8 +242,9 @@ export default function EventsPageClient({ initialEvents, recurringEvents = [] }
                             ))}
                         </div>
                     ) : (
-                        <div className="min-h-[400px] flex items-center justify-center font-['Space_Mono'] text-brand">
-                            No events found.
+                        <div className="min-h-[400px] flex flex-col items-center justify-center gap-2 text-center">
+                            <p className="font-space-mono uppercase tracking-[-0.44px] text-ink">nothing here yet. criminal.</p>
+                            <p className="font-space-mono text-sm text-black/55">loosen a filter — or go make the thing worth posting.</p>
                         </div>
                     )}
                 </div>

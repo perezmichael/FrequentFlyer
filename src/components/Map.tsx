@@ -30,7 +30,12 @@ function MapUpdater({ center }: { center: [number, number] }) {
 }
 
 export default function Map({ events, selectedEventId, onMarkerClick }: MapProps) {
-    const selectedEvent = events.find(e => e.id === selectedEventId);
+    // Venue coordinates can be null (not yet geocoded) — never plot a guess.
+    const placed = events.filter(
+        (e): e is Event & { lat: number; lng: number } =>
+            Number.isFinite(e.lat) && Number.isFinite(e.lng)
+    );
+    const selectedEvent = placed.find(e => e.id === selectedEventId);
     const center: [number, number] = selectedEvent
         ? [selectedEvent.lat, selectedEvent.lng]
         : [34.0782, -118.2606]; // Default to LA (Echo Park)
@@ -47,7 +52,7 @@ export default function Map({ events, selectedEventId, onMarkerClick }: MapProps
             />
             {selectedEvent && <MapUpdater center={[selectedEvent.lat, selectedEvent.lng]} />}
 
-            {events.map((event) => (
+            {placed.map((event) => (
                 <Marker
                     key={event.id}
                     position={[event.lat, event.lng]}

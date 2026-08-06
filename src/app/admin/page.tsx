@@ -17,7 +17,7 @@ async function getAdminEvents() {
         .from('events')
         .select(`
             *,
-            venues (name, neighborhood)
+            venues (name, neighborhood, url)
         `)
         .order('event_date', { ascending: false });
 
@@ -37,7 +37,15 @@ async function getAdminEvents() {
         neighborhood: e.venues?.neighborhood || 'Unknown',
         vibe: e.event_vibe ? [e.event_vibe] : [],
         status: e.status || 'pending',
+        startTime: e.start_time || null,
+        endTime: e.end_time || null,
+        venueName: e.venues?.name || 'Unknown',
+        sourceUrl: e.source_url || e.venues?.url || null,
+        eventVibe: e.event_vibe || null,
+        lockedFields: Array.isArray(e.metadata?.editor_locked) ? e.metadata.editor_locked : [],
+        scrapedValues: e.metadata?.scraped_values || {},
         vibe_score: e.metadata?.vibe_score || 0,
+        curationLevel: e.curation_level || 'scraped',
         source: e.metadata?.source || 'manual',
         lat: e.venues?.lat || 0,
         lng: e.venues?.lng || 0

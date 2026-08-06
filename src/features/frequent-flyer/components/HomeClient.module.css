@@ -10,6 +10,10 @@
 .splitLayout {
     display: grid;
     grid-template-columns: 1fr 1fr;
+    /* Cap the row to the container height so a long event list scrolls inside
+       .listContainer instead of stretching the whole row (which would drag the
+       map column far taller than the viewport and push its center off-screen). */
+    grid-template-rows: minmax(0, 1fr);
     gap: 24px;
     padding: 0 24px;
     max-width: 1600px;
@@ -33,6 +37,8 @@
     /* Grid items default to min-width:auto, which lets card content blow the
        1fr track past the viewport (body overflow-x:hidden then clips it). */
     min-width: 0;
+    /* Allow this scroll area to shrink within the capped grid row. */
+    min-height: 0;
 }
 
 .header {
@@ -63,6 +69,8 @@
     padding-top: 1rem;
     padding-bottom: 1.5rem;
     min-width: 0;
+    /* Keep the map column pinned to the row height, not the list's content. */
+    min-height: 0;
 }
 
 .mapWrapper {
@@ -96,7 +104,9 @@
     .splitLayout {
         grid-template-columns: 1fr;
         height: auto;
-        padding: 0 16px;
+        /* No side padding here so the map can go edge-to-edge; the list adds
+           its own gutters back below. */
+        padding: 0;
     }
 
     .listContainer,
@@ -107,18 +117,36 @@
         padding-bottom: 0;
     }
 
+    .listContainer {
+        padding-left: 16px;
+        padding-right: 16px;
+        /* The gap below the tabs lives here now, not on .tabBar, so the map
+           can sit flush against the tab bar. */
+        padding-top: 16px;
+    }
+
     .mapContainer {
-        /* Fill the viewport below the fixed navbar (100px) + tab bar (51px +
-           16px margin), leaving a 16px breathing gap at the bottom. */
-        height: calc(100vh - 183px);
-        height: calc(100dvh - 183px);
-        margin-bottom: 1rem;
+        /* Full-bleed: fill the viewport below the fixed navbar (100px) + tab
+           bar (51px), flush to the tabs and out to the screen edges.
+           svh (not dvh) on purpose — dvh tracks Android Chrome's collapsing
+           URL bar, which resized the map continuously while scrolling. */
+        height: calc(100vh - 151px);
+        height: calc(100svh - 151px);
+        margin-bottom: 0;
+    }
+
+    /* Square, shadowless and edge-to-edge on mobile — the rounded card
+       treatment is a desktop thing. */
+    .mapWrapper {
+        border-radius: 0;
+        box-shadow: none;
     }
 
     .tabBar {
         display: flex;
         border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-        margin-bottom: 16px;
+        /* No gap — the map butts right up under the tabs. */
+        margin-bottom: 0;
     }
 
     .tabButton {
@@ -139,4 +167,58 @@
     .hiddenMobile {
         display: none;
     }
+}
+
+/* This week's picks — a distinct shelf above the feed, so curation is the
+   first thing seen without displacing the chronological listing below. */
+.picksStrip {
+    margin-bottom: 28px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.picksHeader {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.picksTitle {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: -0.44px;
+    color: var(--ff-accent);
+}
+
+.picksAll {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: -0.44px;
+    color: rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
+}
+
+.picksAll:hover { color: var(--ff-accent); }
+
+/* Scrolls sideways rather than wrapping: the shelf should stay one row deep
+   however many picks land in a week. */
+.picksRow {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+}
+
+.picksItem {
+    flex: 0 0 200px;
+    min-width: 200px;
+}
+
+@media (max-width: 767px) {
+    .picksItem { flex-basis: 156px; min-width: 156px; }
 }

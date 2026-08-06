@@ -1,0 +1,72 @@
+name: Scout
+
+# The scout used to run from launchd on a laptop, which meant it only ran when
+# the lid was open and macOS had granted the agent access to ~/Desktop. It
+# silently stopped after 2026-07-23. Running it here decouples freshness from
+# one machine, and the run log is somewhere you can actually read it.
+
+on:
+  schedule:
+    # 17:00 UTC — 10:00 in Los Angeles during PDT, 09:00 during PST. GitHub
+    # cron has no timezone support, so the hour drifts by one across DST.
+    # Harmless for a scraper; the window is a day wide.
+    - cron: '0 17 * * *'
+  workflow_dispatch:
+
+# Two overlapping runs would double-scrape and race on the same rows. Queue
+# rather than cancel: a half-finished scrape is worse than a late one.
+concurrency:
+  group: scout
+  cancel-in-progress: false
+
+jobs:
+  scout:
+    runs-on: ubuntu-latest
+    # A full pass is ~38 venues of Playwright plus Gemini calls. The page-hash
+    # check skips unchanged venues, so most days are far shorter than this.
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fail in seconds with a readable message rather than part-way through a
+      # scrape. Only ever tests emptiness — never echoes a value.
+      - name: Check secrets are set
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          missing=""
+          [ -n "$SUPABASE_URL" ]         || missing="$missing SUPABASE_URL"
+          [ -n "$SUPABASE_SERVICE_KEY" ] || missing="$missing SUPABASE_SERVICE_KEY"
+          [ -n "$GEMINI_API_KEY" ]       || missing="$missing GEMINI_API_KEY"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing"
+            echo "Add them under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          echo "All three secrets are present."
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: services/annex_scout/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r services/annex_scout/requirements.txt
+
+      - name: Install Chromium
+        run: python -m playwright install --with-deps chromium
+
+      - name: Run scout
+        # master_scout.py reads vibedoc.md and venues.json relative to itself.
+        working-directory: services/annex_scout
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        # -u so the log fills line by line instead of in 8KB chunks, which
+        # matters when you're watching a 20-minute run in the Actions tab.
+        run: python -u master_scout.py
