@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
-import { getEvents, getGuides } from '@/lib/queries';
+import { getEvents, getGuides, getNeighborhoods } from '@/lib/queries';
 import { absoluteUrl } from '@/lib/site';
+import { neighborhoodSlug } from '@/lib/neighborhoods';
 
 // Rendered per request. The queries behind it use cache: 'no-store', so Next
 // can't prerender this at build time — it tried, logged a "Dynamic server
@@ -25,12 +26,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // to the static routes rather than throwing and serving nothing.
     let events: Awaited<ReturnType<typeof getEvents>> = [];
     let guides: Awaited<ReturnType<typeof getGuides>> = [];
+    let neighborhoods: Awaited<ReturnType<typeof getNeighborhoods>> = [];
     try {
-        [events, guides] = await Promise.all([getEvents(), getGuides()]);
+        [events, guides, neighborhoods] = await Promise.all([
+            getEvents(), getGuides(), getNeighborhoods(),
+        ]);
     } catch (err) {
         console.error('sitemap: falling back to static routes only —', err);
         return staticRoutes;
     }
+
+    // Ranked just under the home page: these are the durable pages. An event
+    // page is deleted from the feed the day after it happens, but "things to do
+    // in echo park" is a query someone types every week of the year.
+    const neighborhoodRoutes: MetadataRoute.Sitemap = neighborhoods.map(n => ({
+        url: absoluteUrl(`/${neighborhoodSlug(n.name)}`),
+        lastModified: now,
+        changeFrequency: 'daily',
+        priority: 0.9,
+    }));
 
     const eventRoutes: MetadataRoute.Sitemap = events.map(e => ({
         url: absoluteUrl(`/event/${e.id}`),
@@ -49,5 +63,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.7,
     }));
 
-    return [...staticRoutes, ...guideRoutes, ...eventRoutes];
+    return [...staticRoutes, ...neighborhoodRoutes, ...guideRoutes, ...eventRoutes];
 }

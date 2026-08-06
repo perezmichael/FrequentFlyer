@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-
 import 'leaflet/dist/leaflet.css';
 import { Event, formatEventDateParts } from '@/features/frequent-flyer/data/events';
 import L from 'leaflet';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 
 // Fix for default marker icon in Next.js
 // @ts-ignore
@@ -45,6 +45,69 @@ function MapUpdater({ center }: { center: [number, number] }) {
         if (!Number.isFinite(center[0]) || !Number.isFinite(center[1])) return;
         map.flyTo(center, 13, { duration: 1.5 });
     }, [center, map]);
+    return null;
+}
+
+/**
+ * Keep the viewport on whatever pins are currently showing.
+ *
+ * MapContainer's `center`/`zoom` are read once, when Leaflet initialises — a
+ * later change is ignored. So filtering the feed to Echo Park recomputed the
+ * centroid and nothing moved: you were left looking at the middle of LA with
+ * the pins somewhere off-screen, and had to pan to find them.
+ *
+ * Fires on the SET of pins rather than on every render. That distinction
+ * matters: selecting an event doesn't change the set, so this never yanks the
+ * map back out of the flyTo that MapUpdater just did.
+ */
+function FitBounds({ points }: { points: [number, number][] }) {
+    const map = useMap();
+    const firstFit = useRef(true);
+
+    // Rounded and sorted so an identical set of venues in a different order
+    // doesn't read as a change and re-fly the map for nothing.
+    const signature = points
+        .map(([lat, lng]) => `${lat.toFixed(4)},${lng.toFixed(4)}`)
+        .sort()
+        .join('|');
+
+    useEffect(() => {
+        if (!signature) return;
+        const coords = signature.split('|').map(p => p.split(',').map(Number) as [number, number]);
+        const bounds = L.latLngBounds(coords);
+
+        let cancelled = false;
+        let tries = 0;
+
+        const fit = () => {
+            if (cancelled) return;
+            // The split-layout container starts at 0×0 while CSS settles (see
+            // MapResizer). Fitting against a zero-size viewport can't compute a
+            // sensible zoom — it bottoms out at maxZoom and parks you on a
+            // random street with every pin off-screen. Wait for real dimensions
+            // rather than fitting to nothing.
+            const size = map.getSize();
+            if ((size.x < 50 || size.y < 50) && tries++ < 20) {
+                setTimeout(fit, 50);
+                return;
+            }
+            map.flyToBounds(bounds, {
+                padding: [48, 48],
+                // Without a cap, a neighborhood with one venue zooms to rooftop
+                // level — technically correct, useless for getting your bearings.
+                maxZoom: 14,
+                // The first fit is the initial view, so it shouldn't animate in
+                // from the default centroid; later ones are a filter change and
+                // reading as movement is the point.
+                duration: firstFit.current ? 0 : 0.8,
+            });
+            firstFit.current = false;
+        };
+
+        fit();
+        return () => { cancelled = true; };
+    }, [signature, map]);
+
     return null;
 }
 
@@ -429,6 +492,11 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, onEve
 
                 {/* Event Logic (Events Mode) */}
                 {selectedEvent && <MapUpdater center={[selectedEvent.lat, selectedEvent.lng]} />}
+
+                {/* Follow the filtered set. Skipped in guides mode, where
+                    RouteUpdater owns the viewport and two components fighting
+                    over it would fly the map twice. */}
+                {!route && <FitBounds points={locationGroups.map(g => [g[0].lat, g[0].lng])} />}
 
                 {/* One marker per unique venue location */}
                 {locationGroups.map((group) => {
