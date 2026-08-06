@@ -1,17 +1,26 @@
 #!/usr/bin/env bash
-# Copy one value out of .env.local to the clipboard, without printing it.
+# Copy one value out of .env.local, without printing it.
 #
-#   ./scripts/copy-secret.sh SUPABASE_URL
+#   ./scripts/copy-secret.sh SUPABASE_URL          # to the clipboard
+#   ./scripts/copy-secret.sh GEMINI_API_KEY --push # straight into GitHub Actions
 #
 # Strips surrounding quotes and whitespace. Values in .env.local are quoted,
 # and python-dotenv strips those locally — so a hand-copied value works on a
 # laptop and fails in CI with a confusing "Invalid URL", because GitHub stored
 # the quotes as part of the secret.
+#
+# --push exists because the clipboard round-trip is where that bug actually
+# lives: it only takes one paste from the file instead of from here. This has
+# now silently broken the pipeline twice — SUPABASE_URL in July, and
+# GEMINI_API_KEY in August, where the scout kept reporting success for three
+# days while every Gemini call returned "API key not valid". Piping the value
+# straight to `gh` removes the human step that keeps reintroducing it.
 set -euo pipefail
 
 NAME="${1:-}"
+PUSH="${2:-}"
 if [ -z "$NAME" ]; then
-    echo "usage: $0 <ENV_VAR_NAME>" >&2
+    echo "usage: $0 <ENV_VAR_NAME> [--push]" >&2
     exit 1
 fi
 
@@ -45,5 +54,11 @@ if [ -z "$VALUE" ]; then
     exit 1
 fi
 
-printf '%s' "$VALUE" | pbcopy
-echo "$NAME copied to clipboard (${#VALUE} chars, quotes stripped). Paste it into GitHub, then run this again for the next one."
+if [ "$PUSH" = "--push" ]; then
+    # Piped on stdin, never in argv — arguments show up in `ps` and shell history.
+    printf '%s' "$VALUE" | gh secret set "$NAME"
+    echo "$NAME pushed to GitHub Actions secrets (${#VALUE} chars, quotes stripped)."
+else
+    printf '%s' "$VALUE" | pbcopy
+    echo "$NAME copied to clipboard (${#VALUE} chars, quotes stripped). Paste it into GitHub, then run this again for the next one."
+fi
