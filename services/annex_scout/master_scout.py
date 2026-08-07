@@ -745,6 +745,14 @@ def run_master_scout():
     with open('venues.json') as f:
         venues = json.load(f)
 
+    # Did this run actually do anything? Every Gemini failure is caught per
+    # venue so one bad page can't kill the pass — which also means a run where
+    # EVERY call fails still exits 0 and shows green. That happened: a quoted
+    # API key in the GitHub secret meant three days of "successful" runs that
+    # scraped nothing, and nobody noticed because the checkmark said fine.
+    gemini_ok = 0
+    gemini_failed = 0
+
     # FF_ONLY_VENUE=<substring> narrows a run to one venue — for testing a
     # prompt change without a 40-venue, 20-minute pass.
     only = os.getenv("FF_ONLY_VENUE", "").strip().lower()
@@ -974,8 +982,10 @@ def run_master_scout():
                         pass
                     continue
                 events = json.loads(cleaned)
+                gemini_ok += 1
                 print(f"   🔮 Gemini found {len(events)} events.")
             except Exception as e:
+                gemini_failed += 1
                 print(f"❌ Gemini Error for {v['name']}: {e}")
                 try:
                     context.close()
@@ -1212,6 +1222,21 @@ def run_master_scout():
             time.sleep(10)
 
         browser.close()
+
+    # Always summarise, so a glance at the log answers "did this do anything?"
+    print(f"\n📊 Gemini: {gemini_ok} ok, {gemini_failed} failed")
+
+    # A green checkmark should mean the scout worked. One flaky page is normal
+    # and stays green; every single call failing is a systemic problem — a bad
+    # key, a quota, a retired model — and the run must go red so it gets seen.
+    # Deliberately not a percentage threshold: partial failure is ordinary for
+    # a scraper reading 40 sites it doesn't control.
+    if gemini_failed > 0 and gemini_ok == 0:
+        raise SystemExit(
+            f"every Gemini call failed ({gemini_failed}/{gemini_failed}) — "
+            "the run scraped nothing. Check GEMINI_API_KEY in Actions secrets "
+            "(./scripts/copy-secret.sh GEMINI_API_KEY --push)."
+        )
 
 if __name__ == "__main__":
     run_master_scout()
