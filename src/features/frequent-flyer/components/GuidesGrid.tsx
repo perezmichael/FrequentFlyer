@@ -28,6 +28,8 @@ export default function GuidesGrid({ guides, onSelectGuide }: GuidesGridProps) {
                                 alt={guide.title}
                                 className="transition-transform duration-500 group-hover:scale-105"
                                 style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                                loading="lazy"
+                                decoding="async"
                             />
                         )}
                     </div>

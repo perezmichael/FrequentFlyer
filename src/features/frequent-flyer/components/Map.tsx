@@ -338,6 +338,8 @@ function EventPopup({
                             src={event.image}
                             alt={event.title}
                             className="w-full h-full object-cover block"
+                            loading="lazy"
+                            decoding="async"
                         />
                     ) : (
                         <GeneratedFlyer title={event.title} vibe={event.vibe?.[0]} neighborhood={event.neighborhood} />

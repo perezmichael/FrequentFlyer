@@ -97,10 +97,16 @@ export default function AdminEventCard({
             {/* Image Header */}
             <div className="relative aspect-video w-full overflow-hidden bg-muted group">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
+                {/* The review queue lists hundreds of events at once, so this
+                    is the single heaviest page in the app for bandwidth —
+                    heavier than the public feed. Lazy by default; the cards
+                    on screen still load immediately. */}
                 <img
                     src={formData.image || '/placeholder.jpg'}
                     alt={formData.title}
                     className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                    loading="lazy"
+                    decoding="async"
                 />
 
                 {/* Selection checkbox — always visible */}

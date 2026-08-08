@@ -23,7 +23,13 @@ export default function RecurringEventCard({ event, onClick, id, extraDays = 0 }
             <div className={styles.imageContainer}>
                 {showImage ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={event.venue_image!} alt={event.venue_name} className={styles.image} />
+                    <img
+                        src={event.venue_image!}
+                        alt={event.venue_name}
+                        className={styles.image}
+                        loading="lazy"
+                        decoding="async"
+                    />
                 ) : (
                     <GeneratedFlyer title={event.event_name} vibe={event.category} neighborhood={event.neighborhood} />
                 )}
