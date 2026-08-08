@@ -69,6 +69,12 @@ export async function getEvents(): Promise<Event[]> {
         url: e.source_url || e.venues?.url,
         curationLevel: e.curation_level || 'scraped',
         vibeScore: typeof e.metadata?.vibe_score === 'number' ? e.metadata.vibe_score : null,
+        // A time-boxed grouping (a festival week, an art walk). Null for the
+        // vast majority of events, which is the point — it only exists while
+        // something is on.
+        collection: e.metadata?.collection || null,
+        collectionLabel: e.metadata?.collection_label || null,
+        soldOut: e.metadata?.sold_out === true,
     }));
 }
 
@@ -129,6 +135,12 @@ export async function getEventById(id: string): Promise<Event | null> {
         url: e.source_url || e.venues?.url,
         curationLevel: e.curation_level || 'scraped',
         vibeScore: typeof e.metadata?.vibe_score === 'number' ? e.metadata.vibe_score : null,
+        // A time-boxed grouping (a festival week, an art walk). Null for the
+        // vast majority of events, which is the point — it only exists while
+        // something is on.
+        collection: e.metadata?.collection || null,
+        collectionLabel: e.metadata?.collection_label || null,
+        soldOut: e.metadata?.sold_out === true,
     };
 }
 
@@ -142,6 +154,56 @@ export async function getVenues() {
         return [];
     }
     return data || [];
+}
+
+export type CollectionSummary = {
+    /** URL slug, e.g. "sound-and-fury". */
+    slug: string;
+    /** Display name, e.g. "Sound & Fury". */
+    label: string;
+    /** Upcoming events carrying the tag. */
+    count: number;
+    /** Last date in the run — the day the collection stops existing. */
+    lastDate: string;
+};
+
+/**
+ * Collections with something still upcoming.
+ *
+ * A collection is a named, time-boxed grouping — a festival week, an art walk.
+ * Because this only ever looks at events from today forward, a collection
+ * appears when its first event is added and vanishes the day after its last
+ * one, with nothing to remember to switch off. That self-expiry is the whole
+ * reason it's a tag on events rather than a table someone has to maintain.
+ */
+export async function getCollections(): Promise<CollectionSummary[]> {
+    const { data, error } = await supabase
+        .from('events')
+        .select('event_date, metadata')
+        .eq('status', 'approved')
+        .gte('event_date', todayInLA());
+
+    if (error) {
+        console.error('Error fetching collections:', error);
+        return [];
+    }
+
+    const tally = new Map<string, CollectionSummary>();
+    for (const row of (data || []) as any[]) {
+        const slug = row.metadata?.collection;
+        if (!slug) continue;
+        const cur = tally.get(slug) ?? {
+            slug,
+            label: row.metadata?.collection_label || slug,
+            count: 0,
+            lastDate: row.event_date,
+        };
+        cur.count += 1;
+        if (row.event_date > cur.lastDate) cur.lastDate = row.event_date;
+        tally.set(slug, cur);
+    }
+
+    return [...tally.values()].sort((a, b) => b.count - a.count);
 }
 
 export type NeighborhoodSummary = {

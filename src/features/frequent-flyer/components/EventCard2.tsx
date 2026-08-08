@@ -94,6 +94,14 @@ export default function EventCard2({
                         )}
                     </div>
                 )}
+                {/* Sold out is the one thing worth saying loudly. Five of the
+                    Sound & Fury kickoffs were gone before the week started, and
+                    a listing that stays quiet about it sends someone across
+                    town for nothing — the same failure as the old "Free entry"
+                    on ticketed shows, just in the other direction. */}
+                {event.soldOut && (
+                    <div className={styles.soldOut}>Sold out</div>
+                )}
                 <div className={styles.info}>{event.location}</div>
                 <div className={styles.info}>{formatEventDateTime(event.date, event.startTime, event.endTime)}</div>
                 {/* One card stands in for a whole run, so say how long it runs

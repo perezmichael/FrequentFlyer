@@ -28,6 +28,13 @@ interface HomeClientProps {
      * without hitting a wall. The canonical name as venues store it.
      */
     initialNeighborhood?: string;
+    /**
+     * Open scoped to a collection — the /sound-and-fury style landing pages.
+     * Same treatment as a neighborhood: seeds the filter, doesn't lock it.
+     */
+    initialCollection?: string;
+    /** Collections with upcoming events, for the filter pill. */
+    collections?: { slug: string; label: string; count: number }[];
 }
 
 // A unified item that can be either a one-off event or a recurring one
@@ -133,12 +140,17 @@ type Listing = ({
     rank: number;
 };
 
-export default function HomeClient({ initialEvents, recurringEvents = [], initialNeighborhood }: HomeClientProps) {
+export default function HomeClient({
+    initialEvents, recurringEvents = [], initialNeighborhood,
+    initialCollection, collections = [],
+}: HomeClientProps) {
     const today = new Date().getDay(); // 0=Sun
     // Default to All so a cold open shows everything upcoming, not just today.
     const [dayFilter, setDayFilter] = useState<number | null>(null);
     const [neighborhoodFilter, setNeighborhoodFilter] = useState<string | null>(initialNeighborhood ?? null);
+    const [collectionFilter, setCollectionFilter] = useState<string | null>(initialCollection ?? null);
     const [picksOnly, setPicksOnly] = useState(false);
+    const activeCollection = collections.find(c => c.slug === collectionFilter) ?? null;
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
     const [detailEvent, setDetailEvent] = useState<Event | null>(null);
     const [mobileTab, setMobileTab] = useState<'list' | 'map'>('list');
@@ -196,6 +208,10 @@ export default function HomeClient({ initialEvents, recurringEvents = [], initia
                 : item.data.neighborhood;
             if (neighborhoodFilter && neighborhood !== neighborhoodFilter) return false;
 
+            // Recurring nights can't belong to a festival week — they're a
+            // standing weekly, not something programmed for the occasion.
+            if (collectionFilter && !(item.kind === 'event' && item.data.collection === collectionFilter)) return false;
+
             // Recurring nights aren't curatable yet — they have no
             // curation_level — so a picks-only view excludes them rather than
             // implying they were vouched for.
@@ -203,7 +219,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [], initia
 
             return true;
         });
-    }, [unifiedItems, dayFilter, neighborhoodFilter, picksOnly]);
+    }, [unifiedItems, dayFilter, neighborhoodFilter, collectionFilter, picksOnly]);
 
     // How many picks exist at all — the toggle hides itself when there are none,
     // so an empty filter can't be tapped into a dead end.
@@ -394,6 +410,7 @@ export default function HomeClient({ initialEvents, recurringEvents = [], initia
                             {listings.length === 1 ? ' event' : ' events'}
                             {picksOnly ? ' · FF Picks' : dayFilter !== null ? ` · ${DAY_NAMES_SHORT[dayFilter]}s` : ` · next ${WINDOW_DAYS} days`}
                             {neighborhoodFilter ? ` · ${neighborhoodFilter}` : ' · across LA'}
+                            {activeCollection ? ` · ${activeCollection.label}` : ''}
                         </p>
 
                         {/* A neighborhood page is an entry point, not a cage —
@@ -421,6 +438,18 @@ export default function HomeClient({ initialEvents, recurringEvents = [], initia
                                 ...(pickCount > 0
                                     ? [{ key: '__picks', label: `★ FF Picks`, active: picksOnly, emphasize: true, onClick: () => setPicksOnly(!picksOnly) }]
                                     : []),
+                                // Only rendered while a collection has events
+                                // still to come. getCollections() looks from
+                                // today forward, so this pill removes itself
+                                // the day after the last show — nothing to
+                                // switch off by hand.
+                                ...collections.map(c => ({
+                                    key: `__c_${c.slug}`,
+                                    label: `${c.label} (${c.count})`,
+                                    active: collectionFilter === c.slug,
+                                    emphasize: true,
+                                    onClick: () => setCollectionFilter(collectionFilter === c.slug ? null : c.slug),
+                                })),
                                 ...DAY_NAMES_SHORT.map((name, i) => ({
                                     key: String(i),
                                     label: i === today ? `${name} ·` : name,
@@ -456,7 +485,10 @@ export default function HomeClient({ initialEvents, recurringEvents = [], initia
                             back. Hidden entirely when a filter is on, or when
                             a quiet week leaves nothing curated, so it never
                             renders an empty shelf. */}
-                        {weekPicks.length > 0 && !picksOnly && dayFilter === null && (
+                        {/* Hidden while a collection is in view: everything in
+                            one is already a pick, so the strip would just
+                            repeat the feed back at you. */}
+                        {weekPicks.length > 0 && !picksOnly && dayFilter === null && !collectionFilter && (
                             <section className={styles.picksStrip}>
                                 <div className={styles.picksHeader}>
                                     <h2 className={styles.picksTitle}>★ This week&rsquo;s picks</h2>

@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import HomeClient from '@/features/frequent-flyer/components/HomeClient';
 import PageLoader from '@/components/PageLoader';
-import { getEvents, getRecurringEvents, getNeighborhoods } from '@/lib/queries';
+import { getEvents, getRecurringEvents, getNeighborhoods, getCollections } from '@/lib/queries';
 import { neighborhoodFromSlug, neighborhoodSlug } from '@/lib/neighborhoods';
 import { SITE_NAME } from '@/lib/site';
 
@@ -31,17 +31,58 @@ export const dynamic = 'force-dynamic';
 
 type Params = { params: { neighborhood: string } };
 
-/** The canonical neighborhood name for a slug, or null if we don't have one. */
-async function resolveNeighborhood(slug: string): Promise<string | null> {
-    const known = await getNeighborhoods();
-    return neighborhoodFromSlug(slug, known.map(n => n.name));
+/**
+ * What a root slug refers to.
+ *
+ * The same segment serves neighborhoods and collections because they want the
+ * identical page: a scoped list beside a map of exactly those pins. A festival
+ * week is a neighborhood-shaped question ("what's on, and where is it") that
+ * happens to be bounded by a theme instead of a boundary, so /sound-and-fury
+ * gets the whole split layout for free rather than a second page type.
+ *
+ * Neighborhoods are checked first: they're permanent, collections come and go,
+ * and a collection slug colliding with a neighborhood should lose.
+ */
+type Resolved =
+    | { kind: 'neighborhood'; name: string }
+    | { kind: 'collection'; slug: string; label: string; count: number }
+    | null;
+
+async function resolveSlug(slug: string): Promise<Resolved> {
+    const [hoods, collections] = await Promise.all([getNeighborhoods(), getCollections()]);
+
+    const name = neighborhoodFromSlug(slug, hoods.map(n => n.name));
+    if (name) return { kind: 'neighborhood', name };
+
+    const c = collections.find(x => x.slug === neighborhoodSlug(slug));
+    if (c) return { kind: 'collection', slug: c.slug, label: c.label, count: c.count };
+
+    return null;
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-    const known = await getNeighborhoods();
-    const name = neighborhoodFromSlug(params.neighborhood, known.map(n => n.name));
-    if (!name) return { title: 'Not found' };
+    const resolved = await resolveSlug(params.neighborhood);
+    if (!resolved) return { title: 'Not found' };
 
+    if (resolved.kind === 'collection') {
+        const description =
+            `${resolved.count} events in ${resolved.label}, mapped across Los Angeles. ` +
+            `Curated by ${SITE_NAME}.`;
+        return {
+            title: `${resolved.label} — every show, mapped`,
+            description,
+            alternates: { canonical: `/${resolved.slug}` },
+            openGraph: {
+                title: `${resolved.label} · ${SITE_NAME}`,
+                description,
+                url: `/${resolved.slug}`,
+                type: 'website',
+            },
+        };
+    }
+
+    const known = await getNeighborhoods();
+    const name = resolved.name;
     const summary = known.find(n => n.name === name);
     const total = (summary?.events ?? 0) + (summary?.recurring ?? 0);
 
@@ -66,24 +107,28 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     };
 }
 
-export default async function NeighborhoodPage({ params }: Params) {
-    const [events, recurringEvents, name] = await Promise.all([
+export default async function ScopedFeedPage({ params }: Params) {
+    const [events, recurringEvents, collections, resolved] = await Promise.all([
         getEvents(),
         getRecurringEvents(),
-        resolveNeighborhood(params.neighborhood),
+        getCollections(),
+        resolveSlug(params.neighborhood),
     ]);
 
-    // A neighborhood earns a page by having events in it. Anything else is a
-    // typo or a stale printed link, and a 404 is the honest answer — better
-    // than an empty feed that looks like the city has nothing on.
-    if (!name) notFound();
+    // A neighborhood earns a page by having events in it; a collection earns
+    // one by still having something upcoming. Anything else is a typo or a
+    // stale printed link, and a 404 is the honest answer — better than an empty
+    // feed that looks like the city has nothing on.
+    if (!resolved) notFound();
 
     return (
         <Suspense fallback={<PageLoader />}>
             <HomeClient
                 initialEvents={events}
                 recurringEvents={recurringEvents}
-                initialNeighborhood={name}
+                collections={collections}
+                initialNeighborhood={resolved.kind === 'neighborhood' ? resolved.name : undefined}
+                initialCollection={resolved.kind === 'collection' ? resolved.slug : undefined}
             />
         </Suspense>
     );
