@@ -689,7 +689,31 @@ def robots_allows(url):
         parser = RobotFileParser()
         parser.set_url(f"{host}/robots.txt")
         try:
-            parser.read()
+            # Fetch with OUR user agent, not RobotFileParser.read()'s default.
+            #
+            # read() uses urllib's "Python-urllib/x.y", which plenty of sites
+            # behind bot protection answer with 403 — and RobotFileParser reads
+            # a 403 on robots.txt as disallow_all, per the RFC. The result was
+            # the scout skipping venues whose robots.txt actually permits it,
+            # having never managed to read the file. thebellwetherla.com and
+            # programmehq.com both allow us and both were being skipped.
+            #
+            # A 403 to THIS request is different and still respected: a site
+            # that refuses an identified, contactable crawler is saying
+            # something, and it gets believed.
+            resp = requests.get(
+                f"{host}/robots.txt",
+                headers={"User-Agent": BOT_UA},
+                timeout=10,
+                allow_redirects=True,
+            )
+            if resp.status_code in (401, 403):
+                parser.disallow_all = True
+            elif resp.status_code >= 400:
+                # No robots.txt at all — the default is permission.
+                parser.allow_all = True
+            else:
+                parser.parse(resp.text.splitlines())
             _robots_cache[host] = parser
         except Exception:
             _robots_cache[host] = None  # unreachable — treat as permissive

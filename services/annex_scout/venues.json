@@ -306,5 +306,40 @@
     "neighborhood": "El Sereno",
     "lat": 34.067464,
     "lng": -118.17848
+  },
+  {
+    "name": "Lodge Room",
+    "url": "https://www.lodgeroomhlp.com/",
+    "neighborhood": "Highland Park",
+    "lat": 34.10913,
+    "lng": -118.19458
+  },
+  {
+    "name": "The Belasco",
+    "url": "https://www.thebelasco.com/events",
+    "neighborhood": "DTLA",
+    "lat": 34.04082,
+    "lng": -118.25907
+  },
+  {
+    "name": "The Bellwether",
+    "url": "https://thebellwetherla.com/shows/",
+    "neighborhood": "Koreatown",
+    "lat": 34.06241,
+    "lng": -118.29857
+  },
+  {
+    "name": "The Glass House",
+    "url": "https://theglasshouse.us/",
+    "neighborhood": "Pomona",
+    "lat": 34.0575,
+    "lng": -117.75146
+  },
+  {
+    "name": "Programme",
+    "url": "https://programmehq.com/",
+    "neighborhood": "Fullerton",
+    "lat": 33.87432,
+    "lng": -117.88745
   }
 ]
