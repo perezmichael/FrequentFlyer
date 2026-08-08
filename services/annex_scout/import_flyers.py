@@ -365,7 +365,13 @@ def main():
                 "metadata": {
                     "description": (event.get("description") or "").strip(),
                     "price": (event.get("price") or "").strip(),
-                    "promoter": (event.get("promoter") or "").strip(),
+                    # Same normalisation as the scout — see clean_promoter there
+                    # for why this is a string and not its own table.
+                    "promoter": re.sub(
+                        r"\s*(presents?|pres\.?|presented\s+by)\s*$", "",
+                        re.sub(r"\s+", " ", (event.get("promoter") or "")).strip(),
+                        flags=re.I,
+                    ).strip(" -–—:·,")[:120],
                     "age_restriction": (event.get("age_restriction") or "").strip(),
                     # Kept on the row as well as in event_talent: a flyer import
                     # lands as pending, and if it's rejected the join rows go

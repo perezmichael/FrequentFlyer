@@ -241,6 +241,27 @@ def capture_venue_instagram(venue_id, page):
         pass
 
 
+def clean_promoter(name):
+    """
+    Normalise a presenting org so the same one groups across events.
+
+    Stored as a string rather than its own table on purpose: only ~4% of events
+    name a presenter and the most frequent appears five times, so a table and a
+    foreign key would be infrastructure ahead of the data. But the grouping
+    problem is real — "Diamond Family Records Presents" and "Diamond Family
+    Records" are one org — and it's the same failure that made the talent table
+    unusable. Stripping the verb at write time is enough to GROUP BY on.
+
+    Revisit the table when a promoter clears ~20 events; the strings convert.
+    """
+    s = re.sub(r"\s+", " ", (name or "")).strip()
+    if not s:
+        return ""
+    # "X Presents" / "X presented by" / "X pres." → "X"
+    s = re.sub(r"\s*(presents?|pres\.?|presented\s+by)\s*$", "", s, flags=re.I)
+    return s.strip(" -–—:·,").strip()[:120]
+
+
 def upsert_performers(performers):
     """
     Turn the prompt's performers list into talent rows. Returns ids in bill
@@ -1176,7 +1197,7 @@ def run_master_scout():
                             # Who's presenting — a label or collective, not the
                             # venue. Promoters move between rooms, so they're
                             # the entity that actually maps a scene.
-                            "promoter": (event.get('promoter') or '').strip(),
+                            "promoter": clean_promoter(event.get('promoter')),
                             # "21+" / "All Ages" as printed. Blank means the
                             # page didn't say; never inferred from the venue.
                             "age_restriction": (event.get('age_restriction') or '').strip(),
