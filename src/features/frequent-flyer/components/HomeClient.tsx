@@ -138,6 +138,15 @@ type Listing = ({
     sortDate: string;
     /** 0 pick, 1 has artwork, 2 branded card. Orders within a day. */
     rank: number;
+    /**
+     * Sold out shows stay listed but sink below everything you can still get
+     * into on the same day. Removing them would misrepresent the night — a
+     * festival week where five of fifteen shows sold out IS the week, and that
+     * they went first is information. But a card you can't act on shouldn't sit
+     * above four you can, which is where Sound & Fury week put Hardlore
+     * Jeopardy: first card in the collection, gone before it opened.
+     */
+    soldOut: boolean;
 };
 
 export default function HomeClient({
@@ -290,20 +299,20 @@ export default function HomeClient({
     const listings = useMemo<Listing[]>(() => {
         // Plain object, not a Map: the dynamically imported <Map> component
         // above shadows the global Map constructor in this module.
-        const bySeries: Record<string, { data: Event; dates: number; lastDate: string; sortDate: string; rank: number }> = {};
+        const bySeries: Record<string, { data: Event; dates: number; lastDate: string; sortDate: string; rank: number; soldOut: boolean }> = {};
         const order: string[] = [];
         const out: Listing[] = [];
 
         // Recurring nights first, so a dated event can supersede one: the
         // events row carries a real date, flyer and tickets link, which the
         // recurring row doesn't.
-        const byRecurring: Record<string, { data: RecurringEvent; extraDays: number; sortDate: string; rank: number }> = {};
+        const byRecurring: Record<string, { data: RecurringEvent; extraDays: number; sortDate: string; rank: number; soldOut: boolean }> = {};
         const recurringOrder: string[] = [];
         for (const item of filteredItems) {
             if (item.kind !== 'recurring') continue;
             const key = recurringSeriesKey(item.data);
             if (!byRecurring[key]) {
-                byRecurring[key] = { data: item.data, extraDays: 0, sortDate: item.sortDate, rank: dayRank(item) };
+                byRecurring[key] = { data: item.data, extraDays: 0, sortDate: item.sortDate, rank: dayRank(item), soldOut: false };
                 recurringOrder.push(key);
             } else {
                 // "33 Taps Happy Hour" is seven rows, one per weekday.
@@ -318,7 +327,7 @@ export default function HomeClient({
             if (byRecurring[key]) delete byRecurring[key];
             const seen = bySeries[key];
             if (!seen) {
-                bySeries[key] = { data: item.data, dates: 1, lastDate: item.data.date, sortDate: item.sortDate, rank: dayRank(item) };
+                bySeries[key] = { data: item.data, dates: 1, lastDate: item.data.date, sortDate: item.sortDate, rank: dayRank(item), soldOut: item.data.soldOut === true };
                 order.push(key);
             } else {
                 seen.dates += 1;
@@ -330,10 +339,10 @@ export default function HomeClient({
 
         for (const k of recurringOrder) {
             const v = byRecurring[k];
-            if (v) out.push({ kind: 'recurring', data: v.data, extraDays: v.extraDays, sortDate: v.sortDate, rank: v.rank });
+            if (v) out.push({ kind: 'recurring', data: v.data, extraDays: v.extraDays, sortDate: v.sortDate, rank: v.rank, soldOut: v.soldOut });
         }
         for (const v of order.map(k => bySeries[k])) {
-            out.push({ kind: 'event', data: v.data, dates: v.dates, lastDate: v.lastDate, sortDate: v.sortDate, rank: v.rank });
+            out.push({ kind: 'event', data: v.data, dates: v.dates, lastDate: v.lastDate, sortDate: v.sortDate, rank: v.rank, soldOut: v.soldOut });
         }
         // Chronology is the spine — people plan by day, so a Friday show must
         // never sit above a Tuesday one. Within a day, quality decides: a pick
@@ -344,6 +353,12 @@ export default function HomeClient({
         // them ahead of every dated event; they now carry their next occurrence.
         out.sort((a, b) => {
             if (a.sortDate !== b.sortDate) return a.sortDate < b.sortDate ? -1 : 1;
+            // Availability outranks curation here on purpose. A sold-out pick
+            // is still something you can't do tonight, and someone scanning a
+            // day wants what they can act on first; the sold-out ones stay
+            // listed underneath because the night isn't honestly described
+            // without them.
+            if (a.soldOut !== b.soldOut) return a.soldOut ? 1 : -1;
             if (a.rank !== b.rank) return a.rank - b.rank;
             const sa = a.kind === 'event' ? (a.data.vibeScore ?? 0) : 0;
             const sb = b.kind === 'event' ? (b.data.vibeScore ?? 0) : 0;
