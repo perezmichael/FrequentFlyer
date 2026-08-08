@@ -62,6 +62,8 @@ dates should return one object per date:
 [{{
   "title": "", "date": "YYYY-MM-DD", "start_time": "HH:MM", "end_time": "HH:MM",
   "venue_name": "", "neighborhood": "", "price": "", "vibe": "", "description": "",
+  "performers": [{{"name": "", "instagram": "@handle"}}],
+  "promoter": "", "age_restriction": "",
   "confidence": "high|medium|low"
 }}]
 
@@ -95,6 +97,15 @@ RULES
 8. "description": one or two plain sentences about what happens — who's playing,
    what the format is. Only facts printed on the flyer.
 9. "confidence": "low" if the flyer is hard to read or the date is ambiguous.
+10. "performers": one entry per act billed, in the order printed (headliner
+    first). A flyer listing four DJs is four entries, never one string with
+    commas. Copy the act's name only — not the night's name. "Milk Crate
+    Mondays w/ Alex Santos" is the performer Alex Santos. If the flyer names
+    no act, return an EMPTY LIST rather than repeating the title.
+11. "promoter": the label, collective or night presenting it — not the venue,
+    not the act. "" if the flyer doesn't say.
+12. "age_restriction": "21+", "18+", "All Ages" as printed. "" if absent —
+    never inferred from the venue.
 """
 
 
@@ -354,6 +365,12 @@ def main():
                 "metadata": {
                     "description": (event.get("description") or "").strip(),
                     "price": (event.get("price") or "").strip(),
+                    "promoter": (event.get("promoter") or "").strip(),
+                    "age_restriction": (event.get("age_restriction") or "").strip(),
+                    # Kept on the row as well as in event_talent: a flyer import
+                    # lands as pending, and if it's rejected the join rows go
+                    # with it — this preserves what the flyer actually said.
+                    "performers_raw": event.get("performers") or [],
                     "image_source": "flyer import",
                     "added_by": "editor",
                     "source": f"flyer image: {path.name}",

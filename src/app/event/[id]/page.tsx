@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 import { getEventById } from '@/lib/queries';
 import { formatEventDateTime } from '@/features/frequent-flyer/data/events';
 import { absoluteUrl } from '@/lib/site';
-import { withReferral } from '@/lib/outbound';
+import OutboundLink from '@/features/frequent-flyer/components/OutboundLink';
 import { hasRealImage } from '@/features/frequent-flyer/data/vibePlaceholders';
 import GeneratedFlyer from '@/features/frequent-flyer/components/GeneratedFlyer';
 import ShareButton from '@/features/frequent-flyer/components/ShareButton';
@@ -167,10 +167,10 @@ export default async function EventPage({ params }: { params: { id: string } }) 
                     {/* Actions */}
                     <div className="mt-6 flex flex-col gap-3">
                         {event.url && (
-                            <a
-                                href={withReferral(event.url)}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                            <OutboundLink
+                                href={event.url}
+                                eventId={event.id}
+                                surface="event_page"
                                 className={styles.ticketButton}
                             >
                                 Event page &amp; tickets
@@ -179,7 +179,7 @@ export default async function EventPage({ params }: { params: { id: string } }) 
                                     <polyline points="15 3 21 3 21 9" />
                                     <line x1="10" y1="14" x2="21" y2="3" />
                                 </svg>
-                            </a>
+                            </OutboundLink>
                         )}
 
                         <ShareButton

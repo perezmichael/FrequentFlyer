@@ -196,6 +196,104 @@ def mark_venue_scouted(venue_id, page_hash):
         print(f"   ⚠️  Could not save page hash (run db/schema_scout_state.sql?): {e}")
 
 
+# Instagram paths that are the platform's own, not a venue's account.
+_IG_RESERVED = {
+    'p', 'reel', 'reels', 'tv', 'stories', 'explore', 'accounts', 'about',
+    'developer', 'legal', 'privacy', 'directory', 'direct', 'challenge',
+}
+
+
+def capture_venue_instagram(venue_id, page):
+    """
+    Read a venue's Instagram handle off its own site and store it once.
+
+    Only fills a blank — never overwrites, since a hand-corrected handle
+    should outrank whatever link happens to sit in a footer. Silent on
+    failure: a missing social link is not a scrape error.
+    """
+    if not venue_id:
+        return
+    try:
+        current = supabase.table("venues").select("instagram_handle") \
+            .eq("id", venue_id).single().execute().data
+        if current and (current.get("instagram_handle") or "").strip():
+            return
+
+        hrefs = page.eval_on_selector_all(
+            "a[href*='instagram.com']", "els => els.map(e => e.href)"
+        ) or []
+        for href in hrefs:
+            m = re.search(r"instagram\.com/([A-Za-z0-9._]+)", href)
+            if not m:
+                continue
+            handle = m.group(1).strip('.')
+            # Skip /p/<postid> and friends, and the too-short junk that
+            # trailing slashes produce.
+            if handle.lower() in _IG_RESERVED or len(handle) < 3:
+                continue
+            supabase.table("venues").update(
+                {"instagram_handle": f"@{handle}"}
+            ).eq("id", venue_id).execute()
+            print(f"   📷 Instagram: @{handle}")
+            return
+    except Exception:
+        # Deliberately swallowed — this is a bonus field, not the job.
+        pass
+
+
+def upsert_performers(performers):
+    """
+    Turn the prompt's performers list into talent rows. Returns ids in bill
+    order (headliner first), or [] when the page named nobody.
+
+    Returning [] is a real answer. The previous version fell back to the event
+    title whenever no act was found, which filed "Trivia Night" and "Comedians
+    Cinema Club" as performers and made the artist history untrustworthy.
+    """
+    if not isinstance(performers, list):
+        return []
+
+    ids = []
+    for p in performers:
+        # Tolerate a bare string if the model ignores the object shape.
+        name = (p if isinstance(p, str) else (p or {}).get('name') or '').strip()
+        # Guard against the old failure mode coming back as one long string.
+        if not name or len(name) > 120:
+            continue
+        handle = '' if isinstance(p, str) else ((p or {}).get('instagram') or '').strip()
+        try:
+            row = supabase.table("talent").upsert(
+                {"name": name, "instagram_handle": handle},
+                on_conflict="name",
+            ).execute().data[0]
+            ids.append(row['id'])
+        except Exception as e:
+            print(f"      ⚠️  talent upsert failed for {name!r}: {str(e)[:70]}")
+    return ids
+
+
+def link_performers(event_id, talent_ids):
+    """
+    Attach a bill to an event. Idempotent — the scout re-reads the same page
+    for weeks, so this must not accumulate duplicate rows (the unique
+    constraint on (event_id, talent_id) is the backstop).
+    """
+    if not event_id or not talent_ids:
+        return
+    rows = [
+        {"event_id": event_id, "talent_id": tid, "bill_order": i}
+        for i, tid in enumerate(talent_ids)
+    ]
+    try:
+        supabase.table("event_talent").upsert(
+            rows, on_conflict="event_id,talent_id"
+        ).execute()
+    except Exception as e:
+        # A missing event_talent table (migration not run yet) must not take
+        # down the whole scrape — the events themselves still land.
+        print(f"      ⚠️  event_talent link failed: {str(e)[:70]}")
+
+
 def should_auto_publish(venue_trust, event):
     """Quality gate for skipping manual review. Returns (bool, reason)."""
     if venue_trust != 'trusted':
@@ -890,6 +988,12 @@ def run_master_scout():
             venue_id = venue_row['id']
             venue_trust = venue_row.get('trust_tier', 'standard')
 
+            # Venue Instagram handle, from links already on the page — an href,
+            # not a judgment, so no Gemini call. Runs before the page-hash skip
+            # below on purpose: an unchanged page still has the handle, and
+            # every venue in the DB was missing one.
+            capture_venue_instagram(venue_id, page)
+
             page_hash = hashlib.sha256(
                 f"{week_key}:{raw_text}".encode("utf-8", "replace")
             ).hexdigest()
@@ -959,11 +1063,33 @@ def run_master_scout():
                - If the text doesn't say, return "" and the app will stay quiet
                  about it rather than claim it's free.
 
+            9. "performers" is a LIST, one entry per act on the bill, in the
+               order the page bills them (headliner first). A night with four
+               comedians is four entries — not one string with commas in it.
+               - Copy the act's name only. Not the show title, not the series.
+                 "ROOMIES with Dylan Adler, Sam Morrison & Kylie Vincent" is
+                 three performers; "ROOMIES" is the show, not a person.
+               - "instagram" only if the page actually prints a handle.
+               - If the page names no act at all, return an EMPTY LIST. Do not
+                 fall back to the event title: a show called "Trivia Night" has
+                 no performer, and inventing one poisons the artist history.
+
+            10. "promoter" is the collective, label or night presenting the
+                show, when the page names one — "Diamond Family Records
+                Presents", "Lauretta Records Presents". This is NOT the venue
+                and NOT the act. Return "" if the page doesn't say.
+
+            11. "age_restriction" copied as printed: "21+", "18+", "All Ages".
+                Return "" if the page doesn't state it. Never infer it from the
+                venue being a bar.
+
             RETURN ONLY A JSON LIST:
             [
               {{
                 "event_name": "", "date": "YYYY-MM-DD", "start_time": "HH:MM", "end_time": "HH:MM",
-                "talent_name": "", "talent_ig": "@handle", "category": "", "vibe_score": 0,
+                "performers": [{{"name": "", "instagram": "@handle"}}],
+                "promoter": "", "age_restriction": "",
+                "category": "", "vibe_score": 0,
                 "vibe_justification": "", "description": "", "price": "", "event_url": ""
               }}
             ]
@@ -1001,15 +1127,22 @@ def run_master_scout():
 
             for event in events:
                 try:
-                    # FIX: Ensure talent_name is never None
-                    t_name = event.get('talent_name')
-                    if not t_name or t_name == "None":
-                        t_name = event['event_name']
+                    # A blank title used to still get written as a pending row.
+                    # The Smell and Gold-Diggers produced 8 of them — untitled
+                    # cards nobody could review or publish. Nothing downstream
+                    # can rescue an event with no name, so drop it here.
+                    if not (event.get('event_name') or '').strip():
+                        print(f"   ⏭️  Skipping an event with no title at {v['name']}.")
+                        continue
 
-                    talent_id = supabase.table("talent").upsert({
-                        "name": t_name,
-                        "instagram_handle": event.get('talent_ig', '')
-                    }, on_conflict="name").execute().data[0]['id']
+                    # One row per act, in bill order. This used to be a single
+                    # talent_name, and when a page listed four comedians Gemini
+                    # returned them comma-joined into one string — 497 of ~1000
+                    # talent rows look like that, which makes "who played most
+                    # often" unanswerable. It also used to fall back to the
+                    # EVENT TITLE when no act was named, filing "Trivia Night"
+                    # as a performer.
+                    talent_ids = upsert_performers(event.get('performers'))
 
                     # Select-then-insert instead of a blind upsert: the old
                     # upsert wrote status='pending' on every run, which reset
@@ -1025,7 +1158,10 @@ def run_master_scout():
                         "start_time": clean_time(event.get('start_time')),
                         "end_time": clean_time(event.get('end_time')),
                         "venue_id": venue_id,
-                        "talent_id": talent_id,
+                        # Kept pointing at the headliner so anything still
+                        # reading the single FK keeps working; event_talent is
+                        # the real record of who's on the bill.
+                        "talent_id": talent_ids[0] if talent_ids else None,
                         "metadata": {
                             "vibe_score": event.get('vibe_score', 0),
                             # Internal scoring rationale — never shown to users.
@@ -1037,6 +1173,13 @@ def run_master_scout():
                             # than claiming free, which it used to do for every
                             # event including $26 ticketed shows.
                             "price": (event.get('price') or '').strip(),
+                            # Who's presenting — a label or collective, not the
+                            # venue. Promoters move between rooms, so they're
+                            # the entity that actually maps a scene.
+                            "promoter": (event.get('promoter') or '').strip(),
+                            # "21+" / "All Ages" as printed. Blank means the
+                            # page didn't say; never inferred from the venue.
+                            "age_restriction": (event.get('age_restriction') or '').strip(),
                         }
                     }
 
@@ -1083,6 +1226,11 @@ def run_master_scout():
                         event_payload["status"] = "pending"
                         event_payload["curation_level"] = "scraped"
                         event_id = supabase.table("events").insert(event_payload).execute().data[0]['id']
+
+                    # Attach the bill on both paths — a refreshed event may have
+                    # gained support acts since the last scrape.
+                    link_performers(event_id, talent_ids)
+
                     flyer_url = None
                     raw_img_url = None  # Track the source URL to detect duplicates
 

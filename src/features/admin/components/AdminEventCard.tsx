@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Check, X, Edit2, Upload, AlertTriangle, ImageOff, Star } from 'lucide-react';
 
 interface AdminEventCardProps {
-    event: Event & { status?: string; vibe_score?: number; curationLevel?: string };
+    event: Event & { status?: string; vibe_score?: number; curationLevel?: string; pickNote?: string };
     source?: string;
     selected?: boolean;
     focused?: boolean;
@@ -47,6 +47,8 @@ export default function AdminEventCard({
     // Optimistic: the server action revalidates, but the star should flip now.
     const [curation, setCuration] = useState(event.curationLevel || 'scraped');
     const [curationPending, setCurationPending] = useState(false);
+    const [pickNote, setPickNote] = useState(event.pickNote || '');
+    const [noteSaved, setNoteSaved] = useState(false);
     // Retained for the thumbnail and the flyer-upload handler; field
     // editing itself moved to the shared EventEditorSheet.
     const [formData, setFormData] = useState({
@@ -275,6 +277,35 @@ export default function AdminEventCard({
                         Pick
                     </Button>
                 </CardFooter>
+            )}
+
+            {/* Why you picked it. Shown only once something IS a pick, and
+                deliberately optional — the moment a note becomes a gate on
+                picking, picking stops happening. Saves on blur so it never
+                interrupts a review pass.
+
+                This is the one piece of judgment that's actually yours;
+                metadata.justification is the scout explaining its own score. */}
+            {curation === 'ff_curated' && (
+                <div className="px-6 pb-4 -mt-2" onClick={e => e.stopPropagation()}>
+                    <input
+                        value={pickNote}
+                        onChange={e => { setPickNote(e.target.value); setNoteSaved(false); }}
+                        onBlur={async () => {
+                            if (pickNote === (event.pickNote || '')) return;
+                            try {
+                                await setEventCuration(event.id, 'ff_curated', pickNote);
+                                setNoteSaved(true);
+                            } catch { /* leave the text in place to retry */ }
+                        }}
+                        placeholder="why this one? (tiny room, get there before 9…)"
+                        maxLength={500}
+                        className="w-full rounded-md border border-black/15 bg-transparent px-2.5 py-1.5 text-[13px] placeholder:text-black/35 focus:border-[#C2371B] focus:outline-none"
+                    />
+                    {noteSaved && (
+                        <span className="mt-1 block text-[11px] text-[#C2371B]">saved</span>
+                    )}
+                </div>
             )}
         </Card>
     );
