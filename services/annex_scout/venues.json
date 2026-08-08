@@ -299,5 +299,12 @@
     "neighborhood": "Chinatown",
     "lat": 34.0658438,
     "lng": -118.2375382
+  },
+  {
+    "name": "Milky's",
+    "url": "https://milkysla.com/",
+    "neighborhood": "El Sereno",
+    "lat": 34.067464,
+    "lng": -118.17848
   }
 ]
