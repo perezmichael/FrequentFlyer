@@ -18,6 +18,8 @@ export default function GuideDetail({ guide, onBack }: GuideDetailProps) {
                     src={guide.cover_image || '/placeholder-guide.jpg'}
                     alt={guide.title}
                     className="w-full h-full object-cover"
+                    loading="lazy"
+                    decoding="async"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
             </div>
@@ -65,6 +67,8 @@ export default function GuideDetail({ guide, onBack }: GuideDetailProps) {
                                         src={item.venues.image_url}
                                         alt={item.venues.name}
                                         className="w-full aspect-[3/2] object-cover grayscale-[20%] hover:grayscale-0 transition-all duration-500"
+                                        loading="lazy"
+                                        decoding="async"
                                     />
                                 </div>
                             )}

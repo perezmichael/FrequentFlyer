@@ -64,6 +64,8 @@ export default function AdminRecurringEventCard({ event }: AdminRecurringEventCa
                         src={event.venue_image!}
                         alt={event.venue_name}
                         className="w-full h-full object-cover"
+                        loading="lazy"
+                        decoding="async"
                     />
                 ) : (
                     <div

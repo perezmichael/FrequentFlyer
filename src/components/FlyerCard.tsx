@@ -91,6 +91,8 @@ export default function FlyerCard({ image, event }: FlyerCardProps) {
           alt={event.title}
           className="absolute inset-[-20px] max-w-none object-cover pointer-events-none w-[calc(100%+40px)] h-[calc(100%+40px)]"
           src={image}
+            loading="lazy"
+            decoding="async"
         />
       </motion.div>
 

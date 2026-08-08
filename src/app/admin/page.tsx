@@ -46,6 +46,9 @@ async function getAdminEvents() {
         scrapedValues: e.metadata?.scraped_values || {},
         vibe_score: e.metadata?.vibe_score || 0,
         curationLevel: e.curation_level || 'scraped',
+        // Your reason for picking it — distinct from metadata.justification,
+        // which is the scout explaining its own score.
+        pickNote: e.metadata?.pick_note || '',
         source: e.metadata?.source || 'manual',
         lat: e.venues?.lat || 0,
         lng: e.venues?.lng || 0

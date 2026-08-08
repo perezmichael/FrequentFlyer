@@ -37,7 +37,23 @@ export default function EventCard2({
             <div className={styles.imageContainer}>
                 {showImage ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={event.image} alt={event.title} className={styles.image} />
+                    /* The feed renders 130+ cards and used to request every
+                       image on load — 229 requests when only ~22 are near the
+                       viewport, roughly 64MB a page view, which burned 5GB of
+                       Supabase egress in under two days.
+
+                       Native lazy loading does NOT delay images already in or
+                       near the viewport, so this is safe to apply to every
+                       card: the ones you can see still load immediately.
+                       Layout is already reserved by aspect-ratio on the
+                       container, so nothing shifts as they arrive. */
+                    <img
+                        src={event.image}
+                        alt={event.title}
+                        className={styles.image}
+                        loading="lazy"
+                        decoding="async"
+                    />
                 ) : (
                     <GeneratedFlyer title={event.title} vibe={event.vibe?.[0]} neighborhood={event.neighborhood} />
                 )}

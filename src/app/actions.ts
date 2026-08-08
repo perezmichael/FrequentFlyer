@@ -142,18 +142,53 @@ const ALLOWED_CURATION_LEVELS = new Set(['scraped', 'ff_curated', 'promoted'] as
  * They're different claims, and only the second one is taste, so it gets its
  * own control rather than riding on approve.
  */
-export async function setEventCuration(id: string, level: string) {
+/** Merge keys into an event's metadata without clobbering what's there. */
+async function mergeEventMetadata(id: string, patch: Record<string, unknown>) {
+    const { data } = await supabase
+        .from('events').select('metadata').eq('id', id).maybeSingle();
+    return { ...((data?.metadata as object) || {}), ...patch };
+}
+
+export async function setEventCuration(id: string, level: string, note?: string) {
     await assertAdmin();
     if (!isNonEmptyString(id)) throw new Error('Invalid event id');
     if (!ALLOWED_CURATION_LEVELS.has(level as any)) throw new Error('Invalid curation level');
-    await supabase.from('events').update({ curation_level: level }).eq('id', id);
+
+    const update: Record<string, unknown> = { curation_level: level };
+
+    // Why you picked it, in your words. metadata.justification is the scout's
+    // reasoning about its own score — a model explaining itself — and it was
+    // the only "why" being stored anywhere. This is the editorial judgment
+    // that's actually yours, and it was evaporating every week: 8 picks, zero
+    // recorded reasons. It's also the raw material for guide copy later.
+    if (typeof note === 'string') {
+        update.metadata = await mergeEventMetadata(id, {
+            pick_note: note.trim().slice(0, 500),
+            pick_noted_at: new Date().toISOString(),
+        });
+    }
+
+    await supabase.from('events').update(update).eq('id', id);
     revalidateEventPaths();
 }
 
-export async function rejectEvent(id: string) {
+/** Reason accepted here; the canonical buckets live in @/lib/rejectReasons. */
+export async function rejectEvent(id: string, reason?: string) {
     await assertAdmin();
     if (!isNonEmptyString(id)) throw new Error('Invalid event id');
-    await supabase.from('events').update({ status: 'rejected' }).eq('id', id);
+
+    const update: Record<string, unknown> = { status: 'rejected' };
+
+    // 110 rejected events carried no reason at all. What you chose NOT to show
+    // is as much a preference signal as what you picked, and it costs one tap.
+    if (typeof reason === 'string' && reason.trim()) {
+        update.metadata = await mergeEventMetadata(id, {
+            reject_reason: reason.trim().slice(0, 120),
+            rejected_at: new Date().toISOString(),
+        });
+    }
+
+    await supabase.from('events').update(update).eq('id', id);
     revalidateEventPaths();
 }
 
