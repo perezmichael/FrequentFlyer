@@ -17,6 +17,23 @@ export interface Event {
     image: string;
     neighborhood: string;
     vibe: string[];
+    /**
+     * A named, time-boxed grouping — a festival week, an art walk, a season.
+     *
+     * Deliberately a tag on the event rather than a table: a collection is only
+     * interesting while it's happening, and tying its visibility to whether any
+     * tagged event is still upcoming means it appears and disappears on its own
+     * with nothing to clean up afterwards.
+     */
+    collection?: string | null;
+    /** Display name for the collection ("Sound & Fury"). */
+    collectionLabel?: string | null;
+    /**
+     * Sold out at the source. Shown on the card, because a listing that doesn't
+     * say so sends someone across town for nothing — the same failure as the
+     * old "Free entry" on ticketed shows.
+     */
+    soldOut?: boolean;
     /** Door price as the venue states it ("$15", "Free with RSVP"). Null when
      *  unknown — the UI stays silent rather than guessing, since it used to
      *  claim "Free entry" on every event including ticketed shows. */

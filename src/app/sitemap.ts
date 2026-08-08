@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next';
-import { getEvents, getGuides, getNeighborhoods } from '@/lib/queries';
+import { getEvents, getGuides, getNeighborhoods, getCollections } from '@/lib/queries';
 import { absoluteUrl } from '@/lib/site';
 import { neighborhoodSlug } from '@/lib/neighborhoods';
 
@@ -27,9 +27,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     let events: Awaited<ReturnType<typeof getEvents>> = [];
     let guides: Awaited<ReturnType<typeof getGuides>> = [];
     let neighborhoods: Awaited<ReturnType<typeof getNeighborhoods>> = [];
+    let collections: Awaited<ReturnType<typeof getCollections>> = [];
     try {
-        [events, guides, neighborhoods] = await Promise.all([
-            getEvents(), getGuides(), getNeighborhoods(),
+        [events, guides, neighborhoods, collections] = await Promise.all([
+            getEvents(), getGuides(), getNeighborhoods(), getCollections(),
         ]);
     } catch (err) {
         console.error('sitemap: falling back to static routes only —', err);
@@ -63,5 +64,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.7,
     }));
 
-    return [...staticRoutes, ...neighborhoodRoutes, ...guideRoutes, ...eventRoutes];
+    // Collections are short-lived by nature — a festival week exists for days.
+    // changeFrequency 'daily' and a high priority while it's live; the entry
+    // disappears with the collection once its last event passes.
+    const collectionRoutes: MetadataRoute.Sitemap = collections.map(c => ({
+        url: absoluteUrl(`/${c.slug}`),
+        lastModified: now,
+        changeFrequency: 'daily',
+        priority: 0.9,
+    }));
+
+    return [...staticRoutes, ...neighborhoodRoutes, ...collectionRoutes, ...guideRoutes, ...eventRoutes];
 }

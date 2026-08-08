@@ -60,6 +60,45 @@ function MapUpdater({ center }: { center: [number, number] }) {
  * matters: selecting an event doesn't change the set, so this never yanks the
  * map back out of the flyTo that MapUpdater just did.
  */
+/**
+ * The pins worth framing around, ignoring strays.
+ *
+ * Every pin still renders — this only decides where the camera sits. A
+ * collection can legitimately include a show 40 miles out (Sound & Fury runs
+ * kickoffs in Pomona and Fullerton), and fitting to those stretched the
+ * viewport from Santa Monica to San Clemente and shrank the actual LA cluster
+ * to a thumbnail. The distant ones are still there; you just have to zoom out
+ * to see them, which is the right trade for a map of an LA night.
+ *
+ * Scale-relative rather than a hardcoded LA box, so this keeps working if the
+ * app ever covers a second city: it asks "how far is this pin compared to a
+ * typical one" instead of "is this pin inside Los Angeles".
+ */
+function framingPoints(points: [number, number][]): [number, number][] {
+    if (points.length < 5) return points;
+
+    const median = (xs: number[]) => {
+        const s = [...xs].sort((a, b) => a - b);
+        return s[Math.floor(s.length / 2)];
+    };
+    const cLat = median(points.map(p => p[0]));
+    const cLng = median(points.map(p => p[1]));
+    // Longitude degrees shrink with latitude; without this correction an
+    // east-west spread reads as larger than it is.
+    const k = Math.cos((cLat * Math.PI) / 180);
+    const dist = points.map(([lat, lng]) => Math.hypot(lat - cLat, (lng - cLng) * k));
+
+    const typical = median(dist) || 0;
+    // Four times a typical distance is comfortably outside the metro spread
+    // but well inside a different county.
+    const cutoff = typical * 4;
+    const kept = points.filter((_, i) => dist[i] <= cutoff);
+
+    // If that would discard a quarter of the pins, this isn't a few strays —
+    // the set really is spread out, and cropping it would hide the story.
+    return kept.length >= Math.max(3, points.length * 0.75) ? kept : points;
+}
+
 function FitBounds({ points }: { points: [number, number][] }) {
     const map = useMap();
     const firstFit = useRef(true);
@@ -74,7 +113,7 @@ function FitBounds({ points }: { points: [number, number][] }) {
     useEffect(() => {
         if (!signature) return;
         const coords = signature.split('|').map(p => p.split(',').map(Number) as [number, number]);
-        const bounds = L.latLngBounds(coords);
+        const bounds = L.latLngBounds(framingPoints(coords));
 
         let cancelled = false;
         let tries = 0;

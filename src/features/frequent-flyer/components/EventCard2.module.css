@@ -166,3 +166,19 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
+
+/* Sold out — uppercase mono with the pill tracking, same stamp language as the
+   FF Pick and vibe chips so it reads as part of the system. Ink rather than
+   brick: it's a fact about availability, not an endorsement, and it shouldn't
+   compete with the one colour reserved for editorial. */
+.soldOut {
+    align-self: flex-start;
+    margin-top: 2px;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: var(--ff-tracking-pill);
+    color: var(--foreground);
+    opacity: 0.55;
+}
