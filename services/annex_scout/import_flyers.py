@@ -26,7 +26,10 @@ from pathlib import Path
 from google import genai
 from google.genai import types
 
-from master_scout import supabase, clean_time, looks_like_image, BOT_UA
+from master_scout import (
+    supabase, clean_time, looks_like_image, BOT_UA,
+    upsert_performers, link_performers,
+)
 
 MODEL = "gemini-2.5-flash"
 DEFAULT_DIR = Path(__file__).resolve().parents[2] / "flyer-inbox"
@@ -243,6 +246,22 @@ def find_or_create_venue(name: str, neighborhood: str, apply: bool) -> str | Non
             print(f"      matched existing venue \"{v['name']}\"")
             return v["id"]
 
+    # Third pass: flyers print the full legal name where the database holds
+    # what people actually call the room — "PROGRAMME SKATE AND SOUND" against
+    # "Programme". Without this the importer creates a second venue for a room
+    # that's already on the map, which splits its events and its pin.
+    #
+    # Prefix, not substring, and only for names long enough to be distinctive:
+    # "bar" as a substring would match half the city.
+    for v in existing:
+        k = re.sub(r"^the", "", venue_key(v.get("name")))
+        if len(k) >= 6 and (bare.startswith(k) or k.startswith(bare)):
+            # Announced loudly because it's a guess. Everything else this
+            # script does lands as pending for review; creating the wrong venue
+            # link is the one thing a human won't spot in a review queue.
+            print(f"      ~ FUZZY venue match: \"{name}\" → \"{v['name']}\" — check this")
+            return v["id"]
+
     if not apply:
         print(f"      would create venue \"{name}\"")
         return "(new venue)"
@@ -279,6 +298,141 @@ def upload_flyer(data: bytes, mime: str) -> str | None:
         return None
 
 
+def _tokens(s) -> set:
+    """Words worth matching on. Two-letter fragments carry no signal."""
+    if isinstance(s, dict):
+        s = s.get("name") or ""
+    return {w for w in re.findall(r"[a-z0-9]+", (s or "").lower()) if len(w) > 2}
+
+
+# A shared word is only evidence if it's rare across the whole calendar.
+#
+# Measured against real data the separation is wide: generic overlaps ("Live
+# Music Night" against "DJ Night") land at 0.01-0.04, while a one-word band
+# name shared with a bill scores 0.5 and a real title match 1.5-2.6. 0.4 sits
+# in the gap — a word appearing in two events out of ~1300 is distinctive
+# enough to trust, three or four common words together are not.
+#
+# Erring toward CREATE on purpose. A wrong create is a duplicate that dies in
+# the review queue; a wrong attach writes onto an event that may already be
+# live. The score is printed on every decision so a bad call is visible in the
+# dry run before anything is written.
+MATCH_MIN = 0.4
+
+
+def find_matching_event(title: str, performers, event_date: str):
+    """
+    Is this flyer for a show that's already listed?
+
+    Returns (row, score) or (None, score). The importer's original dupe check
+    needed an exact title match AND the venue to have already resolved, so it
+    caught only literal re-imports — a flyer for an event the scout had found
+    under a different phrasing became a second row.
+
+    Words are weighted by how rare they are in the day's pool rather than
+    counted flat. During Sound & Fury week "sound" and "fury" appear in half
+    the titles and carry no information, while "diplodocus" appears once and
+    decides it. Flat overlap paired a Jawbreaker documentary with an unrelated
+    pre-show on those two words alone. This needs no stopword list and retunes
+    itself for whatever is on that night.
+    """
+    rows = supabase.table("events").select(
+        "id, event_name, event_date, flyer_url, metadata, venue_id, venues(name)"
+    ).eq("event_date", event_date).execute().data or []
+    if not rows:
+        return None, 0.0
+
+    bills = {}
+    links = supabase.table("event_talent").select("event_id, talent(name)") \
+        .in_("event_id", [r["id"] for r in rows]).execute().data or []
+    for link in links:
+        bills.setdefault(link["event_id"], []).append((link.get("talent") or {}).get("name", ""))
+
+    docs = [
+        _tokens(r["event_name"]) | {w for n in bills.get(r["id"], []) for w in _tokens(n)}
+        for r in rows
+    ]
+
+    # Rarity is measured across the WHOLE upcoming calendar, not just this
+    # date's handful. Scoped to one day, "night" looked rare enough to matter
+    # and paired "Live Music Night" with an unrelated "DJ Night" on that single
+    # word. Against a few thousand events it's correctly worth almost nothing,
+    # while a band name that appears once still decides the match. Candidates
+    # stay same-date; only the weighting looks wider.
+    corpus = supabase.table("events").select("event_name").execute().data or []
+    freq = {}
+    for row in corpus:
+        for w in _tokens(row.get("event_name")):
+            freq[w] = freq.get(w, 0) + 1
+    for d in docs:  # performer names aren't in event titles; count them too
+        for w in d:
+            freq.setdefault(w, 0)
+            freq[w] += 1
+
+    flyer_words = _tokens(title) | {w for p in (performers or []) for w in _tokens(p)}
+
+    best, best_score = None, 0.0
+    for row, doc in zip(rows, docs):
+        shared = flyer_words & doc
+        if not shared:
+            continue
+        score = sum(1.0 / freq[w] for w in shared)
+        if score > best_score:
+            best, best_score = row, score
+
+    return (best, best_score) if best_score >= MATCH_MIN else (None, best_score)
+
+
+def enrich_event(row: dict, event: dict, flyer_url, apply: bool) -> list:
+    """
+    Fill in what the flyer knows and the listing didn't.
+
+    Only ever fills blanks. A venue's own page and a hand correction both
+    outrank a poster, and editor_locked fields are never touched — that's the
+    whole point of recording them. Returns the field names that changed.
+    """
+    meta = dict(row.get("metadata") or {})
+    locked = set(meta.get("editor_locked") or [])
+    filled = []
+
+    def fill(key, value):
+        value = (value or "").strip()
+        if not value or key in locked:
+            return
+        if str(meta.get(key) or "").strip():
+            return
+        meta[key] = value
+        filled.append(key)
+
+    fill("price", event.get("price"))
+    fill("age_restriction", event.get("age_restriction"))
+    fill("promoter", event.get("promoter"))
+    fill("description", event.get("description"))
+
+    update = {}
+    # Never replace existing artwork: the scout takes it from the event's own
+    # page, which beats a screenshot off Instagram.
+    if flyer_url and not row.get("flyer_url"):
+        update["flyer_url"] = flyer_url
+        meta.setdefault("image_source", "flyer import")
+        filled.append("flyer")
+
+    if filled:
+        update["metadata"] = meta
+    if update and apply:
+        supabase.table("events").update(update).eq("id", row["id"]).execute()
+
+    # Performers are additive — a flyer often names support acts the venue's
+    # listing left off. link_performers is idempotent.
+    ids = upsert_performers(event.get("performers"))
+    if ids:
+        if apply:
+            link_performers(row["id"], ids)
+        filled.append(f"{len(ids)} performer(s)")
+
+    return filled
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true", help="read and print, write nothing")
@@ -308,7 +462,7 @@ def main():
     where = "" if len(folders) <= 1 else f" across {len(folders)} folders"
     print(f"{'APPLY' if apply else 'DRY RUN'} — reading {len(files)} flyer(s){where}\n")
 
-    created = skipped = 0
+    created = skipped = attached = 0
     for path in files:
         entries = read_flyer(path, prompt)
         if not entries:
@@ -335,24 +489,29 @@ def main():
                 skipped += 1
                 continue
 
+            # Is this already listed? Checked BEFORE touching venues, so a
+            # flyer for a known show can't create a duplicate venue on its way
+            # to creating a duplicate event.
+            match, score = find_matching_event(title, event.get("performers"), event_date)
+            if match:
+                where = ((match.get("venues") or {}).get("name")) or "?"
+                print(f"      → ATTACH to \"{match['event_name'][:42]}\" @ {where}  (score {score:.1f})")
+                flyer_url = upload_flyer(event["_bytes"], event["_mime"]) if apply else None
+                filled = enrich_event(match, event, flyer_url, apply)
+                verb = "filled" if apply else "would fill"
+                print(f"        {verb}: {', '.join(filled) if filled else 'nothing new — already complete'}\n")
+                attached += 1
+                continue
+
             venue_id = find_or_create_venue(venue_name, event.get("neighborhood", ""), apply)
 
             if not apply:
-                print("      → would create as pending\n")
+                print(f"      → would CREATE as pending (best match scored {score:.1f}, below {MATCH_MIN})\n")
                 created += 1
                 continue
 
-            # Same slot, same venue, similar name → already known.
-            dupes = supabase.table("events").select("id, event_name") \
-                .eq("event_date", event_date).eq("venue_id", venue_id).execute().data or []
-            norm = lambda s: re.sub(r"[^a-z0-9]", "", (s or "").lower())
-            if any(norm(d.get("event_name")) == norm(title) for d in dupes):
-                print("      → skipped: already in the database\n")
-                skipped += 1
-                continue
-
             flyer_url = upload_flyer(event["_bytes"], event["_mime"])
-            supabase.table("events").insert({
+            inserted = supabase.table("events").insert({
                 "event_name": title,
                 "event_date": event_date,
                 "start_time": start,
@@ -383,13 +542,25 @@ def main():
                     "vision_confidence": event.get("confidence"),
                 },
             }).execute()
-            print("      → created as pending\n")
+
+            # A new event gets its bill recorded the same way the scout does,
+            # so "which performer played most often" counts flyer imports too.
+            # metadata.performers_raw keeps what the flyer said even if the
+            # event is later rejected and the join rows go with it.
+            new_id = (inserted.data or [{}])[0].get("id")
+            acts = upsert_performers(event.get("performers"))
+            if new_id and acts:
+                link_performers(new_id, acts)
+            print(f"      → created as pending"
+                  f"{f' with {len(acts)} performer(s)' if acts else ''}\n")
             created += 1
 
-    verb = "would be created" if not apply else "created"
-    print(f"{created} event(s) {verb}, {skipped} skipped.")
+    verb = "would be" if not apply else ""
+    print(f"{attached} attached to existing events, {created} new event(s) {verb} created, {skipped} skipped.")
     if apply and created:
-        print("Review them at /admin — they're pending until you approve.")
+        print("The new ones are pending — review at /admin before they go live.")
+    if apply and attached:
+        print("Attached flyers went onto events that were ALREADY approved, so those are live now.")
 
 
 if __name__ == "__main__":
