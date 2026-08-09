@@ -1240,6 +1240,9 @@ def run_master_scout():
                     existing = [r for r in same_slot
                                 if same_event_name(r.get('event_name'), event['event_name'])]
 
+                    prior_meta = (existing[0].get('metadata') or {}) if existing else {}
+                    locked = prior_meta.get('editor_locked') or []
+
                     if existing:
                         is_new = False
                         event_id = existing[0]['id']
@@ -1248,7 +1251,6 @@ def run_master_scout():
                         # Without this, a title or time fixed by hand is
                         # replaced by the next run and the admin editor
                         # becomes a treadmill.
-                        locked = (existing[0].get('metadata') or {}).get('editor_locked') or []
                         payload = {k: v for k, v in event_payload.items() if k not in locked}
                         if 'metadata' in payload and locked:
                             # Don't let a refreshed metadata blob drop the lock
@@ -1352,9 +1354,14 @@ def run_master_scout():
 
                     # ── Final update: flyer + event link + auto-publish decision ──
                     final_update = {}
-                    if flyer_url:
+                    if 'flyer_url' in locked:
+                        # An editor replaced this image by hand. The scout picks
+                        # the best thing it can find on a page; a human picked
+                        # the right thing. Never overwrite that.
+                        print("   🔒 Keeping the editor's flyer")
+                    elif flyer_url:
                         final_update["flyer_url"] = flyer_url
-                    elif REFRESH_FLYERS:
+                    elif REFRESH_FLYERS and 'flyer_url' not in locked:
                         # Cleanup mode: actively clear a stored flyer when this
                         # run can't find a legitimate one, so images left behind
                         # by the old image-search fallback get purged and the
@@ -1367,7 +1374,16 @@ def run_master_scout():
                     event_payload["metadata"]["image_source"] = image_source
                     if flyer_digest:
                         event_payload["metadata"]["image_hash"] = flyer_digest
-                    final_update["metadata"] = event_payload["metadata"]
+                    final_meta = {**event_payload["metadata"]}
+                    if locked:
+                        final_meta['editor_locked'] = locked
+                        if 'scraped_values' in prior_meta:
+                            final_meta['scraped_values'] = prior_meta['scraped_values']
+                        # Locked metadata keys keep the editor's value.
+                        for key in locked:
+                            if key in prior_meta:
+                                final_meta[key] = prior_meta[key]
+                    final_update["metadata"] = final_meta
                     if event_detail_url and event_detail_url.startswith("http"):
                         # The resolved per-event page (Gemini's event_url or the
                         # fuzzy-matched listing link) — shown as "link to the
