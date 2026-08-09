@@ -15,6 +15,18 @@ export interface Event {
     lat: number | null;
     lng: number | null;
     image: string;
+    /**
+     * True when `image` is the event's OWN flyer rather than a venue photo
+     * standing in for one.
+     *
+     * The feed hides a repeated picture, which is right for a venue photo —
+     * 45 Human Resources events share one, and a wall of identical thumbnails
+     * reads worse than typographic cards. It's wrong for a flyer: a series
+     * poster legitimately covers several dates ("CANYON ECHO PARK SUMMER
+     * EVENTS: Aug 02 Bruce, Aug 09 Seedy…", or a two-day festival), and
+     * suppressing it left the second day looking like it had no artwork.
+     */
+    imageIsFlyer?: boolean;
     neighborhood: string;
     vibe: string[];
     /**

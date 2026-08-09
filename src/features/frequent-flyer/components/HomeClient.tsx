@@ -537,7 +537,18 @@ export default function HomeClient({
                                     // photo); a wall of identical images reads
                                     // worse than a typographic card that looks
                                     // deliberate. Nothing is invented either way.
-                                    const dup = hasRealImage(event.image) && seenImages.has(event.image);
+                                    //
+                                    // A flyer is exempt. A series poster covers
+                                    // several dates on purpose — "CANYON ECHO
+                                    // PARK SUMMER EVENTS: Aug 02 Bruce, Aug 09
+                                    // Seedy…", or a two-day festival — and
+                                    // hiding it made the later dates look like
+                                    // they had no artwork at all. Sharing a
+                                    // venue photo is incidental; sharing a
+                                    // poster is what the poster is for.
+                                    const dup = hasRealImage(event.image)
+                                        && !event.imageIsFlyer
+                                        && seenImages.has(event.image);
                                     if (hasRealImage(event.image)) seenImages.add(event.image);
                                     return (
                                         <EventCard2

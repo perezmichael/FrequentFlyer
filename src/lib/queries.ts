@@ -63,6 +63,9 @@ export async function getEvents(): Promise<Event[]> {
         // and relevant, unlike the stock art the old image search produced);
         // the branded typographic card is the floor.
         image: e.flyer_url || e.venues?.image_url || '/placeholder.jpg',
+        // Distinguishes the event's own artwork from a venue photo standing in
+        // for one — the feed dedupes the second and must not dedupe the first.
+        imageIsFlyer: Boolean(e.flyer_url),
         neighborhood: e.venues?.neighborhood || 'Unknown',
         vibe: e.event_vibe ? [e.event_vibe] : ['Event'],
         // Prefer the event's own page (scraped source_url) over the venue calendar.
@@ -130,6 +133,9 @@ export async function getEventById(id: string): Promise<Event | null> {
         // and relevant, unlike the stock art the old image search produced);
         // the branded typographic card is the floor.
         image: e.flyer_url || e.venues?.image_url || '/placeholder.jpg',
+        // Distinguishes the event's own artwork from a venue photo standing in
+        // for one — the feed dedupes the second and must not dedupe the first.
+        imageIsFlyer: Boolean(e.flyer_url),
         neighborhood: e.venues?.neighborhood || 'Unknown',
         vibe: e.event_vibe ? [e.event_vibe] : ['Event'],
         url: e.source_url || e.venues?.url,
