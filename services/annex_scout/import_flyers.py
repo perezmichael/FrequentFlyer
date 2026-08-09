@@ -64,7 +64,7 @@ dates should return one object per date:
 
 [{{
   "title": "", "date": "YYYY-MM-DD", "start_time": "HH:MM", "end_time": "HH:MM",
-  "venue_name": "", "neighborhood": "", "price": "", "vibe": "", "description": "",
+  "venue_name": "", "venue_address": "", "neighborhood": "", "price": "", "vibe": "", "description": "",
   "performers": [{{"name": "", "instagram": "@handle"}}],
   "promoter": "", "age_restriction": "",
   "confidence": "high|medium|low"
@@ -95,6 +95,12 @@ RULES
    Do NOT assume free because no price is printed; return "".
 6. "venue_name": the venue, not the promoter or presenting collective. A flyer
    reading "MELODY LOUNGE PRESENTS ... 939 N HILL ST" has venue "Melody Lounge".
+   "venue_address": the street address, copied EXACTLY as printed — "939 N HILL
+   ST", "2341 E. OLYMPIC BLVD 90021". Flyers print this far more often than
+   they print a neighborhood, and it's the only reliable way to place a night
+   that moves between rooms: a recurring club night names itself in the big
+   type and gives the address underneath, so the name alone can't be geocoded.
+   Return "" if no address is printed. Never guess one from the venue name.
 7. "vibe": a short category — Live Music, DJ Night, Comedy, Workshop, Market,
    Film Screening, Reading, Dance Party, Art Opening.
 8. "description": one or two plain sentences about what happens — who's playing,
@@ -268,7 +274,8 @@ def geocode(name: str, neighborhood: str) -> tuple[float, float] | None:
     return lat, lng
 
 
-def find_or_create_venue(name: str, neighborhood: str, apply: bool) -> str | None:
+def find_or_create_venue(name: str, neighborhood: str, apply: bool,
+                         address: str = "") -> str | None:
     """
     Match an existing venue before creating one — the venue list is
     hand-curated, and a near-duplicate splits one room into two on the map.
@@ -309,9 +316,19 @@ def find_or_create_venue(name: str, neighborhood: str, apply: bool) -> str | Non
         print(f"      would create venue \"{name}\"")
         return "(new venue)"
 
-    coords = geocode(name, neighborhood)
+    # A printed address beats the venue name every time: geocoding "Melody
+    # Lounge" can land anywhere, geocoding "939 N Hill St, Los Angeles" cannot.
+    coords = None
+    if address:
+        coords = geocode(address, "")
+        if coords:
+            print(f"      geocoded from the printed address: {address}")
+    if not coords:
+        coords = geocode(name, neighborhood)
+
     payload = {
         "name": name,
+        "address": address or None,
         "neighborhood": neighborhood or "Los Angeles",
         "trust_tier": "standard",
         "metadata": {"added_from": "flyer import"},
@@ -426,7 +443,8 @@ def find_matching_event(title: str, performers, event_date: str):
     return (best, best_score) if best_score >= MATCH_MIN else (None, best_score)
 
 
-def enrich_event(row: dict, event: dict, flyer_url, apply: bool, series: bool = False) -> list:
+def enrich_event(row: dict, event: dict, flyer_url, apply: bool, series: bool = False,
+                 replace_flyer: bool = False) -> list:
     """
     Fill in what the flyer knows and the listing didn't.
 
@@ -453,12 +471,18 @@ def enrich_event(row: dict, event: dict, flyer_url, apply: bool, series: bool = 
     fill("description", event.get("description"))
 
     update = {}
-    # Never replace existing artwork: the scout takes it from the event's own
-    # page, which beats a screenshot off Instagram.
-    if flyer_url and not row.get("flyer_url"):
-        update["flyer_url"] = flyer_url
-        meta.setdefault("image_source", "flyer import")
-        filled.append("flyer")
+    # Never replace existing artwork by default: the scout takes it from the
+    # event's own page, which beats a screenshot off Instagram. --replace-flyers
+    # is the deliberate exception, for going back with the real poster after
+    # importing a screenshot of the post it was inside.
+    had = bool(row.get("flyer_url"))
+    if flyer_url and (not had or replace_flyer):
+        if had and flyer_url == row.get("flyer_url"):
+            pass  # byte-identical, nothing to say
+        else:
+            update["flyer_url"] = flyer_url
+            meta["image_source"] = "flyer import"
+            filled.append("flyer REPLACED" if had else "flyer")
 
     if filled:
         update["metadata"] = meta
@@ -495,6 +519,12 @@ def main():
     # beats hand-editing afterwards, and beats letting the model guess.
     ap.add_argument("--venue", default="",
                     help='venue for flyers that don\'t name one, e.g. --venue "Melody Lounge"')
+    # Opt-in, because the default is right: a venue's own page beats a poster,
+    # and an accidental overwrite loses artwork with nothing to restore from.
+    # This exists for the case where you go back and get the real flyer after
+    # first importing a screenshot of the post it was in.
+    ap.add_argument("--replace-flyers", action="store_true",
+                    help="overwrite existing artwork on matched events (default: fill blanks only)")
     args = ap.parse_args()
     apply = not args.dry_run
 
@@ -558,15 +588,19 @@ def main():
             if match:
                 where = ((match.get("venues") or {}).get("name")) or "?"
                 print(f"      → ATTACH to \"{match['event_name'][:42]}\" @ {where}  (score {score:.1f})")
-                flyer_url = upload_flyer(event["_bytes"], event["_mime"]) if apply else None
-                filled = enrich_event(match, event, flyer_url, apply, series=is_series)
+                flyer_url = upload_flyer(event["_bytes"], event["_mime"]) if apply else '(new image)'
+                filled = enrich_event(match, event, flyer_url, apply, series=is_series,
+                                      replace_flyer=args.replace_flyers)
                 verb = "filled" if apply else "would fill"
                 print(f"        {verb}: {', '.join(filled) if filled else 'nothing new — already complete'}\n")
                 attached += 1
                 attached_ids.add(match['id'])
                 continue
 
-            venue_id = find_or_create_venue(venue_name, event.get("neighborhood", ""), apply)
+            venue_id = find_or_create_venue(
+                venue_name, event.get("neighborhood", ""), apply,
+                address=(event.get("venue_address") or "").strip(),
+            )
 
             # An event with no venue is an orphan: no location on the card, no
             # pin on the map, and nothing for the next import to match against.

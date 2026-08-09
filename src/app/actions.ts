@@ -142,6 +142,76 @@ const ALLOWED_CURATION_LEVELS = new Set(['scraped', 'ff_curated', 'promoted'] as
  * They're different claims, and only the second one is taste, so it gets its
  * own control rather than riding on approve.
  */
+// Venue fields the admin UI may write. Same allowlist discipline as events:
+// anything outside this set is dropped before the DB is touched.
+const ALLOWED_VENUE_UPDATE_FIELDS = new Set([
+    'name',
+    'neighborhood',
+    'address',
+    'url',
+    'instagram_handle',
+    'lat',
+    'lng',
+] as const);
+
+/**
+ * Edit a venue.
+ *
+ * Venues were entirely read-only in the app — no update path, no action, no UI
+ * — so every correction needed someone with database access. That's untenable
+ * for records the scout and flyer importer create automatically: a misread
+ * name ("De Rustic Inn" for Ye Rustic Inn), a venue with no pin, a street
+ * that's genuinely the venue and needs a real address.
+ *
+ * lat/lng move together on purpose. A venue with one and not the other is
+ * worse than a venue with neither: the map treats a half-coordinate as a real
+ * position and drops the pin in the ocean.
+ */
+export async function updateVenue(id: string, updates: Record<string, unknown>) {
+    await assertAdmin();
+    if (!isNonEmptyString(id)) throw new Error('Invalid venue id');
+
+    const safe: Record<string, unknown> = {};
+    for (const key of ALLOWED_VENUE_UPDATE_FIELDS) {
+        if (key in updates) safe[key] = updates[key];
+    }
+
+    if (typeof safe.name === 'string') {
+        const name = safe.name.trim();
+        // The scout and importer both match venues by name; an empty one would
+        // orphan every future match against this room.
+        if (!name) throw new Error('Venue name cannot be empty');
+        safe.name = name;
+    }
+
+    for (const k of ['lat', 'lng'] as const) {
+        if (!(k in safe)) continue;
+        const raw = safe[k];
+        if (raw === null || raw === '') { safe[k] = null; continue; }
+        const n = Number(raw);
+        if (!Number.isFinite(n)) throw new Error(`Invalid ${k}`);
+        safe[k] = n;
+    }
+    // Never leave a venue half-placed.
+    if (('lat' in safe) !== ('lng' in safe)) {
+        throw new Error('lat and lng must be set together');
+    }
+    if (safe.lat === null || safe.lng === null) {
+        safe.lat = null;
+        safe.lng = null;
+    }
+
+    if (Object.keys(safe).length === 0) return;
+
+    const { error } = await supabase.from('venues').update(safe).eq('id', id);
+    if (error) throw new Error(error.message);
+
+    revalidateEventPaths();
+    // A venue's name and neighborhood show on every card and every
+    // /[neighborhood] page it appears on.
+    revalidatePath('/map');
+}
+
 /** Merge keys into an event's metadata without clobbering what's there. */
 async function mergeEventMetadata(id: string, patch: Record<string, unknown>) {
     const { data } = await supabase
