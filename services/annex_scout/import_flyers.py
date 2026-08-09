@@ -112,6 +112,47 @@ RULES
 """
 
 
+# Large PNGs get re-encoded before sending. iPhone screenshots of Instagram
+# posts land as 1179x2556 PNGs at 3-8MB, and every one of six came back
+# "503 UNAVAILABLE — Unable to process input image", repeatedly, including on
+# retry. The same six read first time as JPEGs at 350-600KB. Whatever the
+# server-side cause, the input is the variable we control.
+#
+# Only applied above the threshold: a small PNG is left exactly as it is.
+RECODE_PNG_OVER_BYTES = 1_500_000
+RECODE_MAX_EDGE = 2000
+
+
+def _recode_png(data: bytes, name: str):
+    """
+    PNG → JPEG via sips, which ships with macOS. Returns (bytes, mime).
+
+    Falls back to the original on any failure — a re-encode that doesn't work
+    should cost nothing, since the original might well have gone through.
+    """
+    import shutil
+    import subprocess
+    import tempfile
+
+    if not shutil.which("sips"):
+        return data, "image/png"
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            src, dst = Path(tmp) / "in.png", Path(tmp) / "out.jpg"
+            src.write_bytes(data)
+            subprocess.run(
+                ["sips", "-s", "format", "jpeg", "-s", "formatOptions", "88",
+                 "-Z", str(RECODE_MAX_EDGE), str(src), "--out", str(dst)],
+                check=True, capture_output=True, timeout=30,
+            )
+            out = dst.read_bytes()
+            print(f"      re-encoded {len(data)//1024}KB PNG → {len(out)//1024}KB JPEG")
+            return out, "image/jpeg"
+    except Exception as err:
+        print(f"      re-encode failed for {name}, sending original: {str(err)[:50]}")
+        return data, "image/png"
+
+
 def read_flyer(path: Path, prompt: str) -> list[dict]:
     """Returns one dict per date the flyer advertises; [] on any failure."""
     data = path.read_bytes()
@@ -123,6 +164,8 @@ def read_flyer(path: Path, prompt: str) -> list[dict]:
         return []
 
     mime = MIME.get(path.suffix.lower(), "image/jpeg")
+    if mime == "image/png" and len(data) > RECODE_PNG_OVER_BYTES:
+        data, mime = _recode_png(data, path.name)
     try:
         response = client.models.generate_content(
             model=MODEL,
@@ -478,6 +521,7 @@ def main():
     print(f"{'APPLY' if apply else 'DRY RUN'} — reading {len(files)} flyer(s){where}\n")
 
     created = skipped = attached = 0
+    attached_ids = set()
     for path in files:
         entries = read_flyer(path, prompt)
         if not entries:
@@ -519,6 +563,7 @@ def main():
                 verb = "filled" if apply else "would fill"
                 print(f"        {verb}: {', '.join(filled) if filled else 'nothing new — already complete'}\n")
                 attached += 1
+                attached_ids.add(match['id'])
                 continue
 
             venue_id = find_or_create_venue(venue_name, event.get("neighborhood", ""), apply)
@@ -586,8 +631,21 @@ def main():
     print(f"{attached} attached to existing events, {created} new event(s) {verb} created, {skipped} skipped.")
     if apply and created:
         print("The new ones are pending — review at /admin before they go live.")
-    if apply and attached:
-        print("Attached flyers went onto events that were ALREADY approved, so those are live now.")
+
+    # Report what the attached events' statuses ACTUALLY are rather than
+    # assuming. This used to claim every attach landed on something already
+    # approved and was therefore live — untrue whenever the same run created
+    # the event moments earlier, which is exactly what happens on a re-run
+    # after a partial failure. A tool that misreports what's public is worse
+    # than one that stays quiet.
+    if apply and attached_ids:
+        rows = supabase.table("events").select("status") \
+            .in_("id", list(attached_ids)).execute().data or []
+        live = sum(1 for r in rows if r.get("status") == "approved")
+        if live:
+            print(f"{live} of those were already approved — those changes are live now.")
+        if len(rows) - live:
+            print(f"{len(rows) - live} are still pending and won't show until approved.")
 
 
 if __name__ == "__main__":
