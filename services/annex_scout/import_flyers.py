@@ -437,6 +437,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true", help="read and print, write nothing")
     ap.add_argument("--dir", default=str(DEFAULT_DIR))
+    # A venue posting its own night has no reason to name itself, so the flyer
+    # often omits the one field the listing can't do without. Supplying it here
+    # beats hand-editing afterwards, and beats letting the model guess.
+    ap.add_argument("--venue", default="",
+                    help='venue for flyers that don\'t name one, e.g. --venue "Melody Lounge"')
     args = ap.parse_args()
     apply = not args.dry_run
 
@@ -475,7 +480,9 @@ def main():
             event_date = valid_date((event.get("date") or "").strip(), today)
             start = clean_time(event.get("start_time"))
             end = clean_time(event.get("end_time"))
-            venue_name = (event.get("venue_name") or "").strip()
+            # --venue fills in only what the flyer left blank; a flyer that
+            # names its own venue is still believed over the flag.
+            venue_name = (event.get("venue_name") or "").strip() or args.venue.strip()
 
             flag = "" if event.get("confidence") == "high" else f"  [{event.get('confidence')} confidence]"
             print(f"  {path.name}{flag}")
@@ -504,6 +511,15 @@ def main():
                 continue
 
             venue_id = find_or_create_venue(venue_name, event.get("neighborhood", ""), apply)
+
+            # An event with no venue is an orphan: no location on the card, no
+            # pin on the map, and nothing for the next import to match against.
+            # Better to refuse it and say why than to file it and forget.
+            if not venue_id:
+                print('      → skipped: no venue on the flyer. '
+                      'Re-run with --venue "Name" if you know it.\n')
+                skipped += 1
+                continue
 
             if not apply:
                 print(f"      → would CREATE as pending (best match scored {score:.1f}, below {MATCH_MIN})\n")
