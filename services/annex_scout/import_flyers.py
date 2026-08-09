@@ -383,7 +383,7 @@ def find_matching_event(title: str, performers, event_date: str):
     return (best, best_score) if best_score >= MATCH_MIN else (None, best_score)
 
 
-def enrich_event(row: dict, event: dict, flyer_url, apply: bool) -> list:
+def enrich_event(row: dict, event: dict, flyer_url, apply: bool, series: bool = False) -> list:
     """
     Fill in what the flyer knows and the listing didn't.
 
@@ -424,11 +424,21 @@ def enrich_event(row: dict, event: dict, flyer_url, apply: bool) -> list:
 
     # Performers are additive — a flyer often names support acts the venue's
     # listing left off. link_performers is idempotent.
-    ids = upsert_performers(event.get("performers"))
-    if ids:
-        if apply:
-            link_performers(row["id"], ids)
-        filled.append(f"{len(ids)} performer(s)")
+    #
+    # Except on a multi-date poster, where the lineup is the UNION of every
+    # date and the artwork doesn't say who plays when. The Sound & Fury poster
+    # lists all 34 bands alphabetically; the festival publishes day splits
+    # separately, the week of. Attaching that list to each date would tell
+    # Saturday it has 34 acts, 17 of which play Sunday. A poster that can't
+    # attribute its acts to a date shouldn't be trusted to.
+    if series:
+        filled.append(f"skipped {len(event.get('performers') or [])} performers (series poster — no day split)")
+    else:
+        ids = upsert_performers(event.get("performers"))
+        if ids:
+            if apply:
+                link_performers(row["id"], ids)
+            filled.append(f"{len(ids)} performer(s)")
 
     return filled
 
@@ -472,7 +482,8 @@ def main():
         entries = read_flyer(path, prompt)
         if not entries:
             continue
-        if len(entries) > 1:
+        is_series = len(entries) > 1
+        if is_series:
             print(f"  {path.name} — series poster, {len(entries)} dates")
 
         for event in entries:
@@ -504,7 +515,7 @@ def main():
                 where = ((match.get("venues") or {}).get("name")) or "?"
                 print(f"      → ATTACH to \"{match['event_name'][:42]}\" @ {where}  (score {score:.1f})")
                 flyer_url = upload_flyer(event["_bytes"], event["_mime"]) if apply else None
-                filled = enrich_event(match, event, flyer_url, apply)
+                filled = enrich_event(match, event, flyer_url, apply, series=is_series)
                 verb = "filled" if apply else "would fill"
                 print(f"        {verb}: {', '.join(filled) if filled else 'nothing new — already complete'}\n")
                 attached += 1
