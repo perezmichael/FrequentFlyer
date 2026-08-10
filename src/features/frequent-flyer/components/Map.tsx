@@ -3,6 +3,7 @@
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Event, formatEventDateParts } from '@/features/frequent-flyer/data/events';
+import SmartImage from '@/components/SmartImage';
 import L from 'leaflet';
 import { useEffect, useState, useMemo, useRef } from 'react';
 
@@ -373,12 +374,13 @@ function EventPopup({
                 {/* Image or gradient placeholder */}
                 <div className="relative w-full rounded-t-2xl overflow-hidden leading-[0]" style={{ aspectRatio: '4/3' }}>
                     {showImage ? (
-                        <img
+                        /* The popup is a fixed 250px wide, so it never needs
+                           more than that — one of the clearest wins here. */
+                        <SmartImage
                             src={event.image}
                             alt={event.title}
-                            className="w-full h-full object-cover block"
-                            loading="lazy"
-                            decoding="async"
+                            className="block"
+                            sizes="250px"
                         />
                     ) : (
                         <GeneratedFlyer title={event.title} vibe={event.vibe?.[0]} neighborhood={event.neighborhood} />

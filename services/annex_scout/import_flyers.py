@@ -500,12 +500,19 @@ def enrich_event(row: dict, event: dict, flyer_url, apply: bool, series: bool = 
     # attribute its acts to a date shouldn't be trusted to.
     if series:
         filled.append(f"skipped {len(event.get('performers') or [])} performers (series poster — no day split)")
-    else:
+    elif apply:
         ids = upsert_performers(event.get("performers"))
         if ids:
-            if apply:
-                link_performers(row["id"], ids)
+            link_performers(row["id"], ids)
             filled.append(f"{len(ids)} performer(s)")
+    else:
+        # Report without writing. upsert_performers goes straight to the
+        # database, so calling it outside `apply` meant --dry-run created
+        # talent rows and then never linked them — a dry run that mutates.
+        # 208 of the orphaned rows date from August dry runs alone.
+        pending = len(event.get("performers") or [])
+        if pending:
+            filled.append(f"{pending} performer(s)")
 
     return filled
 
@@ -654,8 +661,11 @@ def main():
             # metadata.performers_raw keeps what the flyer said even if the
             # event is later rejected and the join rows go with it.
             new_id = (inserted.data or [{}])[0].get("id")
-            acts = upsert_performers(event.get("performers"))
-            if new_id and acts:
+            # Only mint talent once there's something to attach it to. Doing
+            # the upsert first meant an insert that came back empty left the
+            # whole bill behind as orphaned rows.
+            acts = upsert_performers(event.get("performers")) if new_id else []
+            if acts:
                 link_performers(new_id, acts)
             print(f"      → created as pending"
                   f"{f' with {len(acts)} performer(s)' if acts else ''}\n")

@@ -279,7 +279,26 @@ def upsert_performers(performers):
         # Tolerate a bare string if the model ignores the object shape.
         name = (p if isinstance(p, str) else (p or {}).get('name') or '').strip()
         # Guard against the old failure mode coming back as one long string.
-        if not name or len(name) > 120:
+        #
+        # Length alone wasn't a tight enough filter. 565 orphaned rows are
+        # unsplit bills and plenty of them sit between 60 and 120 characters
+        # ("Michelle Chu, Grace Freud, Rosita Lama Muvdi, Kristi Reed" is 74).
+        # The longest name that ever made it onto a real bill is 30 characters
+        # ("WILL SHEFF (OF OKKERVIL RIVER)"), so 60 is generous.
+        #
+        # Any comma at all means a list. That looks aggressive — a real act can
+        # carry one ("Earth, Wind & Fire") — but of the 421 talent rows that
+        # are actually attached to an event, NOT ONE contains a comma, while
+        # 174 orphans are plain two-act bills ("MONOLORD, MIZMOR"). Measured,
+        # the rule costs nothing and catches a lot.
+        #
+        # Dropping the act is the deliberate choice over splitting on the
+        # comma: a missing support act is a gap, a wrongly-split one is a fake
+        # artist, and this table is only worth having if it's trustworthy.
+        if not name:
+            continue
+        if len(name) > 60 or ',' in name:
+            print(f"      ⚠️  looks like an unsplit bill, not one act: {name[:60]!r}")
             continue
         handle = '' if isinstance(p, str) else ((p or {}).get('instagram') or '').strip()
         try:

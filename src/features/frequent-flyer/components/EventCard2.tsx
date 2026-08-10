@@ -2,6 +2,7 @@
 
 import { Event, formatEventDateTime } from '@/features/frequent-flyer/data/events';
 import { hasRealImage } from '@/features/frequent-flyer/data/vibePlaceholders';
+import SmartImage from '@/components/SmartImage';
 import GeneratedFlyer from './GeneratedFlyer';
 import styles from './EventCard2.module.css';
 
@@ -27,6 +28,16 @@ export default function EventCard2({
     compact = false,
 }: EventCard2Props) {
     const showImage = hasRealImage(event.image) && !forcePlaceholder;
+
+    /* This card renders in two very different contexts and one `sizes` can't
+       serve both. The picks strip is a fixed-width horizontal scroller — 200px,
+       156px on mobile — while a feed grid card measures ~45vw of the split
+       layout. Sharing the grid's value made the 200px strip cards request
+       1080px files, which is most of the saving thrown away. Measured against
+       the real DOM, not estimated. */
+    const imageSizes = compact
+        ? '(max-width: 767px) 156px, 200px'
+        : '(max-width: 767px) 92vw, (max-width: 1100px) 45vw, (max-width: 1400px) 30vw, 22vw';
     const extraDates = Math.max(0, seriesDates - 1);
     const runsThrough = seriesLastDate
         ? new Date(`${seriesLastDate}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -36,23 +47,26 @@ export default function EventCard2({
         <div id={id} className={styles.card} onClick={onClick}>
             <div className={styles.imageContainer}>
                 {showImage ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    /* The feed renders 130+ cards and used to request every
-                       image on load — 229 requests when only ~22 are near the
-                       viewport, roughly 64MB a page view, which burned 5GB of
-                       Supabase egress in under two days.
+                    /* The busiest image in the app: the feed renders 130+ cards
+                       and used to request every one at full resolution on load
+                       — 229 requests when only ~22 are near the viewport,
+                       roughly 64MB a page view, which burned 5GB of Supabase
+                       egress in under two days.
 
-                       Native lazy loading does NOT delay images already in or
-                       near the viewport, so this is safe to apply to every
-                       card: the ones you can see still load immediately.
-                       Layout is already reserved by aspect-ratio on the
-                       container, so nothing shifts as they arrive. */
-                    <img
+                       Lazy loading (still on, it's next/image's default) fixed
+                       the count. This fixes the size: the card is ~240-340px
+                       wide, so `sizes` lets the optimizer send a file built for
+                       that instead of a full-size flyer, and Supabase serves
+                       each one once rather than once per visitor.
+
+                       Default quality is right here — at thumbnail size the
+                       flyer's small type isn't legible anyway. The detail views
+                       raise it, because that's where the flyer gets read. */
+                    <SmartImage
                         src={event.image}
                         alt={event.title}
                         className={styles.image}
-                        loading="lazy"
-                        decoding="async"
+                        sizes={imageSizes}
                     />
                 ) : (
                     <GeneratedFlyer title={event.title} vibe={event.vibe?.[0]} neighborhood={event.neighborhood} />

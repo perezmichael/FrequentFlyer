@@ -1,4 +1,5 @@
 import { GuideWithItems } from '../types/guides';
+import SmartImage from '@/components/SmartImage';
 
 interface GuidesGridProps {
     guides: GuideWithItems[];
@@ -23,13 +24,11 @@ export default function GuidesGrid({ guides, onSelectGuide }: GuidesGridProps) {
                     {/* Image — padding-bottom trick for reliable 16:9 */}
                     <div style={{ position: 'relative', paddingBottom: '56.25%', overflow: 'hidden', backgroundColor: '#e5e5e5' }}>
                         {guide.cover_image && (
-                            <img
+                            <SmartImage
                                 src={guide.cover_image}
                                 alt={guide.title}
                                 className="transition-transform duration-500 group-hover:scale-105"
-                                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                                loading="lazy"
-                                decoding="async"
+                                sizes="(max-width: 767px) 100vw, (max-width: 1200px) 50vw, 33vw"
                             />
                         )}
                     </div>

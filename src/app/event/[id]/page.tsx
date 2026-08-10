@@ -6,6 +6,7 @@ import { formatEventDateTime } from '@/features/frequent-flyer/data/events';
 import { absoluteUrl } from '@/lib/site';
 import OutboundLink from '@/features/frequent-flyer/components/OutboundLink';
 import { hasRealImage } from '@/features/frequent-flyer/data/vibePlaceholders';
+import SmartImage from '@/components/SmartImage';
 import GeneratedFlyer from '@/features/frequent-flyer/components/GeneratedFlyer';
 import ShareButton from '@/features/frequent-flyer/components/ShareButton';
 import styles from './page.module.css';
@@ -103,8 +104,16 @@ export default async function EventPage({ params }: { params: { id: string } }) 
                 {/* Hero flyer — full-bleed & tall on mobile, framed card on larger screens */}
                 <div className="relative w-full aspect-[4/5] sm:aspect-[4/3] sm:mt-6 sm:rounded-2xl overflow-hidden bg-ink sm:border sm:border-black/40">
                     {showImage ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img src={event.image} alt={event.title} className="w-full h-full object-cover" />
+                        /* The one image on the page and above the fold, so it
+                           loads eagerly. Quality raised for the same reason as
+                           the detail sheet: this is the flyer at reading size. */
+                        <SmartImage
+                            src={event.image}
+                            alt={event.title}
+                            sizes="(max-width: 600px) 100vw, 560px"
+                            quality={90}
+                            priority
+                        />
                     ) : (
                         <GeneratedFlyer title={event.title} vibe={event.vibe?.[0]} neighborhood={event.neighborhood} />
                     )}

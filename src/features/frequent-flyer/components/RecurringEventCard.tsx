@@ -3,6 +3,7 @@
 import { RecurringEvent, formatRecurringSchedule } from '@/features/frequent-flyer/data/recurringEvents';
 import { RECURRING_CATEGORIES } from '@/features/frequent-flyer/data/recurringCategories';
 import { hasRealImage } from '@/features/frequent-flyer/data/vibePlaceholders';
+import SmartImage from '@/components/SmartImage';
 import GeneratedFlyer from './GeneratedFlyer';
 import styles from './EventCard2.module.css';
 
@@ -22,13 +23,13 @@ export default function RecurringEventCard({ event, onClick, id, extraDays = 0 }
         <div id={id} className={styles.card} onClick={onClick}>
             <div className={styles.imageContainer}>
                 {showImage ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
+                    /* Shares EventCard2's stylesheet and grid slot, so it shares
+                       the grid's measured sizes. */
+                    <SmartImage
                         src={event.venue_image!}
                         alt={event.venue_name}
                         className={styles.image}
-                        loading="lazy"
-                        decoding="async"
+                        sizes="(max-width: 767px) 92vw, (max-width: 1100px) 45vw, (max-width: 1400px) 30vw, 22vw"
                     />
                 ) : (
                     <GeneratedFlyer title={event.event_name} vibe={event.category} neighborhood={event.neighborhood} />

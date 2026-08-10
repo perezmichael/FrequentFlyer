@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import OutboundLink from './OutboundLink';
 import { Event, formatEventDateTime } from '@/features/frequent-flyer/data/events';
 import { hasRealImage } from '@/features/frequent-flyer/data/vibePlaceholders';
+import SmartImage from '@/components/SmartImage';
 import GeneratedFlyer from './GeneratedFlyer';
 import ShareButton from './ShareButton';
 import styles from './EventDetailSheet.module.css';
@@ -131,8 +132,17 @@ export default function EventDetailSheet({ event, onClose }: EventDetailSheetPro
 
                 <div className={styles.hero}>
                     {showImage ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img src={event.image} alt={event.title} className={styles.heroImage} />
+                        /* Quality is raised here on purpose. This is where a
+                           flyer stops being a thumbnail and starts being read —
+                           lineups, set times, the address — and the default of
+                           75 visibly softens small type on dense artwork. */
+                        <SmartImage
+                            src={event.image}
+                            alt={event.title}
+                            className={styles.heroImage}
+                            sizes="(max-width: 768px) 100vw, 560px"
+                            quality={90}
+                        />
                     ) : (
                         <GeneratedFlyer title={event.title} vibe={event.vibe?.[0]} neighborhood={event.neighborhood} />
                     )}

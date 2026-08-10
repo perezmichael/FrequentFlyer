@@ -1,4 +1,5 @@
 import { GuideWithItems } from '../types/guides';
+import SmartImage from '@/components/SmartImage';
 import { withReferral } from '@/lib/outbound';
 import Link from 'next/link';
 
@@ -14,12 +15,11 @@ export default function GuideDetail({ guide, onBack }: GuideDetailProps) {
         <div className="w-full">
             {/* Hero Image */}
             <div className="relative w-full h-[240px] md:h-[500px] overflow-hidden">
-                <img
+                <SmartImage
                     src={guide.cover_image || '/placeholder-guide.jpg'}
                     alt={guide.title}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                    decoding="async"
+                    sizes="100vw"
+                    priority
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
             </div>
@@ -62,13 +62,15 @@ export default function GuideDetail({ guide, onBack }: GuideDetailProps) {
                             </div>
 
                             {item.venues?.image_url && (
-                                <div className="mb-[24px]">
-                                    <img
+                                /* The aspect ratio moves from the image to this
+                                   wrapper: `fill` sizes to its container, so the
+                                   container is what has to hold the shape. */
+                                <div className="mb-[24px] relative aspect-[3/2] overflow-hidden">
+                                    <SmartImage
                                         src={item.venues.image_url}
                                         alt={item.venues.name}
-                                        className="w-full aspect-[3/2] object-cover grayscale-[20%] hover:grayscale-0 transition-all duration-500"
-                                        loading="lazy"
-                                        decoding="async"
+                                        className="grayscale-[20%] hover:grayscale-0 transition-all duration-500"
+                                        sizes="(max-width: 840px) 100vw, 800px"
                                     />
                                 </div>
                             )}

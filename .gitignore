@@ -50,3 +50,7 @@ services/annex_scout/logs/
 # hand-dropped flyers awaiting upload (images stay out of the repo)
 flyer-inbox/*
 !flyer-inbox/README.md
+
+# Data dumps written by scripts/clean-talent.mjs before it deletes rows.
+# Keep them locally so a cleanup is reversible; they are not repo content.
+talent-backup-*.json

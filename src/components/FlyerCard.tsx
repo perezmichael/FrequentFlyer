@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { formatEventDateTime } from "@/features/frequent-flyer/data/events";
+import SmartImage from "@/components/SmartImage";
 
 const svgPaths = {
   p26562d00: "M12.25 5.83333H1.75M9.33333 1.16667V3.5M4.66667 1.16667V3.5M4.55 12.8333H9.45C10.4301 12.8333 10.9201 12.8333 11.2945 12.6426C11.6238 12.4748 11.8915 12.2071 12.0593 11.8778C12.25 11.5035 12.25 11.0134 12.25 10.0333V5.13333C12.25 4.15324 12.25 3.6632 12.0593 3.28885C11.8915 2.95957 11.6238 2.69185 11.2945 2.52407C10.9201 2.33333 10.4301 2.33333 9.45 2.33333H4.55C3.56991 2.33333 3.07986 2.33333 2.70552 2.52407C2.37623 2.69185 2.10852 2.95957 1.94074 3.28885C1.75 3.6632 1.75 4.15324 1.75 5.13333V10.0333C1.75 11.0134 1.75 11.5035 1.94074 11.8778C2.10852 12.2071 2.37623 12.4748 2.70552 12.6426C3.07986 12.8333 3.56991 12.8333 4.55 12.8333Z",
@@ -87,13 +88,17 @@ export default function FlyerCard({ image, event }: FlyerCardProps) {
         }}
         transition={{ duration: 0.4 }}
       >
-        <img
-          alt={event.title}
-          className="absolute inset-[-20px] max-w-none object-cover pointer-events-none w-[calc(100%+40px)] h-[calc(100%+40px)]"
-          src={image}
-            loading="lazy"
-            decoding="async"
-        />
+        {/* The image is deliberately oversized — 20px past every edge — so the
+            hover blur has pixels to bleed into instead of fading to a soft
+            transparent border. `fill` pins to inset:0, so the overscan moves out
+            to this wrapper and the effect survives unchanged. */}
+        <div className="absolute inset-[-20px] pointer-events-none">
+          <SmartImage
+            src={image}
+            alt={event.title}
+            sizes="(max-width: 767px) 100vw, 400px"
+          />
+        </div>
       </motion.div>
 
       {/* Noise overlay */}
