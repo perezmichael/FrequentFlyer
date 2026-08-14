@@ -202,7 +202,9 @@
     white-space: nowrap;
 }
 
-.picksAll:hover { color: var(--ff-accent); }
+@media (hover: hover) and (pointer: fine) {
+    .picksAll:hover { color: var(--ff-accent); }
+}
 
 /* Scrolls sideways rather than wrapping: the shelf should stay one row deep
    however many picks land in a week. */

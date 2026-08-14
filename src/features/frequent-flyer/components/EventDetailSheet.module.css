@@ -23,6 +23,9 @@
     width: 100%;
     max-width: 560px;
     max-height: 92vh;
+    /* Safari < 15.4 fallback — vh ignores the URL bar, so the sheet could run
+       taller than the visible viewport and strand its own buttons offscreen. */
+    max-height: 92dvh;
     background: #FFFAEB;
     border: 1.5px solid rgba(26, 26, 26, 0.55);
     border-bottom: none;
@@ -96,9 +99,13 @@
     transition: background 0.15s, color 0.15s;
 }
 
-.closeButton:hover {
-    background: #1a1a1a;
-    color: #FFFAEB;
+/* Guarded so the inverted state doesn't latch after a tap on touch. See the
+   note in EventCard2.module.css. */
+@media (hover: hover) and (pointer: fine) {
+    .closeButton:hover {
+        background: #1a1a1a;
+        color: #FFFAEB;
+    }
 }
 
 .hero {
@@ -117,7 +124,12 @@
 }
 
 .body {
-    padding: 18px 20px 24px;
+    /* The tickets and share buttons are the last things in here, and this sheet
+       is anchored to the bottom of the screen — so on a notched iPhone they sat
+       under the home indicator. Now that the root layout opts into
+       viewport-fit=cover, the inset resolves to a real value and can be added;
+       it's 0 on hardware without one, so the desktop padding is unchanged. */
+    padding: 18px 20px calc(24px + env(safe-area-inset-bottom, 0px));
 }
 
 .vibeRow {
@@ -198,9 +210,11 @@
     transition: background 0.15s, color 0.15s;
 }
 
-.linkButton:hover {
-    background: transparent;
-    color: #1a1a1a;
+@media (hover: hover) and (pointer: fine) {
+    .linkButton:hover {
+        background: transparent;
+        color: #1a1a1a;
+    }
 }
 
 .shareButton {
@@ -229,10 +243,12 @@
     margin-top: 10px;
 }
 
-.shareButton:hover {
-    background: #1a1a1a;
-    color: #FFFAEB;
-    border-color: #1a1a1a;
+@media (hover: hover) and (pointer: fine) {
+    .shareButton:hover {
+        background: #1a1a1a;
+        color: #FFFAEB;
+        border-color: #1a1a1a;
+    }
 }
 
 /* The sheet travels the full viewport height on mobile — the largest movement

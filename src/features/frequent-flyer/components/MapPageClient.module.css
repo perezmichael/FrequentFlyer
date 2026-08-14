@@ -60,15 +60,19 @@
         border-color var(--ff-duration-fast) var(--ff-ease-out);
 }
 
-.filterButton:hover {
-    background: rgba(0, 0, 0, 0.05);
-}
-
 .active {
     background: #000;
     color: white;
 }
 
-.active:hover {
-    background: #333;
+/* Guarded — an unselected filter that stays tinted after a tap reads as
+   selected, which is actively misleading on a filter row. */
+@media (hover: hover) and (pointer: fine) {
+    .filterButton:hover {
+        background: rgba(0, 0, 0, 0.05);
+    }
+
+    .active:hover {
+        background: #333;
+    }
 }

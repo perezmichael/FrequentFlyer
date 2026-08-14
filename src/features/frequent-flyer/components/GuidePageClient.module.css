@@ -1,5 +1,7 @@
 .container {
     height: calc(100vh - 64px);
+    /* Safari < 15.4 fallback — matches MapPageClient */
+    height: calc(100dvh - 64px);
     /* Adjust for navbar */
     overflow: hidden;
 }

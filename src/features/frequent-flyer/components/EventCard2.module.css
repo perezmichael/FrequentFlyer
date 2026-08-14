@@ -7,17 +7,30 @@
     transition: transform 0.35s cubic-bezier(0.22, 1.4, 0.36, 1);
 }
 
-.card:hover {
-    transform: translateY(-3px);
+/* The lift and the image zoom are pointer affordances, not state.
+ *
+ * On a touchscreen :hover latches after a tap, so the card stayed raised and
+ * the flyer stayed zoomed until you tapped somewhere else — on the busiest
+ * component in the app, across a feed of 130+ cards, for the 73% of sessions
+ * that are phones. Tailwind v4 wraps its own hover: utilities in this query
+ * automatically; CSS Modules are plain CSS and get no such treatment, so the
+ * guard goes on by hand.
+ *
+ * :active deliberately stays OUTSIDE the guard — that one is the tap feedback,
+ * and on touch it's the only feedback there is. */
+@media (hover: hover) and (pointer: fine) {
+    .card:hover {
+        transform: translateY(-3px);
+    }
+
+    .card:hover .image {
+        transform: scale(1.04);
+    }
 }
 
 .card:active {
     transform: translateY(-1px) scale(0.985);
     transition-duration: 0.1s;
-}
-
-.card:hover .image {
-    transform: scale(1.04);
 }
 
 .imageContainer {

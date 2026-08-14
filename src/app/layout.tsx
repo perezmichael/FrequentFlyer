@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { EB_Garamond, Space_Grotesk, Space_Mono } from "next/font/google";
 import { Suspense } from "react";
 import "./globals.css";
@@ -57,6 +57,26 @@ export const metadata: Metadata = {
   robots: IS_INDEXABLE
     ? { index: true, follow: true }
     : { index: false, follow: false },
+};
+
+/**
+ * 73% of visitors are on a phone and 56% are on iOS, so the notch and the home
+ * indicator are the common case, not an edge case.
+ *
+ * Next ships a sensible default viewport tag but it does NOT include
+ * viewport-fit=cover, so the page was being letterboxed between the safe areas:
+ * the full-bleed map stopped short of the screen edge and env(safe-area-inset-*)
+ * resolved to 0 everywhere, which made it impossible to opt individual elements
+ * out. Turning cover on lets the page paint edge to edge; anything that must
+ * stay clear of the hardware now asks for the inset explicitly.
+ */
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  // Cream is the entire identity. Without this the browser chrome renders at
+  // its own default and the top of an iPhone doesn't match the page.
+  themeColor: '#FFFAEB',
 };
 
 export default function RootLayout({

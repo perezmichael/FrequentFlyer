@@ -21,9 +21,13 @@
     transition: background 0.15s, color 0.15s;
 }
 
-.ticketButton:hover {
-    background: transparent;
-    color: #1a1a1a;
+/* Guarded — this is the primary conversion button on the page, and on touch a
+   latched hover left it looking disabled after the tap. */
+@media (hover: hover) and (pointer: fine) {
+    .ticketButton:hover {
+        background: transparent;
+        color: #1a1a1a;
+    }
 }
 
 .shareButton {
@@ -46,8 +50,10 @@
     transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
-.shareButton:hover {
-    background: #1a1a1a;
-    color: #efede1;
-    border-color: #1a1a1a;
+@media (hover: hover) and (pointer: fine) {
+    .shareButton:hover {
+        background: #1a1a1a;
+        color: #efede1;
+        border-color: #1a1a1a;
+    }
 }

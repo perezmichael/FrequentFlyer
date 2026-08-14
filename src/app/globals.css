@@ -118,6 +118,18 @@ html {
   /* Force scrollbar to always show */
   min-height: 100vh;
   /* Ensure minimum height */
+
+  /* Stops a drag that starts on the Leaflet map from being handed up to the
+     page as a pull-to-refresh. `contain` rather than `none` on purpose: it
+     blocks the chaining but keeps iOS's rubber-band, which is part of how a
+     page is supposed to feel. */
+  overscroll-behavior-y: contain;
+
+  /* iOS paints a translucent gray box over whatever you tap. On a feed that is
+     almost entirely flyer artwork it reads as the image glitching. The pills
+     and cards all have their own :active states, so nothing is lost.
+     Inherited, so setting it here covers the document. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
