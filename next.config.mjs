@@ -8,6 +8,31 @@ const nextConfig = {
   // Mode avoids this; production behavior is unchanged (it never double-invokes).
   reactStrictMode: false,
 
+  /**
+   * Proxy PostHog through our own origin.
+   *
+   * Content blockers filter requests to known analytics hosts outright. On a
+   * site with real volume that's a rounding error; at a few dozen visitors a
+   * week it could quietly remove a third of the sample and there'd be no way
+   * to tell from the dashboard. Served from /ingest, the requests are
+   * first-party and survive.
+   */
+  async rewrites() {
+    return [
+      {
+        source: '/ingest/static/:path*',
+        destination: 'https://us-assets.i.posthog.com/static/:path*',
+      },
+      {
+        source: '/ingest/:path*',
+        destination: 'https://us.i.posthog.com/:path*',
+      },
+    ];
+  },
+  // PostHog's endpoints are trailing-slash sensitive; without this Next would
+  // redirect some of them and the events would be dropped.
+  skipTrailingSlashRedirect: true,
+
   images: {
     // Derived from the same list SmartImage checks, so the two can't drift —
     // a host the component optimizes but the config doesn't know about would
