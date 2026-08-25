@@ -380,7 +380,7 @@ def _tokens(s) -> set:
 MATCH_MIN = 0.4
 
 
-def find_matching_event(title: str, performers, event_date: str):
+def find_matching_event(title: str, performers, event_date: str, venue_name: str = ""):
     """
     Is this flyer for a show that's already listed?
 
@@ -389,18 +389,57 @@ def find_matching_event(title: str, performers, event_date: str):
     caught only literal re-imports — a flyer for an event the scout had found
     under a different phrasing became a second row.
 
-    Words are weighted by how rare they are in the day's pool rather than
-    counted flat. During Sound & Fury week "sound" and "fury" appear in half
-    the titles and carry no information, while "diplodocus" appears once and
-    decides it. Flat overlap paired a Jawbreaker documentary with an unrelated
-    pre-show on those two words alone. This needs no stopword list and retunes
-    itself for whatever is on that night.
+    Words are weighted by how rare they are rather than counted flat. During
+    Sound & Fury week "sound" and "fury" appear in half the titles and carry no
+    information, while "diplodocus" appears once and decides it. Flat overlap
+    paired a Jawbreaker documentary with an unrelated pre-show on those two
+    words alone. This needs no stopword list and retunes itself for whatever is
+    on that night.
+
+    Two guards, both added after a multi-venue festival broke the above.
+
+    Echo Park Rising runs across a dozen rooms on the same weekend, so every
+    candidate that night shares the words "echo park rising" — rare across the
+    calendar, worthless for telling those events apart. Five separate flyers
+    (The Majic Factory, Crossroads, a bus stop, Fluffy McCloud's, Indigo de
+    Souza) all scored 2.5 against the SAME row and would have attached to it,
+    overwriting one another's artwork and piling 41 performers from four
+    unrelated venues onto a single event.
+
+      1. A flyer that names its own room can't be for an event somewhere else,
+         so candidates at a different venue are dropped outright. If nothing
+         shares the venue we return no match: a new pending row a human reviews
+         beats a confident wrong attach to a row nobody re-checks.
+
+      2. Rarity is now measured globally AND discounted locally. A word in
+         every one of the day's candidates cannot discriminate between them
+         however rare it is elsewhere, so its weight is divided by how many
+         candidates carry it. The festival prefix cancels itself out and the
+         band name decides, which is what the weighting was always for.
     """
     rows = supabase.table("events").select(
         "id, event_name, event_date, flyer_url, metadata, venue_id, venues(name)"
     ).eq("event_date", event_date).execute().data or []
     if not rows:
         return None, 0.0
+
+    # Guard 1 — the venue is a fact, not a hint. Same prefix logic as
+    # find_or_create_venue so "STORIES BOOKS & CAFE" still meets "Stories
+    # Books and Cafe", and rows whose venue hasn't resolved yet stay eligible.
+    if venue_name:
+        target = venue_key(venue_name)
+        here = []
+        for r in rows:
+            k = venue_key((r.get("venues") or {}).get("name"))
+            if not k:
+                here.append(r)                      # unresolved venue — can't rule out
+            elif k == target:
+                here.append(r)
+            elif len(k) >= 6 and len(target) >= 6 and (k.startswith(target) or target.startswith(k)):
+                here.append(r)
+        if not here:
+            return None, 0.0
+        rows = here
 
     bills = {}
     links = supabase.table("event_talent").select("event_id, talent(name)") \
@@ -431,12 +470,21 @@ def find_matching_event(title: str, performers, event_date: str):
 
     flyer_words = _tokens(title) | {w for p in (performers or []) for w in _tokens(p)}
 
+    # Guard 2 — how many of tonight's candidates carry each word. Global rarity
+    # says what a word is worth in general; this says whether it can tell THESE
+    # events apart. A festival prefix shared by all of them scores 1/n and stops
+    # deciding anything.
+    local_df = {}
+    for d in docs:
+        for w in d:
+            local_df[w] = local_df.get(w, 0) + 1
+
     best, best_score = None, 0.0
     for row, doc in zip(rows, docs):
         shared = flyer_words & doc
         if not shared:
             continue
-        score = sum(1.0 / freq[w] for w in shared)
+        score = sum((1.0 / freq[w]) / local_df[w] for w in shared)
         if score > best_score:
             best, best_score = row, score
 
@@ -591,7 +639,9 @@ def main():
             # Is this already listed? Checked BEFORE touching venues, so a
             # flyer for a known show can't create a duplicate venue on its way
             # to creating a duplicate event.
-            match, score = find_matching_event(title, event.get("performers"), event_date)
+            match, score = find_matching_event(
+                title, event.get("performers"), event_date, venue_name,
+            )
             if match:
                 where = ((match.get("venues") or {}).get("name")) or "?"
                 print(f"      → ATTACH to \"{match['event_name'][:42]}\" @ {where}  (score {score:.1f})")
