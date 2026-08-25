@@ -5,6 +5,7 @@ import OutboundLink from './OutboundLink';
 import { Event, formatEventDateTime } from '@/features/frequent-flyer/data/events';
 import { hasRealImage } from '@/features/frequent-flyer/data/vibePlaceholders';
 import SmartImage from '@/components/SmartImage';
+import { capture } from '@/lib/analytics';
 import GeneratedFlyer from './GeneratedFlyer';
 import ShareButton from './ShareButton';
 import styles from './EventDetailSheet.module.css';
@@ -31,6 +32,25 @@ export default function EventDetailSheet({ event, onClose }: EventDetailSheetPro
     const [dragY, setDragY] = useState(0);
     const [dragging, setDragging] = useState(false);
     const dragStart = useRef<{ y: number; t: number } | null>(null);
+
+    /* The depth signal the page-view counter structurally cannot see.
+     *
+     * Opening a listing from the feed renders this sheet in place — it is not a
+     * navigation, so no page view is recorded. A week showing "61 landed on /,
+     * 2 reached an event page" therefore understated engagement by an unknown
+     * amount, because every listing opened without leaving the home page
+     * counted as nothing at all. This is the first measurement of it. */
+    useEffect(() => {
+        if (!event) return;
+        capture('event_opened', {
+            eventId: event.id,
+            title: event.title,
+            venue: event.location,
+            neighborhood: event.neighborhood,
+            curationLevel: event.curationLevel,
+            hasFlyer: Boolean(event.imageIsFlyer),
+        });
+    }, [event]);
 
     const onPointerDown = (e: React.PointerEvent) => {
         dragStart.current = { y: e.clientY, t: Date.now() };

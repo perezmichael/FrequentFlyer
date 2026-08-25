@@ -3,6 +3,7 @@ import { EB_Garamond, Space_Grotesk, Space_Mono } from "next/font/google";
 import { Suspense } from "react";
 import "./globals.css";
 import NavbarWrapper from "@/components/NavbarWrapper";
+import PostHogProvider from "@/components/PostHogProvider";
 import { Analytics } from "@vercel/analytics/next";
 import { SITE_URL, SITE_NAME, SITE_TAGLINE, IS_INDEXABLE } from "@/lib/site";
 
@@ -87,12 +88,17 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${ebGaramond.variable} ${spaceGrotesk.variable} ${spaceMono.variable} font-sans`}>
-        <Suspense fallback={<div style={{ height: '60px' }} />}>
-          <NavbarWrapper />
-        </Suspense>
-        <main>{children}</main>
+        <PostHogProvider>
+          <Suspense fallback={<div style={{ height: '60px' }} />}>
+            <NavbarWrapper />
+          </Suspense>
+          <main>{children}</main>
+        </PostHogProvider>
         {/* Page views and referrers, so a post's effect is measurable.
-            Cookieless, so no consent banner is required. */}
+            Cookieless, so no consent banner is required.
+            Kept alongside PostHog rather than replaced by it: this is the
+            number the Vercel dashboard reports, and switching tools mid-stream
+            would break the only continuous traffic history the project has. */}
         <Analytics />
       </body>
     </html>
