@@ -99,6 +99,7 @@ export async function getEventById(id: string): Promise<Event | null> {
       venues (
         name,
         neighborhood,
+        address,
         lat,
         lng,
         url,
@@ -111,8 +112,23 @@ export async function getEventById(id: string): Promise<Event | null> {
 
     if (error || !data) return null;
 
+    // The bill, in the order it's printed. A second round trip rather than a
+    // nested select so the feed's 300-card query stays untouched — only this
+    // page needs it, and only to fill schema.org `performer`.
+    const { data: bill } = await supabase
+        .from('event_talent')
+        .select('bill_order, talent ( name )')
+        .eq('event_id', id)
+        .order('bill_order');
+
+    const performers = ((bill || []) as any[])
+        .map(r => (r.talent?.name || '').trim())
+        .filter(Boolean);
+
     const e: any = data;
     return {
+        performers,
+        venueAddress: e.venues?.address || null,
         id: e.id,
         title: e.event_name,
         date: e.event_date,
