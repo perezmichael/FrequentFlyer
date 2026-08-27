@@ -56,6 +56,15 @@ export interface Event {
     curationLevel?: 'scraped' | 'ff_curated' | 'promoted';
     /** The scout's 1-10 score against vibedoc.md; orders cards within a day. */
     vibeScore?: number | null;
+    /**
+     * The bill, headliner first. Only the detail page loads these — the feed
+     * renders 300+ cards and doesn't need a join per card to draw one.
+     * Feeds schema.org `performer`, which is what makes an individual act
+     * findable rather than only the event it plays.
+     */
+    performers?: string[];
+    /** Street address where the venue has one. Feeds schema.org PostalAddress. */
+    venueAddress?: string | null;
 }
 
 // "7 PM" / "7:30 PM" from a "HH:MM[:SS]" string.

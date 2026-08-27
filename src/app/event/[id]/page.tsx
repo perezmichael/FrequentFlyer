@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import { getEventById } from '@/lib/queries';
 import { formatEventDateTime } from '@/features/frequent-flyer/data/events';
 import { absoluteUrl } from '@/lib/site';
+import { eventJsonLd } from '@/lib/schema';
 import OutboundLink from '@/features/frequent-flyer/components/OutboundLink';
 import { hasRealImage } from '@/features/frequent-flyer/data/vibePlaceholders';
 import SmartImage from '@/components/SmartImage';
@@ -63,34 +64,15 @@ export default async function EventPage({ params }: { params: { id: string } }) 
      * don't hold it — a wrong startTime or a fabricated price in structured
      * data is worse than none, both for the reader and for the venue.
      */
-    const jsonLd: Record<string, unknown> = {
-        '@context': 'https://schema.org',
-        '@type': 'Event',
-        name: event.title,
-        // Date-only when the venue never published a start time.
-        startDate: event.startTime ? `${event.date}T${event.startTime}` : event.date,
-        eventStatus: 'https://schema.org/EventScheduled',
-        eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
-        url: absoluteUrl(`/event/${event.id}`),
-        location: {
-            '@type': 'Place',
-            name: event.location,
-            address: {
-                '@type': 'PostalAddress',
-                addressLocality: event.neighborhood || 'Los Angeles',
-                addressRegion: 'CA',
-                addressCountry: 'US',
-            },
-            // Omitted for un-geocoded venues rather than defaulted to a city
-            // centroid — a wrong pin in structured data is a wrong pin in Google.
-            ...(Number.isFinite(event.lat) && Number.isFinite(event.lng)
-                ? { geo: { '@type': 'GeoCoordinates', latitude: event.lat, longitude: event.lng } }
-                : {}),
-        },
-    };
-    if (event.endTime) jsonLd.endDate = `${event.date}T${event.endTime}`;
-    if (showImage) jsonLd.image = [event.image];
-    if (hasDescription) jsonLd.description = event.description;
+    /* Built by src/lib/schema.ts so the homepage list and this page can't
+       describe the same event differently. It also carries the lineup, the
+       price and a timezone-correct start time — all of which were already in
+       the database and none of which used to reach the markup. */
+    const jsonLd = eventJsonLd(event, {
+        performers: event.performers,
+        streetAddress: event.venueAddress,
+        hasImage: showImage,
+    });
 
     return (
         <main className="min-h-screen bg-cream pt-[100px]">
