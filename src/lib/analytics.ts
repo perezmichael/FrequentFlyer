@@ -43,7 +43,25 @@ export type AnalyticsEvent =
     /** Someone left for a venue's own page — the closest thing to an outcome
      *  this product has. Already logged to Supabase; mirrored here so it can
      *  be used as a funnel step. */
-    | 'outbound_click';
+    | 'outbound_click'
+    /**
+     * A filter or view was changed.
+     *
+     * Exists to settle one argument with evidence rather than taste: the feed
+     * defaults to the next 30 days, but the product is called "What's
+     * happening" and its stated job is knowing what's on THIS week. If people
+     * routinely narrow to a day, the month default is costing them a tap and
+     * the debate is over. If nobody ever touches these, the default IS the
+     * product and changing it is the whole decision.
+     *
+     * Grouped under one event with a `filter` property rather than split into
+     * several, so PostHog can break it down by type without needing a new
+     * event name each time a filter is added. `filter: 'view'` covers the
+     * mobile list/map toggle — worth knowing whether the map, which carries
+     * half the interface, is opened at all on the 70% of sessions that are
+     * phones.
+     */
+    | 'filter_used';
 
 export function capture(event: AnalyticsEvent, props?: Record<string, unknown>): void {
     if (!analyticsEnabled || typeof window === 'undefined') return;

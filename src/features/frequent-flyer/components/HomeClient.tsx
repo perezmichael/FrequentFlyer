@@ -8,6 +8,7 @@ import EventDetailSheet from './EventDetailSheet';
 import MapLoader from '@/components/MapLoader';
 import styles from './HomeClient.module.css';
 import FilterPillRow from './FilterPillRow';
+import { capture } from '@/lib/analytics';
 import { hasRealImage } from '@/features/frequent-flyer/data/vibePlaceholders';
 import { Event } from '@/features/frequent-flyer/data/events';
 import { RecurringEvent, DAY_NAMES_SHORT, formatRecurringSchedule } from '@/features/frequent-flyer/data/recurringEvents';
@@ -163,6 +164,21 @@ export default function HomeClient({
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
     const [detailEvent, setDetailEvent] = useState<Event | null>(null);
     const [mobileTab, setMobileTab] = useState<'list' | 'map'>('list');
+
+    /**
+     * Record a filter change.
+     *
+     * The feed defaults to the next 30 days while the product is called
+     * "What's happening" — whether that default is right is currently a matter
+     * of taste, and this is what turns it into a matter of record. If people
+     * routinely narrow to a day, the month is costing them a tap. If nobody
+     * ever touches these, the default IS the product.
+     *
+     * `enabled: false` on a clear is deliberate — going back to the whole month
+     * is as informative as narrowing away from it.
+     */
+    const trackFilter = (filter: string, value: string | null) =>
+        capture('filter_used', { filter, value: value ?? 'all', enabled: value !== null });
 
     // Build the unified list: upcoming one-off events + recurring events by day
     const unifiedItems = useMemo(() => {
@@ -392,13 +408,13 @@ export default function HomeClient({
             <div className={styles.tabBar}>
                 <button
                     className={`${styles.tabButton} ${mobileTab === 'list' ? styles.tabActive : ''}`}
-                    onClick={() => setMobileTab('list')}
+                    onClick={() => { setMobileTab('list'); trackFilter('view', 'list'); }}
                 >
                     Events
                 </button>
                 <button
                     className={`${styles.tabButton} ${mobileTab === 'map' ? styles.tabActive : ''}`}
-                    onClick={() => setMobileTab('map')}
+                    onClick={() => { setMobileTab('map'); trackFilter('view', 'map'); }}
                 >
                     Map
                 </button>
@@ -447,11 +463,11 @@ export default function HomeClient({
                             className="mt-[12px]"
                             aria-label="Filter by day"
                             pills={[
-                                { key: '__all', label: 'All', active: dayFilter === null && !picksOnly, onClick: () => { setDayFilter(null); setPicksOnly(false); } },
+                                { key: '__all', label: 'All', active: dayFilter === null && !picksOnly, onClick: () => { setDayFilter(null); setPicksOnly(false); trackFilter('day', null); } },
                                 // Only offered once picks exist, so it can't be
                                 // tapped into an empty view.
                                 ...(pickCount > 0
-                                    ? [{ key: '__picks', label: `★ FF Picks`, active: picksOnly, emphasize: true, onClick: () => setPicksOnly(!picksOnly) }]
+                                    ? [{ key: '__picks', label: `★ FF Picks`, active: picksOnly, emphasize: true, onClick: () => { setPicksOnly(!picksOnly); trackFilter('picks', picksOnly ? null : 'on'); } }]
                                     : []),
                                 // Only rendered while a collection has events
                                 // still to come. getCollections() looks from
@@ -463,14 +479,22 @@ export default function HomeClient({
                                     label: `${c.label} (${c.count})`,
                                     active: collectionFilter === c.slug,
                                     emphasize: true,
-                                    onClick: () => setCollectionFilter(collectionFilter === c.slug ? null : c.slug),
+                                    onClick: () => {
+                                        const next = collectionFilter === c.slug ? null : c.slug;
+                                        setCollectionFilter(next);
+                                        trackFilter('collection', next);
+                                    },
                                 })),
                                 ...DAY_NAMES_SHORT.map((name, i) => ({
                                     key: String(i),
                                     label: i === today ? `${name} ·` : name,
                                     active: dayFilter === i,
                                     emphasize: i === today,
-                                    onClick: () => setDayFilter(dayFilter === i ? null : i),
+                                    onClick: () => {
+                                        const next = dayFilter === i ? null : i;
+                                        setDayFilter(next);
+                                        trackFilter('day', next === null ? null : DAY_NAMES_SHORT[next]);
+                                    },
                                 })),
                             ]}
                         />
@@ -486,7 +510,11 @@ export default function HomeClient({
                                         key: n,
                                         label: n,
                                         active: neighborhoodFilter === n,
-                                        onClick: () => setNeighborhoodFilter(neighborhoodFilter === n ? null : n),
+                                        onClick: () => {
+                                        const next = neighborhoodFilter === n ? null : n;
+                                        setNeighborhoodFilter(next);
+                                        trackFilter('neighborhood', next);
+                                    },
                                     })),
                                 ]}
                             />
