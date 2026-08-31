@@ -527,7 +527,17 @@ export default function Map({ events = [], selectedEventId, onMarkerClick, onEve
             >
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                    url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                    /* CARTO moved their basemaps behind a key and now stamps
+                       "API KEY REQUIRED" across anonymous tiles. They still
+                       serve — this is the nag phase — but that won't last.
+                       Without a key set, behaviour is exactly as it is today.
+                       Attribution above is a condition of the free tier and
+                       must stay. */
+                    url={`https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png${
+                        process.env.NEXT_PUBLIC_CARTO_KEY
+                            ? `?key=${process.env.NEXT_PUBLIC_CARTO_KEY}`
+                            : ''
+                    }`}
                 />
 
                 <MapResizer isFullscreen={isFullscreen} resizeSignal={resizeSignal} />
