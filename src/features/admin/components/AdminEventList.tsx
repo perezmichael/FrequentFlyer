@@ -13,6 +13,7 @@ import {
     setEventsStatus,
 } from '@/app/actions';
 import { Check, X, Undo2, RefreshCw, Keyboard } from 'lucide-react';
+import { sourceLabel, SUBMITTED } from '../sourceLabel';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -178,6 +179,10 @@ export default function AdminEventList({ events }: AdminEventListProps) {
     const [needsFlyer, setNeedsFlyer] = useState(false);
     const [needsDedup, setNeedsDedup] = useState(false);
     const [showPast, setShowPast] = useState(false);
+    /** Someone filled out the form and is waiting. Deliberately overrides the
+     *  date filters — a submission that has already passed still needs an
+     *  answer, and the default view hides everything before today. */
+    const [onlySubmitted, setOnlySubmitted] = useState(false);
 
     // Bulk selection
     const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -239,9 +244,19 @@ export default function AdminEventList({ events }: AdminEventListProps) {
     }, [events]);
 
     const sources = useMemo(() => {
-        const set = new Set(events.map(e => e.source || 'manual').filter(Boolean));
+        const set = new Set(events.map(e => sourceLabel(e.source)).filter(Boolean));
         return Array.from(set).sort();
     }, [events]);
+
+    /**
+     * How many events a person submitted through the form, counted across the
+     * whole table rather than the current filters — the point is to be visible
+     * when you are looking at something else entirely.
+     */
+    const submittedCount = useMemo(
+        () => mergedEvents.filter(e => sourceLabel(e.source) === SUBMITTED && e.status === 'pending').length,
+        [mergedEvents],
+    );
 
     // -----------------------------------------------------------------------
     // Duplicate detection — same normalized title + same date
@@ -283,6 +298,12 @@ export default function AdminEventList({ events }: AdminEventListProps) {
             .filter(event => {
                 const normalizedStatus = (!event.status || event.status === 'planned') ? 'pending' : event.status;
                 if (normalizedStatus !== statusFilter) return false;
+
+                // Submissions answer to status and nothing else. Every other
+                // filter here is a way of narrowing a 2,300-row scrape; none of
+                // them should be capable of hiding a person waiting on a reply.
+                if (onlySubmitted) return sourceLabel(event.source) === SUBMITTED;
+
                 if (!showPast && toLocalMidnight(event.date) < today) return false;
                 if (dateRange) {
                     const eventDate = toLocalMidnight(event.date);
@@ -290,7 +311,7 @@ export default function AdminEventList({ events }: AdminEventListProps) {
                 }
                 if (areaFilter && event.neighborhood !== areaFilter) return false;
                 if (vibeFilter && !event.vibe?.includes(vibeFilter)) return false;
-                if (sourceFilter && (event.source || 'manual') !== sourceFilter) return false;
+                if (sourceFilter && sourceLabel(event.source) !== sourceFilter) return false;
                 if (needsFlyer && !isMissingFlyer(event)) return false;
                 if (needsDedup && !duplicateIds.has(event.id)) return false;
                 return true;
@@ -298,7 +319,7 @@ export default function AdminEventList({ events }: AdminEventListProps) {
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }, [
         mergedEvents, statusFilter, datePreset, areaFilter, vibeFilter,
-        sourceFilter, needsFlyer, needsDedup, showPast, duplicateIds,
+        sourceFilter, needsFlyer, needsDedup, showPast, onlySubmitted, duplicateIds,
     ]);
 
     // -----------------------------------------------------------------------
@@ -576,6 +597,11 @@ export default function AdminEventList({ events }: AdminEventListProps) {
     const pillActive = 'bg-black text-[#FFFAEB] border-black';
     const pillInactive = 'bg-transparent text-black border-black/30 hover:border-black';
     const pillWarn = 'bg-amber-500 text-white border-amber-500';
+    // Brand brick, not the amber of "needs flyer" / "likely dupes" — a person
+    // sending you an event is the good kind of attention, and it stays legible
+    // in the pill row even when nothing is selected.
+    const pillSubmitted = 'bg-[#C2371B] text-[#FFFAEB] border-[#C2371B]';
+    const pillSubmittedIdle = 'bg-transparent text-[#C2371B] border-[#C2371B]/50 hover:border-[#C2371B]';
 
     // -----------------------------------------------------------------------
     // Render
@@ -714,6 +740,14 @@ export default function AdminEventList({ events }: AdminEventListProps) {
                             >
                                 Likely Dupes
                             </button>
+                            {submittedCount > 0 && (
+                                <button
+                                    onClick={() => setOnlySubmitted(v => !v)}
+                                    className={`${pillBase} ${onlySubmitted ? pillSubmitted : pillSubmittedIdle}`}
+                                >
+                                    Submitted · {submittedCount}
+                                </button>
+                            )}
                         </div>
 
                         {/* Area pills */}

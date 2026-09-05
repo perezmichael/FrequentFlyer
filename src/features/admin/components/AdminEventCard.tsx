@@ -5,6 +5,7 @@ import { Event } from '@/features/frequent-flyer/data/events';
 import { uploadEventFlyer, setEventCuration } from '@/app/actions';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { sourceLabel, SUBMITTED } from '../sourceLabel';
 import { Button } from '@/components/ui/button';
 import { Check, X, Edit2, Upload, AlertTriangle, ImageOff, Star } from 'lucide-react';
 
@@ -22,13 +23,16 @@ interface AdminEventCardProps {
     onEdit?: () => void;
 }
 
-// Short label + color per source
-const SOURCE_STYLE: Record<string, { label: string; className: string }> = {
-    master_scout: { label: 'Scout', className: 'bg-indigo-500/90 text-white' },
-    eventbrite: { label: 'Eventbrite', className: 'bg-orange-500/90 text-white' },
-    resident_advisor: { label: 'RA', className: 'bg-red-500/90 text-white' },
-    ra: { label: 'RA', className: 'bg-red-500/90 text-white' },
-    manual: { label: 'Manual', className: 'bg-black/80 text-white' },
+// Colour per grouped source label (see ../sourceLabel). Keyed on the *label*,
+// so a source the normalizer passes through unchanged still gets a badge.
+const SOURCE_STYLE: Record<string, string> = {
+    [SUBMITTED]: 'bg-[#C2371B] text-[#FFFAEB]',
+    Scout: 'bg-indigo-500/90 text-white',
+    Flyer: 'bg-violet-500/90 text-white',
+    Eventbrite: 'bg-orange-500/90 text-white',
+    RA: 'bg-red-500/90 text-white',
+    Manual: 'bg-black/80 text-white',
+    Seed: 'bg-slate-500/90 text-white',
 };
 
 export default function AdminEventCard({
@@ -82,7 +86,11 @@ export default function AdminEventCard({
 
     const inputClass = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
-    const sourceStyle = source ? SOURCE_STYLE[source] ?? { label: source, className: 'bg-gray-500/90 text-white' } : null;
+    // The raw source can be a 60-character flyer filename; the label is what
+    // belongs on a badge. `title` keeps the original for hovering.
+    const sourceName = sourceLabel(source);
+    const sourceClass = SOURCE_STYLE[sourceName] ?? 'bg-gray-500/90 text-white';
+    const isSubmission = sourceName === SUBMITTED;
 
     return (
         <Card
@@ -159,11 +167,12 @@ export default function AdminEventCard({
                             {event.vibe_score}/10
                         </Badge>
                     ) : null}
-                    {sourceStyle && (
-                        <Badge className={`border-none backdrop-blur-md ${sourceStyle.className}`}>
-                            {sourceStyle.label}
-                        </Badge>
-                    )}
+                    <Badge
+                        title={source && source !== sourceName ? source : undefined}
+                        className={`border-none backdrop-blur-md ${sourceClass}`}
+                    >
+                        {isSubmission ? '✉ Submitted' : sourceName}
+                    </Badge>
                 </div>
 
                 {/* Bottom-left warning badges */}
