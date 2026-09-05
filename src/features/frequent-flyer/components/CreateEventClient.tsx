@@ -11,6 +11,26 @@ type VenueOption = { id: string; name: string; neighborhood: string | null };
 const CANVAS_W = 400;
 const CANVAS_H = 500;
 
+/**
+ * Formats every current browser can decode. Deliberately not `image/*`:
+ * that matched `image/heic`, which is what an iPhone camera produces and
+ * what only Safari can read. Naming the list also makes iOS convert a HEIC
+ * to JPEG on its way out of the photo picker, which is the fix rather than
+ * the error message.
+ */
+const ACCEPTED_IMAGE_TYPES = 'image/jpeg,image/png,image/webp,image/gif,image/avif';
+
+const MAX_FLYER_BYTES = 12 * 1024 * 1024;
+
+/** Say which format failed. "Try another image" is not something anyone can act on,
+ *  and HEIC is far and away the likeliest reason to land here. */
+function unreadableImageMessage(file: File): string {
+    const heic = /\.hei[cf]$/i.test(file.name) || /image\/hei[cf]/i.test(file.type);
+    return heic
+        ? "That's an iPhone HEIC photo, which this browser can't open. Set Settings → Camera → Formats → Most Compatible, or text the photo to yourself to get a JPEG."
+        : "Couldn't read that image. A JPEG or PNG should work.";
+}
+
 function extractHexes(s: string): string[] {
     return s.match(/#[0-9a-fA-F]{3,8}/g) || [];
 }
@@ -35,6 +55,10 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
     const [venueOpen, setVenueOpen] = useState(false);
 
     const [hasFlyer, setHasFlyer] = useState(false);
+    const [uploadingFlyer, setUploadingFlyer] = useState(false);
+    /** Kept apart from `error` so a flyer problem can sit next to the canvas
+     *  rather than in the form column, where it was easy to miss. */
+    const [flyerError, setFlyerError] = useState<string | null>(null);
     const [generating, setGenerating] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -149,15 +173,58 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
         setGenerating(false);
     };
 
+    /**
+     * The iPhone camera writes HEIC by default and Chrome and Firefox cannot
+     * decode it — Safari is the only browser that can. `accept="image/*"`
+     * matched those files happily, so a .HEIC was picked, failed to decode,
+     * and then nothing happened at all: `reader.onload` was an async function,
+     * so the rejected `fromURL` became an unhandled promise rejection with no
+     * error state attached to it. No preview, no message, `hasFlyer` left
+     * false — and the form still submitted, quietly dropping the flyer.
+     *
+     * Prevention first: the accept list on the input names only formats a
+     * browser can actually decode, which makes iOS transcode HEIC to JPEG as
+     * it hands the file over, and greys the rest out in a desktop picker.
+     * A file that gets through anyway now says why it failed.
+     */
     const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
+        // Clearing it here means re-picking the same file fires `change` again,
+        // so a second attempt after a failure isn't a dead click.
+        e.target.value = '';
         if (!file) return;
+
+        setFlyerError(null);
+
+        if (file.size > MAX_FLYER_BYTES) {
+            setFlyerError(
+                `That image is ${(file.size / 1024 / 1024).toFixed(1)}MB — keep it under ${MAX_FLYER_BYTES / 1024 / 1024}MB.`,
+            );
+            return;
+        }
+
+        setUploadingFlyer(true);
         const reader = new FileReader();
-        reader.onload = async (ev) => {
-            const dataUrl = ev.target?.result as string;
-            const img = await fabric.FabricImage.fromURL(dataUrl);
-            drawFlyer({ bgImage: img, fontColor: '#ffffff' });
+
+        reader.onerror = () => {
+            setUploadingFlyer(false);
+            setFlyerError('Could not read that file. Try another image.');
         };
+
+        reader.onload = async (ev) => {
+            try {
+                const dataUrl = ev.target?.result as string;
+                const img = await fabric.FabricImage.fromURL(dataUrl);
+                // fabric can resolve with a zero-sized image rather than throw.
+                if (!img?.width || !img?.height) throw new Error('undecodable');
+                drawFlyer({ bgImage: img, fontColor: '#ffffff' });
+            } catch {
+                setFlyerError(unreadableImageMessage(file));
+            } finally {
+                setUploadingFlyer(false);
+            }
+        };
+
         reader.readAsDataURL(file);
     };
 
@@ -353,11 +420,24 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
                             className="flex-1 font-space-mono uppercase text-[13px] tracking-[-0.5px] border border-black/40 rounded-full px-4 py-3 hover:bg-black hover:text-cream transition-colors disabled:opacity-50">
                             {generating ? 'Generating…' : '✨ Generate design'}
                         </button>
-                        <label className="flex-1 cursor-pointer text-center font-space-mono uppercase text-[13px] tracking-[-0.5px] border border-black/40 rounded-full px-4 py-3 hover:bg-black hover:text-cream transition-colors">
-                            Upload image
-                            <input type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+                        <label className={`flex-1 text-center font-space-mono uppercase text-[13px] tracking-[-0.5px] border border-black/40 rounded-full px-4 py-3 transition-colors ${
+                            uploadingFlyer
+                                ? 'opacity-50 cursor-wait'
+                                : 'cursor-pointer hover:bg-black hover:text-cream'
+                        }`}>
+                            {uploadingFlyer ? 'Reading…' : 'Upload image'}
+                            <input
+                                type="file"
+                                accept={ACCEPTED_IMAGE_TYPES}
+                                className="hidden"
+                                disabled={uploadingFlyer}
+                                onChange={handleUpload}
+                            />
                         </label>
                     </div>
+                    {flyerError && (
+                        <p className="font-space-mono text-[13px] leading-[1.5] text-red-600">{flyerError}</p>
+                    )}
                 </div>
             </div>
         </div>
