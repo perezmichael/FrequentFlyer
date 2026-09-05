@@ -11,6 +11,24 @@ type VenueOption = { id: string; name: string; neighborhood: string | null };
 const CANVAS_W = 400;
 const CANVAS_H = 500;
 
+/** Box that uploaded artwork is fitted into, preserving its own aspect ratio. */
+const ART_MAX_W = 400;
+const ART_MAX_H = 620;
+
+/**
+ * Export budget. Server actions carry the flyer as base64 in the request body,
+ * and `next.config.mjs` sets no `bodySizeLimit`, so Next's 1MB default applies
+ * — base64 inflates by a third, so the encoded image has to stay well under
+ * that. Re-rendering through the canvas used to bound this by accident; now
+ * that uploads keep their own dimensions it has to be deliberate.
+ */
+const EXPORT_MAX_EDGE = 1200;
+/** Measured on the base64 string, because that is what actually travels in the
+ *  request body — not the decoded image, which is a third smaller. Leaves ~300KB
+ *  of headroom under the 1MB cap for the rest of the form. */
+const EXPORT_MAX_PAYLOAD_BYTES = 700 * 1024;
+const EXPORT_QUALITIES = [0.85, 0.7, 0.55, 0.4];
+
 /**
  * Formats every current browser can decode. Deliberately not `image/*`:
  * that matched `image/heic`, which is what an iPhone camera produces and
@@ -21,6 +39,28 @@ const CANVAS_H = 500;
 const ACCEPTED_IMAGE_TYPES = 'image/jpeg,image/png,image/webp,image/gif,image/avif';
 
 const MAX_FLYER_BYTES = 12 * 1024 * 1024;
+
+/**
+ * Render the canvas to a JPEG data URL that will fit in a server action.
+ *
+ * The multiplier is derived rather than fixed at 2, because the canvas is no
+ * longer always 400×500 — uploaded artwork keeps its own shape, so a wide
+ * flyer and a tall one need different scaling to land on the same long edge.
+ * Quality steps down if a busy image still comes out too big; a submission
+ * that silently exceeds the body limit is the exact failure mode we just spent
+ * a fix removing.
+ */
+function exportFlyer(canvas: fabric.Canvas): string {
+    const longest = Math.max(canvas.width || CANVAS_W, canvas.height || CANVAS_H);
+    const multiplier = Math.max(1, Math.min(3, EXPORT_MAX_EDGE / longest));
+
+    let out = '';
+    for (const quality of EXPORT_QUALITIES) {
+        out = canvas.toDataURL({ format: 'jpeg', quality, multiplier });
+        if (out.length <= EXPORT_MAX_PAYLOAD_BYTES) return out;
+    }
+    return out;
+}
 
 /** Say which format failed. "Try another image" is not something anyone can act on,
  *  and HEIC is far and away the likeliest reason to land here. */
@@ -55,6 +95,9 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
     const [venueOpen, setVenueOpen] = useState(false);
 
     const [hasFlyer, setHasFlyer] = useState(false);
+    /** True when the canvas holds an uploaded flyer, which we leave untouched —
+     *  no title, no date, no watermark, no crop. */
+    const [isArtwork, setIsArtwork] = useState(false);
     const [uploadingFlyer, setUploadingFlyer] = useState(false);
     /** Kept apart from `error` so a flyer problem can sit next to the canvas
      *  rather than in the form column, where it was easy to miss. */
@@ -92,6 +135,45 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
         };
     }, []);
 
+    /**
+     * Put finished artwork on the canvas and add nothing to it.
+     *
+     * The studio's whole job is composing a title, date and watermark over a
+     * background — which is right when it generated that background, and wrong
+     * when someone uploaded a flyer a designer already made. Those objects were
+     * also undeletable: nothing listened for a delete key, and a phone has no
+     * delete key to listen for, so on mobile they were stuck wherever they
+     * landed. Two thirds of that text never survived the feed anyway — cards
+     * are 1:1 `object-fit: cover` against a 4:5 canvas, so the watermark at
+     * y≈456 of 500 was always cropped off.
+     *
+     * The canvas is resized to the artwork's own aspect ratio rather than
+     * cover-cropping it into 4:5, because there is no longer any text that
+     * needs a predictable box to sit in — and cropping a finished flyer to
+     * make room for text we aren't drawing would be destroying it for nothing.
+     */
+    const drawArtwork = (img: fabric.FabricImage) => {
+        if (!fabricCanvas) return;
+        fabricCanvas.remove(...fabricCanvas.getObjects());
+
+        const scale = Math.min(
+            ART_MAX_W / (img.width || 1),
+            ART_MAX_H / (img.height || 1),
+        );
+        const w = Math.max(1, Math.round((img.width || 1) * scale));
+        const h = Math.max(1, Math.round((img.height || 1) * scale));
+
+        fabricCanvas.setDimensions({ width: w, height: h });
+        img.scaleToWidth(w);
+        img.set({ originX: 'center', originY: 'center', left: w / 2, top: h / 2 });
+        fabricCanvas.backgroundImage = img;
+        fabricCanvas.backgroundColor = '#000';
+        fabricCanvas.requestRenderAll();
+
+        setIsArtwork(true);
+        setHasFlyer(true);
+    };
+
     const drawFlyer = (opts: {
         bgImage?: fabric.FabricImage;
         gradientColors?: string[];
@@ -100,6 +182,12 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
     }) => {
         if (!fabricCanvas) return;
         fabricCanvas.remove(...fabricCanvas.getObjects());
+        // A generated design composes against a known 4:5 box; an upload may
+        // have left the canvas at its own shape.
+        if (fabricCanvas.width !== CANVAS_W || fabricCanvas.height !== CANVAS_H) {
+            fabricCanvas.setDimensions({ width: CANVAS_W, height: CANVAS_H });
+        }
+        setIsArtwork(false);
 
         if (opts.bgImage) {
             const img = opts.bgImage;
@@ -217,7 +305,7 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
                 const img = await fabric.FabricImage.fromURL(dataUrl);
                 // fabric can resolve with a zero-sized image rather than throw.
                 if (!img?.width || !img?.height) throw new Error('undecodable');
-                drawFlyer({ bgImage: img, fontColor: '#ffffff' });
+                drawArtwork(img);
             } catch {
                 setFlyerError(unreadableImageMessage(file));
             } finally {
@@ -259,7 +347,7 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
         try {
             let flyerBase64: string | undefined;
             if (hasFlyer && fabricCanvas) {
-                flyerBase64 = fabricCanvas.toDataURL({ format: 'jpeg', quality: 0.85, multiplier: 2 });
+                flyerBase64 = exportFlyer(fabricCanvas);
             }
             await submitEvent(
                 {
@@ -297,7 +385,7 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
                         setDone(false);
                         setTitle(''); setDate(''); setStartTime(''); setEndTime(''); setVibe(''); setDescription(''); setPrompt('');
                         setVenueQuery(''); setVenueId(null); setNewVenueName(''); setNewVenueNeighborhood('');
-                        setHasFlyer(false);
+                        setHasFlyer(false); setIsArtwork(false); setFlyerError(null);
                     }}
                     className="font-space-mono uppercase text-[14px] tracking-[-0.5px] border border-black/40 rounded-full px-6 py-3 hover:bg-black hover:text-cream transition-colors"
                 >
@@ -409,6 +497,12 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
                     <div className="flyer-canvas-wrap bg-black/5 border border-black/10 rounded-xl p-4 flex justify-center">
                         <canvas ref={canvasRef} className="rounded-lg shadow-lg" />
                     </div>
+                    {isArtwork && (
+                        <p className="font-space-mono text-[12px] leading-[1.5] text-black/60">
+                            Your flyer goes up as-is — we won&apos;t add a title or date to it.
+                            Generating a design replaces it.
+                        </p>
+                    )}
                     <textarea
                         className={`${inputClass} h-20 resize-none`}
                         value={prompt}
