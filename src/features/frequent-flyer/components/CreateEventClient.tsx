@@ -92,6 +92,7 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
     const [venueId, setVenueId] = useState<string | null>(null);
     const [newVenueName, setNewVenueName] = useState('');
     const [newVenueNeighborhood, setNewVenueNeighborhood] = useState('');
+    const [newVenueAddress, setNewVenueAddress] = useState('');
     const [venueOpen, setVenueOpen] = useState(false);
 
     const [hasFlyer, setHasFlyer] = useState(false);
@@ -360,6 +361,7 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
                     venueId: venueId ?? undefined,
                     venueName: venueId ? undefined : newVenueName,
                     venueNeighborhood: venueId ? undefined : newVenueNeighborhood,
+                    venueAddress: venueId ? undefined : newVenueAddress,
                 },
                 flyerBase64,
             );
@@ -384,7 +386,7 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
                     onClick={() => {
                         setDone(false);
                         setTitle(''); setDate(''); setStartTime(''); setEndTime(''); setVibe(''); setDescription(''); setPrompt('');
-                        setVenueQuery(''); setVenueId(null); setNewVenueName(''); setNewVenueNeighborhood('');
+                        setVenueQuery(''); setVenueId(null); setNewVenueName(''); setNewVenueNeighborhood(''); setNewVenueAddress('');
                         setHasFlyer(false); setIsArtwork(false); setFlyerError(null);
                     }}
                     className="font-space-mono uppercase text-[14px] tracking-[-0.5px] border border-black/40 rounded-full px-6 py-3 hover:bg-black hover:text-cream transition-colors"
@@ -466,11 +468,22 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
                             </div>
                         )}
                         {newVenueName && (
-                            <div className="mt-3">
-                                <label className={labelClass}>Neighborhood (for the new venue)</label>
-                                <input className={inputClass} value={newVenueNeighborhood}
-                                    onChange={e => setNewVenueNeighborhood(e.target.value)} placeholder="e.g. Echo Park" />
-                            </div>
+                            <>
+                                <div className="mt-3">
+                                    <label className={labelClass}>Neighborhood (for the new venue)</label>
+                                    <input className={inputClass} value={newVenueNeighborhood}
+                                        onChange={e => setNewVenueNeighborhood(e.target.value)} placeholder="e.g. Echo Park" />
+                                </div>
+                                <div className="mt-3">
+                                    <label className={labelClass}>Street address (optional)</label>
+                                    <input className={inputClass} value={newVenueAddress}
+                                        onChange={e => setNewVenueAddress(e.target.value)}
+                                        placeholder="1710 N Hudson Ave, Los Angeles, CA 90028" />
+                                    <p className="mt-1.5 font-space-mono text-[12px] leading-[1.5] text-black/50">
+                                        Helps us put it on the map. We check every new venue before it goes live.
+                                    </p>
+                                </div>
+                            </>
                         )}
                     </div>
 

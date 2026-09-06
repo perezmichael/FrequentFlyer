@@ -49,18 +49,29 @@ export async function getVibeCheck(eventTitle: string, eventVibes: string[]) {
     }
 }
 
+/**
+ * Venues offered in the public form's picker.
+ *
+ * Excludes anything still quarantined. Filtering happens here in JS rather
+ * than as a PostgREST `metadata->>verified` predicate because the test has to
+ * be "explicitly unverified", not "not explicitly verified" — the 102 venues
+ * that predate this flag carry no metadata at all and are trusted. A negated
+ * JSON filter would have quietly hidden every one of them.
+ */
 export async function getVenuesForCreate() {
     const { supabase } = await import('@/lib/supabase');
     const { data, error } = await supabase
         .from('venues')
-        .select('id, name, neighborhood')
+        .select('id, name, neighborhood, metadata')
         .order('name', { ascending: true });
 
     if (error) {
         console.error('Error fetching venues for create:', error);
         return [];
     }
-    return data || [];
+    return (data || [])
+        .filter(v => (v.metadata as { verified?: boolean } | null)?.verified !== false)
+        .map(({ id, name, neighborhood }) => ({ id, name, neighborhood }));
 }
 
 export async function getGuides() {
@@ -167,6 +178,81 @@ const ALLOWED_VENUE_UPDATE_FIELDS = new Set([
  * worse than a venue with neither: the map treats a half-coordinate as a real
  * position and drops the pin in the ocean.
  */
+/**
+ * Propose coordinates for a venue. Proposes — it does not save.
+ *
+ * The public queries all carry the same note: never invent coordinates, an
+ * un-geocoded venue is skipped on the map. A confidently wrong pin is worse
+ * than no pin, so this returns a candidate for a human to look at and clicks
+ * nothing on their behalf.
+ *
+ * Guarded by the LA bounding box the Python scout uses, because a geocoder
+ * handed a bare venue name will cheerfully return a same-named bar in another
+ * state. An address is dramatically more reliable than a name: "Zero Lounge"
+ * returned nothing at all from Nominatim, while its street address resolved
+ * on the first try — which is why the form asks for one.
+ */
+export async function geocodeVenue(query: string): Promise<
+    { ok: true; lat: number; lng: number; label: string } | { ok: false; reason: string }
+> {
+    await assertAdmin();
+    if (!isNonEmptyString(query)) return { ok: false, reason: 'Nothing to look up' };
+
+    let results: Array<{ lat?: string; lon?: string; display_name?: string }>;
+    try {
+        const url = new URL('https://nominatim.openstreetmap.org/search');
+        url.searchParams.set('q', query.trim().slice(0, 300));
+        url.searchParams.set('format', 'json');
+        url.searchParams.set('limit', '1');
+        const resp = await fetch(url, {
+            // Nominatim's usage policy requires an identifying User-Agent.
+            headers: { 'User-Agent': 'FrequentFlyerLA/1.0 (https://frequentflyerla.com)' },
+            signal: AbortSignal.timeout(15_000),
+        });
+        if (!resp.ok) return { ok: false, reason: `Lookup failed (${resp.status})` };
+        results = await resp.json();
+    } catch {
+        return { ok: false, reason: 'Lookup failed — try again' };
+    }
+
+    const hit = results?.[0];
+    if (!hit) return { ok: false, reason: 'No match. Add a street address and retry.' };
+
+    const lat = Number(hit.lat);
+    const lng = Number(hit.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        return { ok: false, reason: 'Lookup returned no usable position' };
+    }
+    if (!(lat > 33.6 && lat < 34.4 && lng > -118.9 && lng < -117.6)) {
+        return { ok: false, reason: `Match is outside LA (${lat.toFixed(3)}, ${lng.toFixed(3)}) — ignored` };
+    }
+    return { ok: true, lat, lng, label: hit.display_name?.slice(0, 120) || query };
+}
+
+/**
+ * Promote a quarantined venue into the canonical set: it starts appearing in
+ * the public form's picker and counts as a venue you stand behind. Separate
+ * from updateVenue so that saving a correction and vouching for a record stay
+ * distinct actions.
+ */
+export async function setVenueVerified(id: string, verified: boolean) {
+    await assertAdmin();
+    if (!isNonEmptyString(id)) throw new Error('Invalid venue id');
+
+    const { supabase } = await import('@/lib/supabase');
+    const { data: existing, error: readErr } = await supabase
+        .from('venues').select('metadata').eq('id', id).single();
+    if (readErr || !existing) throw new Error('Venue not found');
+
+    const metadata = { ...(existing.metadata as Record<string, unknown> | null ?? {}), verified };
+    const { error } = await supabase.from('venues').update({ metadata }).eq('id', id);
+    if (error) throw new Error('Could not update venue: ' + error.message);
+
+    revalidatePath('/admin/venues');
+    revalidatePath('/create');
+    return { verified };
+}
+
 export async function updateVenue(id: string, updates: Record<string, unknown>) {
     await assertAdmin();
     if (!isNonEmptyString(id)) throw new Error('Invalid venue id');
@@ -568,9 +654,40 @@ export async function submitEvent(input: unknown, flyerBase64?: string) {
         const neighborhood = isNonEmptyString(f.venueNeighborhood)
             ? f.venueNeighborhood.trim().slice(0, 120)
             : 'Los Angeles';
+
+        /**
+         * A venue invented on the public form is a claim, not a record.
+         *
+         * This wrote straight into the canonical venues table, and
+         * getVenuesForCreate() offered every row back to the next submitter —
+         * so one person's typo became everyone's autocomplete entry, forever
+         * and unreviewed. A venue literally named "new" got in that way.
+         *
+         * `verified: false` quarantines it: the row exists so the event can
+         * point at something, but it is kept out of the picker and out of the
+         * public surfaces until a human promotes it in /admin/venues.
+         *
+         * The address is stored under submitted_address rather than in the
+         * `address` column for the same reason. Nothing reads it but the admin
+         * screen, so a wrong address can never be handed to the next person as
+         * though it were established — which is the whole risk of asking the
+         * public for one.
+         */
+        const submittedAddress = isNonEmptyString(f.venueAddress)
+            ? f.venueAddress.trim().slice(0, 300)
+            : null;
+
         const { data: created, error } = await supabase
             .from('venues')
-            .insert({ name, neighborhood, metadata: { source: 'public_create' } })
+            .insert({
+                name,
+                neighborhood,
+                metadata: {
+                    source: 'public_create',
+                    verified: false,
+                    ...(submittedAddress ? { submitted_address: submittedAddress } : {}),
+                },
+            })
             .select('id')
             .single();
         if (error || !created) throw new Error('Could not create venue: ' + (error?.message ?? 'unknown'));
