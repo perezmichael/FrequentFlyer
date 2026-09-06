@@ -420,6 +420,27 @@ export async function generateVibeStylePublic(prompt: string) {
     return generateVibeStyleCore(prompt.slice(0, 500));
 }
 
+// --- AI background generation (Gemini 2.5 Flash Image / "Nano Banana") ------
+// Returns a base64 data URL for a generated flyer background. Prompt is guided
+// to leave negative space for text and to avoid baking words into the image.
+export async function generateBackgroundPublic(prompt: string): Promise<string> {
+    if (!isNonEmptyString(prompt)) throw new Error('Prompt is required');
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image' });
+    const guided =
+        `${prompt.slice(0, 500)}. Vertical 4:5 poster / event-flyer background artwork. ` +
+        'Rich, high-quality, cinematic composition. Leave generous empty negative space ' +
+        '(especially the lower third and the center) so text can be placed on top afterward. ' +
+        'Do NOT include any text, words, letters, numbers, logos, or watermarks in the image.';
+
+    const result = await model.generateContent(guided);
+    const parts = result.response.candidates?.[0]?.content?.parts ?? [];
+    for (const part of parts) {
+        const inline = (part as { inlineData?: { mimeType?: string; data?: string } }).inlineData;
+        if (inline?.data) return `data:${inline.mimeType || 'image/png'};base64,${inline.data}`;
+    }
+    throw new Error('No image was returned — try a different prompt.');
+}
+
 interface PublishEventFormData {
     title: string;
     date: string;
