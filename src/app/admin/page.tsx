@@ -13,17 +13,37 @@ const ensureImage = (url: string) => {
 export const dynamic = 'force-dynamic';
 
 async function getAdminEvents() {
-    const { data: events, error } = await supabase
-        .from('events')
-        .select(`
-            *,
-            venues (name, neighborhood, url)
-        `)
-        .order('event_date', { ascending: false });
+    /**
+     * Paged, because PostgREST silently caps an unbounded select at 1000 rows.
+     *
+     * There was no .limit() here, which reads like "give me everything" and
+     * isn't — the table holds 2,374 events and the admin was being handed the
+     * 1,000 with the latest dates. Everything older than that simply wasn't in
+     * the page: ~650 past-dated pending rows that could never be reviewed,
+     * with nothing in the UI to say they existed.
+     *
+     * Nothing failed and no error was returned, which is what made it invisible.
+     */
+    const PAGE = 1000;
+    const events: any[] = [];
+    for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+            .from('events')
+            .select(`
+                *,
+                venues (name, neighborhood, url)
+            `)
+            .order('event_date', { ascending: false })
+            .range(from, from + PAGE - 1);
 
-    if (error) {
-        console.error("Admin Fetch Error:", error);
-        return [];
+        if (error) {
+            console.error("Admin Fetch Error:", error);
+            // Return what we have rather than nothing — a partial queue is
+            // still reviewable, an empty one looks like the database is down.
+            break;
+        }
+        events.push(...(data || []));
+        if (!data || data.length < PAGE) break;
     }
 
     return events.map((e: any) => ({
@@ -49,7 +69,11 @@ async function getAdminEvents() {
         // Your reason for picking it — distinct from metadata.justification,
         // which is the scout explaining its own score.
         pickNote: e.metadata?.pick_note || '',
-        source: e.metadata?.source || 'manual',
+        // Untagged means the scout wrote it — 2,255 of the 2,288 rows with no
+        // metadata.source are curation_level 'scraped'. Defaulting these to
+        // 'manual' labelled 2,288 scraped events as hand-entered, which made
+        // the source filter's largest bucket a lie.
+        source: e.metadata?.source || 'scout',
         lat: e.venues?.lat || 0,
         lng: e.venues?.lng || 0
     }));
