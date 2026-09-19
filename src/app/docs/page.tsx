@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { SITE_NAME, SITE_URL } from '@/lib/site';
+import { SITE_NAME, SITE_URL, SUPPORT_EMAIL } from '@/lib/site';
 
 
 export const metadata: Metadata = {
@@ -229,7 +229,7 @@ export default function DocsPage() {
 
                 <h2 className={h2}>Questions</h2>
                 <p className={p}>
-                    <a href="mailto:frequentflyerla@gmail.com" className={linkCls}>frequentflyerla@gmail.com</a>
+                    <a href={`mailto:${SUPPORT_EMAIL}`} className={linkCls}>{SUPPORT_EMAIL}</a>
                 </p>
             </div>
         </div>

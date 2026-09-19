@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { SITE_URL, SITE_NAME } from '@/lib/site';
+import { SITE_URL, SITE_NAME, SUPPORT_EMAIL } from '@/lib/site';
 import { API_CORS_HEADERS } from '@/lib/apiPayload';
 
 /**
@@ -35,7 +35,7 @@ export async function GET() {
                 "approved by a human editor before it appears. Coverage is Los Angeles County only, " +
                 "and only events that have not yet happened — past events are removed automatically. " +
                 "Read-only and free to use with attribution; no account or API key is required.",
-            contact: { name: SITE_NAME, url: SITE_URL },
+            contact: { name: SITE_NAME, url: `${SITE_URL}/docs`, email: SUPPORT_EMAIL },
             license: { name: 'Free to use with attribution', url: `${SITE_URL}/terms` },
         },
         servers: [{ url: `${SITE_URL}/api/v1`, description: 'Production' }],

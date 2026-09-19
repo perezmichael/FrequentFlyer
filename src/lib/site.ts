@@ -22,5 +22,14 @@ export function absoluteUrl(path = '/'): string {
  */
 export const IS_INDEXABLE = process.env.VERCEL_ENV !== 'preview';
 
+/**
+ * Contact addresses on the domain, rather than the personal Gmail they
+ * forward to. Kept here for the same reason SITE_URL is: they appear in the
+ * privacy policy, the terms, the API docs and the connector submission, and
+ * changing one in four places is how three of them go stale.
+ */
+export const CONTACT_EMAIL = 'hello@frequentflyerla.com';
+export const SUPPORT_EMAIL = 'support@frequentflyerla.com';
+
 export const SITE_NAME = 'Frequent Flyer';
 export const SITE_TAGLINE = 'What’s happening in Los Angeles';

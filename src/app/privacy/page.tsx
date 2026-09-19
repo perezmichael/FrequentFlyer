@@ -1,13 +1,11 @@
 import type { Metadata } from 'next';
 import LegalPage, { legalH2, legalP, legalLi, legalLink } from '@/components/LegalPage';
-import { SITE_NAME } from '@/lib/site';
+import { CONTACT_EMAIL, SITE_NAME } from '@/lib/site';
 
 export const metadata: Metadata = {
     title: 'Privacy',
     description: `How ${SITE_NAME} handles data: what is collected, what is not, and who it is shared with.`,
 };
-
-const CONTACT = 'frequentflyerla@gmail.com';
 
 /**
  * The privacy policy.
@@ -122,7 +120,7 @@ export default function PrivacyPage() {
                     You can ask us for a copy of what we hold about you, ask for it to be
                     corrected, or ask for it to be deleted — including an event or venue
                     you submitted. Email{' '}
-                    <a href={`mailto:${CONTACT}`} className={legalLink}>{CONTACT}</a> and
+                    <a href={`mailto:${CONTACT_EMAIL}`} className={legalLink}>{CONTACT_EMAIL}</a> and
                     we will action it.
                 </li>
             </ul>
@@ -154,7 +152,7 @@ export default function PrivacyPage() {
             <h2 className={legalH2}>Contact</h2>
             <p className={legalP}>
                 Questions about any of this go to{' '}
-                <a href={`mailto:${CONTACT}`} className={legalLink}>{CONTACT}</a>.
+                <a href={`mailto:${CONTACT_EMAIL}`} className={legalLink}>{CONTACT_EMAIL}</a>.
             </p>
         </LegalPage>
     );

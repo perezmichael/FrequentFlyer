@@ -1,13 +1,11 @@
 import type { Metadata } from 'next';
 import LegalPage, { legalH2, legalP, legalLi, legalLink } from '@/components/LegalPage';
-import { SITE_NAME } from '@/lib/site';
+import { CONTACT_EMAIL, SITE_NAME } from '@/lib/site';
 
 export const metadata: Metadata = {
     title: 'Terms',
     description: `The terms for using ${SITE_NAME}, including the free public events API.`,
 };
-
-const CONTACT = 'frequentflyerla@gmail.com';
 
 /**
  * Terms of service.
@@ -134,7 +132,7 @@ export default function TermsPage() {
                 work of the promoter or artist. They are shown here to help people find
                 the event. If you own material shown on this site and would like it
                 removed, email{' '}
-                <a href={`mailto:${CONTACT}`} className={legalLink}>{CONTACT}</a> and we
+                <a href={`mailto:${CONTACT_EMAIL}`} className={legalLink}>{CONTACT_EMAIL}</a> and we
                 will take it down promptly — there is no process to navigate, just ask.
             </p>
 
@@ -147,7 +145,7 @@ export default function TermsPage() {
 
             <h2 className={legalH2}>Contact</h2>
             <p className={legalP}>
-                <a href={`mailto:${CONTACT}`} className={legalLink}>{CONTACT}</a>
+                <a href={`mailto:${CONTACT_EMAIL}`} className={legalLink}>{CONTACT_EMAIL}</a>
             </p>
         </LegalPage>
     );
