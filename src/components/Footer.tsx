@@ -17,14 +17,7 @@ export default function Footer() {
                 <p className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-black/40">
                     {SITE_NAME} — Los Angeles · © {year}
                 </p>
-                {/* Inline gaps on purpose: `gap-x-*` / `gap-y-*` don't generate in
-                    this Tailwind v4 setup (they compute to `normal`), which ran
-                    every link together. Plain `gap-*` works, but the row wants
-                    asymmetric spacing. Same family as the z-[...] note in CLAUDE.md. */}
-                <nav
-                    className="flex flex-wrap"
-                    style={{ columnGap: '24px', rowGap: '8px' }}
-                >
+                <nav className="flex flex-wrap gap-x-6 gap-y-2">
                     {[
                         ['/guides', 'Guides'],
                         ['/agents', 'For agents'],
