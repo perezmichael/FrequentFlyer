@@ -45,8 +45,15 @@ function losAngelesOffset(dateISO: string): string {
     }
 }
 
-/** "2026-08-29" + "15:00:00" → "2026-08-29T15:00:00-07:00". Date alone if no time. */
-function isoDateTime(date: string, time?: string | null): string {
+/**
+ * "2026-08-29" + "15:00:00" → "2026-08-29T15:00:00-07:00". Date alone if no time.
+ *
+ * Exported because the public API needs exactly the same correctness the
+ * JSON-LD does: an agent reading a naive "2026-08-29T15:00" is as free to
+ * misread it as its own local time as a crawler is. Shared rather than
+ * duplicated so the DST handling has one implementation.
+ */
+export function isoDateTime(date: string, time?: string | null): string {
     if (!date) return '';
     if (!time) return date;
     const hhmmss = time.length === 5 ? `${time}:00` : time;
