@@ -20,6 +20,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         { url: absoluteUrl('/create'), lastModified: now, changeFrequency: 'monthly', priority: 0.4 },
         { url: absoluteUrl('/tips'), lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
         { url: absoluteUrl('/agents'), lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
+        // The API docs are a real destination — they're the page a developer or
+        // a connector reviewer lands on, and the one an assistant should find
+        // when asked whether this site has an API.
+        { url: absoluteUrl('/docs'), lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
+        { url: absoluteUrl('/privacy'), lastModified: now, changeFrequency: 'yearly', priority: 0.2 },
+        { url: absoluteUrl('/terms'), lastModified: now, changeFrequency: 'yearly', priority: 0.2 },
     ];
 
     // A failure here would drop every dynamic URL from the sitemap, so degrade

@@ -12,14 +12,23 @@ export default function robots(): MetadataRoute.Robots {
         rules: [
             {
                 userAgent: '*',
-                allow: '/',
                 disallow: [
                     '/admin',      // password-gated; nothing to index
-                    '/api/',
                     '/design',     // internal design-system reference
                     '/studio',
                     '/events2',    // static UI reference kept on purpose — would be duplicate content
+                    // Internal API routes stay out. The public read API below
+                    // is carved back in explicitly — a blanket '/api/' here
+                    // would tell every well-behaved agent that the endpoint we
+                    // are actively advertising is off limits.
+                    '/api/click',
+                    '/api/agent/',
+                    '/ingest',     // the PostHog analytics proxy
                 ],
+                // Listed so the crawlers that read robots.txt as a capability
+                // hint can find the machine-readable surface without being
+                // told about it separately.
+                allow: ['/', '/api/v1/', '/api/openapi.json'],
             },
         ],
         sitemap: absoluteUrl('/sitemap.xml'),

@@ -3,6 +3,7 @@ import { EB_Garamond, Space_Grotesk, Space_Mono } from "next/font/google";
 import { Suspense } from "react";
 import "./globals.css";
 import NavbarWrapper from "@/components/NavbarWrapper";
+import FooterWrapper from "@/components/FooterWrapper";
 import PostHogProvider from "@/components/PostHogProvider";
 import { Analytics } from "@vercel/analytics/next";
 import { SITE_URL, SITE_NAME, SITE_TAGLINE, IS_INDEXABLE } from "@/lib/site";
@@ -93,6 +94,9 @@ export default function RootLayout({
             <NavbarWrapper />
           </Suspense>
           <main>{children}</main>
+          <Suspense fallback={null}>
+            <FooterWrapper />
+          </Suspense>
         </PostHogProvider>
         {/* Page views and referrers, so a post's effect is measurable.
             Cookieless, so no consent banner is required.
