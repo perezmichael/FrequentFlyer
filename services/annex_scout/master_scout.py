@@ -1454,7 +1454,22 @@ def run_master_scout():
                     # and we now render an on-brand typographic placeholder when
                     # there's no image — so no image is strictly better than a
                     # guessed one. Only use images found ON the venue/event page.
-                    if raw_img_url:
+                    # The lock is checked HERE, before the upload — not just
+                    # at the DB write below.
+                    #
+                    # upload_flyer() writes to flyers/{event_id}.jpg with
+                    # upsert, which is the exact path a locked flyer_url points
+                    # at. Checking the lock only when building final_update
+                    # preserved the column and destroyed the bytes behind it:
+                    # the editor's picture was replaced by the scraped one on
+                    # the next run, with the URL unchanged, so nothing in the
+                    # admin UI looked like it had been touched. Skipping the
+                    # upload also saves downloading an image we would discard.
+                    if 'flyer_url' in locked:
+                        flyer_url = None
+                        flyer_digest = None
+                        image_source = prior_meta.get('image_source') if prior_meta else None
+                    elif raw_img_url:
                         flyer_url, flyer_digest = upload_flyer(raw_img_url, event_id, referer=page.url)
                         image_source = 'venue_shared' if is_generic else 'event_page'
                     else:

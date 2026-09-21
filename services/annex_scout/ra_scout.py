@@ -387,10 +387,19 @@ def run_ra_scout():
 
             event_id = event_row["id"]
 
-            # Upload flyer image — RA typically has good flyer art
-            image_url = get_best_image_url(ra_event)
+            # Upload flyer image — RA typically has good flyer art.
+            #
+            # Unless an editor locked it. upload_flyer writes to
+            # flyers/{event_id}.jpg with upsert, which is the same path a
+            # locked flyer_url points at, so uploading first and checking
+            # later would preserve the column and overwrite the picture. The
+            # lock lives in metadata.editor_locked and is set from /admin.
+            locked = (event_row.get("metadata") or {}).get("editor_locked") or []
+            image_url = None if "flyer_url" in locked else get_best_image_url(ra_event)
             flyer_url = None
-            if image_url:
+            if "flyer_url" in locked:
+                print(f"   🔒 Keeping the editor's flyer for {title}")
+            elif image_url:
                 flyer_url = upload_flyer(image_url, event_id)
 
             if flyer_url:
