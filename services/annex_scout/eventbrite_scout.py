@@ -301,8 +301,18 @@ def run_eventbrite_scout():
 
             event_id = event_row["id"]
 
-            # Upload image — Eventbrite has reliable logo/image data
-            flyer_url = upload_eventbrite_image(eb_event.get("logo"), event_id)
+            # Upload image — Eventbrite has reliable logo/image data.
+            #
+            # Skipped when an editor locked the flyer: the upload targets
+            # flyers/{event_id}.jpg with upsert, the same path a locked
+            # flyer_url points at, so checking the lock only at write time
+            # would keep the column and replace the image behind it.
+            locked = (event_row.get("metadata") or {}).get("editor_locked") or []
+            flyer_url = None
+            if "flyer_url" in locked:
+                print(f"   🔒 Keeping the editor's flyer for {event_name}")
+            else:
+                flyer_url = upload_eventbrite_image(eb_event.get("logo"), event_id)
             if flyer_url:
                 supabase.table("events").update({"flyer_url": flyer_url}).eq("id", event_id).execute()
                 print(f"   ✅ {event_name} — {neighborhood} — Score: {score_data.get('vibe_score')}/10 (+ flyer)")
