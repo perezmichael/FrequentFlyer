@@ -493,7 +493,24 @@ def upload_flyer(image_url, event_id, referer=None):
         # across events (a venue hero masquerading as a per-event flyer), which
         # per-event extraction can't see on its own.
         digest = hashlib.sha256(data).hexdigest()[:16]
-        return supabase.storage.from_("event-flyers").get_public_url(path), digest
+
+        # ?v=<digest> is a cache key, not decoration.
+        #
+        # This path is fixed per event and uploaded with upsert, so a re-scrape
+        # changes the BYTES while the URL stays identical. next/image caches
+        # optimized renders for 31 days keyed on (url, w, q) — see the
+        # minimumCacheTTL note in next.config.mjs, which assumed "flyers don't
+        # change" — so the old picture kept being served under the new one.
+        # It surfaced as one variant being stale while others were correct:
+        # The Regent's site header was still coming back at w=1200&q=90 (the
+        # detail sheet's request) a day after the real flyer replaced it, while
+        # the feed card at q=75 was already right.
+        #
+        # Supabase ignores unknown query params, so this is inert to storage
+        # and changes the optimizer's cache key exactly when the image changes.
+        public_url = supabase.storage.from_("event-flyers").get_public_url(path)
+        sep = "&" if "?" in public_url else "?"
+        return f"{public_url}{sep}v={digest}", digest
     except Exception as e:
         print(f"   ⚠️ Flyer upload failed: {e}")
         return None, None
@@ -1483,6 +1500,25 @@ def run_master_scout():
                         # the best thing it can find on a page; a human picked
                         # the right thing. Never overwrite that.
                         print("   🔒 Keeping the editor's flyer")
+                    elif flyer_url and image_source == 'venue_shared':
+                        # The scout already worked out this picture is a venue
+                        # hero reused across dates, not this event's art — and
+                        # then stored it as the flyer anyway, which is how a
+                        # literal CLOSED sign became the image for a real
+                        # Mesh / Vaguess / 777 show, and a "Vinyl Happy Hour"
+                        # promo became Tiger La Flor's.
+                        #
+                        # It also defeated the feed's own defence: queries.ts
+                        # sets imageIsFlyer = Boolean(flyer_url), and the feed
+                        # only dedupes repeated images when that is false. A
+                        # venue hero in flyer_url is therefore shown on every
+                        # single date instead of once.
+                        #
+                        # Leaving flyer_url unset falls through to the venue
+                        # photo and then to the branded typographic card — the
+                        # designed floor, and per the note above, no image
+                        # beats a wrong one.
+                        print(f"   🚫 Not storing a shared venue image as the flyer for {event['event_name'][:48]}")
                     elif flyer_url:
                         final_update["flyer_url"] = flyer_url
                     elif REFRESH_FLYERS and 'flyer_url' not in locked:

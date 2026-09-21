@@ -54,10 +54,21 @@ const nextConfig = {
      * cache writes — $10.51, about two thirds of the bill, nearly all of it the
      * same handful of images being rebuilt on a loop.
      *
-     * A long TTL is safe here because flyers don't change. A past event's
-     * artwork is frozen by definition, and shared flyers are already
-     * content-addressed by SHA (flyers/shared/<sha1-16>.<ext>) — a different
-     * image is a different URL, so nothing stale can be served under an old one.
+     * A long TTL is safe ONLY because every flyer URL is now content-versioned.
+     *
+     * This comment used to read "flyers don't change", and that was wrong:
+     * master_scout uploads to flyers/<event_id>.jpg with upsert, so a
+     * re-scrape replaces the bytes under an unchanged URL. With a 31-day TTL
+     * the optimizer kept serving the previous picture — and because the cache
+     * key is (url, w, q), it went stale per variant: The Regent's site header
+     * was still coming back at w=1200&q=90 (what the detail sheet asks for) a
+     * day after the correct flyer replaced it, while the feed card at q=75
+     * showed the new one. Same event, two different images on one page.
+     *
+     * upload_flyer now appends ?v=<sha256-16> to the public URL, so changed
+     * bytes mean a changed URL and the TTL can stay long. Shared flyers were
+     * always fine — they're content-addressed by path
+     * (flyers/shared/<sha1-16>.<ext>).
      */
     minimumCacheTTL: 2_678_400,
 
