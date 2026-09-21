@@ -29,7 +29,7 @@
   },
   {
     "name": "Lyric Hyperion",
-    "url": "https://lyrichyperion.com/tickets",
+    "url": "https://www.eventbrite.com/o/58553675543",
     "neighborhood": "Silver Lake",
     "lat": 34.103,
     "lng": -118.275
@@ -64,7 +64,7 @@
   },
   {
     "name": "The Echo",
-    "url": "https://www.theecho.com/calendar",
+    "url": "https://www.theecho.com/shows",
     "neighborhood": "Echo Park",
     "lat": 34.0778,
     "lng": -118.2608
@@ -89,13 +89,6 @@
     "neighborhood": "Silver Lake",
     "lat": 34.0902,
     "lng": -118.2894
-  },
-  {
-    "name": "Black Cat",
-    "url": "https://www.theblackcatla.com",
-    "neighborhood": "Silver Lake",
-    "lat": 34.0891,
-    "lng": -118.2851
   },
   {
     "name": "Avenue 50 Studio",
@@ -140,13 +133,6 @@
     "lng": -118.2906
   },
   {
-    "name": "The Dresden",
-    "url": "https://www.thedresden.com",
-    "neighborhood": "Los Feliz",
-    "lat": 34.1067,
-    "lng": -118.2906
-  },
-  {
     "name": "The Wiltern",
     "url": "https://www.wiltern.com",
     "neighborhood": "Koreatown",
@@ -159,13 +145,6 @@
     "neighborhood": "Historic Filipinotown",
     "lat": 34.0612,
     "lng": -118.2687
-  },
-  {
-    "name": "Gold Line",
-    "url": "https://www.goldlinebar.com",
-    "neighborhood": "Highland Park",
-    "lat": 34.1079,
-    "lng": -118.1975
   },
   {
     "name": "Permanent Records Roadhouse",
@@ -210,13 +189,6 @@
     "lng": -118.1981
   },
   {
-    "name": "Thirsty Crow",
-    "url": "https://www.thirstycrowbar.com",
-    "neighborhood": "Silver Lake",
-    "lat": 34.0873,
-    "lng": -118.262
-  },
-  {
     "name": "Cafe Tondo",
     "url": "https://www.cafetondo.com",
     "neighborhood": "Chinatown",
@@ -224,39 +196,11 @@
     "lng": -118.239
   },
   {
-    "name": "Homage Brewing",
-    "url": "https://www.homagebrewing.com",
-    "neighborhood": "Chinatown",
-    "lat": 34.0607,
-    "lng": -118.2356
-  },
-  {
-    "name": "Club Disintegration",
-    "url": "https://www.clubdisintegration.com",
-    "neighborhood": "Chinatown",
-    "lat": 34.0625,
-    "lng": -118.239
-  },
-  {
-    "name": "Cafe Triste",
-    "url": "https://www.cafetriste.com",
-    "neighborhood": "Chinatown",
-    "lat": 34.0623,
-    "lng": -118.2388
-  },
-  {
     "name": "Treehouse",
     "url": "https://www.treehousela.com",
     "neighborhood": "Chinatown",
     "lat": 34.063,
     "lng": -118.238
-  },
-  {
-    "name": "No Smoking Bar",
-    "url": "https://www.nosmokingbar.com",
-    "neighborhood": "Culver City",
-    "lat": 34.0211,
-    "lng": -118.3965
   },
   {
     "name": "Jameson's Pub",
@@ -316,7 +260,7 @@
   },
   {
     "name": "The Belasco",
-    "url": "https://www.thebelasco.com/events",
+    "url": "https://www.thebelasco.com/shows",
     "neighborhood": "DTLA",
     "lat": 34.04082,
     "lng": -118.25907
