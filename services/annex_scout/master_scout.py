@@ -196,6 +196,46 @@ def mark_venue_scouted(venue_id, page_hash):
         print(f"   ⚠️  Could not save page hash (run db/schema_scout_state.sql?): {e}")
 
 
+# How many consecutive EVALUATED runs before a venue is called broken rather
+# than quiet. Not days: the page-hash skip means an unchanged page is only
+# re-sent to the model when the hash salt rolls to a new week, so a static
+# dead page scores roughly one increment a week. Four is about a month of a
+# venue publishing nothing, which is a broken URL, not a booking lull.
+BARREN_ALARM_RUNS = 4
+
+
+def record_venue_yield(venue_id, venue_name, found_events):
+    """
+    Track consecutive runs where a venue produced nothing.
+
+    "The scrape succeeded" and "the scrape found events" are different
+    questions, and only the first was ever asked — which is how Lyric Hyperion
+    and The Echo sat at zero events for seven months behind green runs. This
+    asks the second one and keeps the count in the DB, so a venue that has been
+    barren across many runs can be told apart from one that is merely quiet
+    this week.
+
+    Returns the streak after this run (0 when events were found), or None if
+    the DB is missing the Phase 3 columns.
+    """
+    try:
+        if found_events:
+            supabase.table("venues").update({
+                "barren_streak": 0,
+                "last_event_found_at": datetime.now(timezone.utc).isoformat(),
+            }).eq("id", venue_id).execute()
+            return 0
+        row = supabase.table("venues").select("barren_streak").eq(
+            "id", venue_id).single().execute().data or {}
+        streak = (row.get("barren_streak") or 0) + 1
+        supabase.table("venues").update(
+            {"barren_streak": streak}).eq("id", venue_id).execute()
+        return streak
+    except Exception as e:
+        print(f"   ⚠️  Could not track barren streak (run db/schema_barren_streak.sql?): {e}")
+        return None
+
+
 # Instagram paths that are the platform's own, not a venue's account.
 _IG_RESERVED = {
     'p', 'reel', 'reels', 'tv', 'stories', 'explore', 'accounts', 'about',
@@ -915,6 +955,13 @@ def run_master_scout():
     gemini_ok = 0
     gemini_failed = 0
 
+    # Venues that produced no events this run, and those that have produced
+    # none for long enough to be broken rather than quiet. Reported together
+    # at the end, because a per-venue warning mid-log is exactly the kind of
+    # line that scrolled past unread for seven months.
+    barren_this_run = []
+    barren_chronic = []
+
     # FF_ONLY_VENUE=<substring> narrows a run to one venue — for testing a
     # prompt change without a 40-venue, 20-minute pass.
     only = os.getenv("FF_ONLY_VENUE", "").strip().lower()
@@ -1014,6 +1061,7 @@ def run_master_scout():
                         pass
             except Exception as e:
                 print(f"⚠️  Browse failed for {v['name']}: {e}")
+                barren_this_run.append(f"{v['name']} (browse failed)")
                 try:
                     context.close()
                 except:
@@ -1024,6 +1072,7 @@ def run_master_scout():
             # This prevents crashes like the Treehouse case (1 char of text).
             if len(raw_text.strip()) < 100:
                 print(f"   ⏭️  Skipping {v['name']} — only {len(raw_text.strip())} chars of usable text.")
+                barren_this_run.append(f"{v['name']} ({len(raw_text.strip())} chars — page did not render)")
                 try:
                     context.close()
                 except:
@@ -1166,6 +1215,8 @@ def run_master_scout():
                 cleaned = response.text.replace('```json', '').replace('```', '').strip()
                 if not cleaned:
                     print(f"   ⚠️  Empty response from Gemini for {v['name']}")
+                    barren_this_run.append(f"{v['name']} (empty model response)")
+                    record_venue_yield(venue_id, v['name'], False)
                     try:
                         context.close()
                     except:
@@ -1177,6 +1228,7 @@ def run_master_scout():
             except Exception as e:
                 gemini_failed += 1
                 print(f"❌ Gemini Error for {v['name']}: {e}")
+                barren_this_run.append(f"{v['name']} (model error)")
                 try:
                     context.close()
                 except:
@@ -1432,6 +1484,15 @@ def run_master_scout():
                     db_errors += 1
                     continue
 
+            # Did this venue actually yield anything? Asked separately from
+            # "did the scrape succeed", because a rotted URL answers yes to the
+            # second and no to the first, and only the second was ever checked.
+            streak = record_venue_yield(venue_id, v['name'], bool(events))
+            if not events:
+                barren_this_run.append(f"{v['name']} (0 events from {len(raw_text)} chars)")
+                if streak is not None and streak >= BARREN_ALARM_RUNS:
+                    barren_chronic.append((v['name'], v['url'], streak))
+
             # Save the page hash only after a clean run — if any event write
             # failed, leave the old hash so the next run retries this venue.
             if db_errors == 0:
@@ -1453,6 +1514,22 @@ def run_master_scout():
 
     # Always summarise, so a glance at the log answers "did this do anything?"
     print(f"\n📊 Gemini: {gemini_ok} ok, {gemini_failed} failed")
+
+    if barren_this_run:
+        print(f"\n🌵 Produced nothing this run ({len(barren_this_run)}/{len(venues)}):")
+        for line in barren_this_run:
+            print(f"     · {line}")
+
+    # A venue quiet for a month is not quiet, it is pointed at the wrong page.
+    # This is the check that was missing: Lyric Hyperion's calendar became a
+    # 2023 archive and The Echo's became a placeholder, and both stayed in the
+    # venue list for seven months because nothing ever asked.
+    if barren_chronic:
+        print(f"\n🚨 BROKEN VENUE URLS — {len(barren_chronic)} venue(s) have produced "
+              f"nothing for {BARREN_ALARM_RUNS}+ evaluated runs:")
+        for name, url, streak in barren_chronic:
+            print(f"     · {name}: {streak} empty runs — check {url}")
+        print("   Fix the URL in venues.json, or drop the venue if it has closed.")
 
     # A green checkmark should mean the scout worked. One flaky page is normal
     # and stays green; every single call failing is a systemic problem — a bad
