@@ -63,6 +63,39 @@ FORCE_RESCRAPE = os.getenv("FF_FORCE_RESCRAPE", "") not in ("", "0", "false")
 REFRESH_FLYERS = os.getenv("FF_REFRESH_FLYERS", "") not in ("", "0", "false")
 
 
+# A venue closure is not an event.
+#
+# Venue calendars publish "CLOSED TO THE PUBLIC", "We Are CLOSED Tonight",
+# "CLOSED - Happy Holidays!" as calendar entries, and the scout filed 24 of
+# them as events — Benny Boy Brewing, Zebulon, Stories, Permanent Records.
+# They are the opposite of an event: a listing that sends someone across town
+# to a locked door, which is the same failure as the old "Free entry" on
+# ticketed shows. Matched on the title only, and anchored, so a real show
+# keeps its name: "Closing Reception: Board's Choice Group Show" and "The
+# Royal We" (out-of-the-closet) both survive this, and are the reason it is
+# not a bare substring search for "clos".
+_CLOSED_TITLE_RE = re.compile(
+    r"""^\s*(?:
+          closed\b                      # "CLOSED", "CLOSED - Happy Holidays!"
+        | we\s+are\s+closed\b          # "We Are CLOSED Tonight"
+        | closed\s+to\s+the\s+public
+        | no\s+show\s+tonight
+        | private\s+event\b
+        )""",
+    re.IGNORECASE | re.VERBOSE,
+)
+
+
+def is_venue_closure(name):
+    """True when this 'event' is really a notice that the venue is shut."""
+    n = (name or "").strip()
+    if _CLOSED_TITLE_RE.match(n):
+        return True
+    # Also catch it as a parenthetical or dash suffix on an otherwise real
+    # title: "Krampus Rumpus and Holiday Night Market (CLOSED TO THE PUBLIC)".
+    return bool(re.search(r"[\(\-\u2013\u2014]\s*closed\s+to\s+the\s+public\s*\)?\s*$", n, re.IGNORECASE))
+
+
 def normalize_event_name(name):
     """
     Collapse a title to a comparable core so listing variants of the SAME event
@@ -1249,6 +1282,11 @@ def run_master_scout():
                     # can rescue an event with no name, so drop it here.
                     if not (event.get('event_name') or '').strip():
                         print(f"   ⏭️  Skipping an event with no title at {v['name']}.")
+                        continue
+
+                    # "CLOSED TO THE PUBLIC" is a closure notice, not a night out.
+                    if is_venue_closure(event.get('event_name')):
+                        print(f"   🚪 Skipping a closure notice at {v['name']}: {event['event_name']!r}")
                         continue
 
                     # One row per act, in bill order. This used to be a single
