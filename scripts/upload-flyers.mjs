@@ -38,6 +38,12 @@ const MAP = {
     ],
     'welcome-home': ['welcome home!'],
     'singles-party': ['Singles Party: Lesbian Edition'],
+    // Lowboy publishes to Instagram, not a calendar, so the scout will never
+    // find this artwork — it has to come in by hand.
+    'lowboy-777': ['Lowboy Turns 777'],
+    'latinas-in-the-house': ['Latinas in the House'],
+    // Both pre-release days share one flyer — it lists all four sessions.
+    'reality-fracture': ['Magic: The Gathering \u2014 Reality Fracture Pre-Release'],
 };
 
 const headers = { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` };

@@ -110,6 +110,7 @@ export async function getGuides() {
 
 import { supabase } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
+import { createHash } from 'node:crypto';
 
 // Fields the admin UI is allowed to write. Anything outside this set is dropped.
 const ALLOWED_EVENT_UPDATE_FIELDS = new Set([
@@ -376,8 +377,77 @@ export async function setEventsStatus(ids: string[], status: string) {
  * Fields the scout rewrites on every re-match. An editor's value for one of
  * these has to be recorded as deliberate, or tomorrow's 10am run replaces it.
  */
+/** Our own storage host — anything already here needs no re-hosting. */
+const STORAGE_HOST = (() => {
+    try { return new URL(process.env.SUPABASE_URL || '').hostname; } catch { return ''; }
+})();
+
+/**
+ * Pull a pasted third-party flyer URL into our own storage.
+ *
+ * Why not just store the link: the /admin/kit composer draws each flyer onto a
+ * canvas and exports it, so it loads images with crossOrigin="anonymous". That
+ * only works when the host sends Access-Control-Allow-Origin, which Supabase
+ * storage does and most venue CDNs do not — cdn1.bookmanager.com sends no ACAO
+ * at all. The browser then refuses the image outright, loadImage rejects, and
+ * the kit falls through to the branded card. From the editor's side that looks
+ * exactly like the save silently failing, because the public feed renders the
+ * same URL fine through a plain <img>.
+ *
+ * Re-hosting also means a venue deleting or rotating its file can't blank a
+ * flyer we've already chosen, and it puts the image on a host the optimizer is
+ * allowed to touch.
+ *
+ * Returns the storage URL, or the original string when it is already ours or
+ * cannot be fetched — a flyer that renders on the site but not in the kit is
+ * still better than dropping the editor's input.
+ */
+async function rehostFlyerUrl(eventId: string, raw: string): Promise<string> {
+    let url: URL;
+    try { url = new URL(raw); } catch { return raw; }
+    if (!/^https?:$/.test(url.protocol)) return raw;
+    if (STORAGE_HOST && url.hostname === STORAGE_HOST) return raw;
+
+    try {
+        const resp = await fetch(url, {
+            headers: { 'User-Agent': 'FrequentFlyerLA/1.0 (https://frequentflyerla.com)' },
+            signal: AbortSignal.timeout(20_000),
+        });
+        if (!resp.ok) return raw;
+
+        const type = (resp.headers.get('content-type') || '').split(';')[0].trim();
+        if (!type.startsWith('image/')) return raw;
+
+        const buf = Buffer.from(await resp.arrayBuffer());
+        // Same floor master_scout uses: excludes tracking pixels and icons
+        // without discarding well-compressed real artwork.
+        if (buf.length < 1500 || buf.length > 25_000_000) return raw;
+
+        const ext = type.split('/')[1].replace('jpeg', 'jpg').replace(/[^a-z0-9]/g, '') || 'jpg';
+        const path = `flyers/${eventId}.${ext}`;
+        const { error } = await supabase.storage
+            .from('event-flyers')
+            .upload(path, buf, { contentType: type, upsert: true });
+        if (error) return raw;
+
+        const publicUrl = supabase.storage.from('event-flyers').getPublicUrl(path).data.publicUrl;
+        // ?v=<digest> for the same reason upload_flyer emits one: this path is
+        // fixed per event and written with upsert, so without it a changed
+        // image keeps next/image's 31-day cache of the old one.
+        const digest = createHash('sha256').update(buf).digest('hex').slice(0, 16);
+        return `${publicUrl}${publicUrl.includes('?') ? '&' : '?'}v=${digest}`;
+    } catch {
+        return raw;
+    }
+}
+
+// Fields the scout writes and an editor can take ownership of. flyer_url
+// belongs here: master_scout, ra_scout and eventbrite_scout all skip their
+// upload when 'flyer_url' is in metadata.editor_locked, and it was the one
+// edited field that never got added to that list — so a hand-chosen flyer was
+// replaced on the next scrape of that venue.
 const SCOUT_OWNED_FIELDS = new Set([
-    'event_name', 'event_date', 'start_time', 'end_time', 'event_vibe',
+    'event_name', 'event_date', 'start_time', 'end_time', 'event_vibe', 'flyer_url',
 ]);
 
 export async function updateEvent(id: string, updates: Record<string, unknown>) {
@@ -392,11 +462,18 @@ export async function updateEvent(id: string, updates: Record<string, unknown>) 
 
     if (Object.keys(safeUpdates).length === 0) return;
 
+    // A pasted link to someone else's CDN becomes our own copy.
+    if (typeof safeUpdates.flyer_url === 'string' && safeUpdates.flyer_url.trim()) {
+        safeUpdates.flyer_url = await rehostFlyerUrl(id, safeUpdates.flyer_url.trim());
+    }
+
     // Read the current row so we can record what the venue said before this
     // edit, and mark which fields the editor now owns.
     const { data: current } = await supabase
         .from('events')
-        .select('event_name, event_date, start_time, end_time, event_vibe, metadata')
+        // flyer_url included so scraped_values keeps what the venue published
+        // the first time an editor overrides it, like every other owned field.
+        .select('event_name, event_date, start_time, end_time, event_vibe, flyer_url, metadata')
         .eq('id', id)
         .maybeSingle();
 
