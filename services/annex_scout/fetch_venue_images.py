@@ -26,6 +26,21 @@ APPLY = "--apply" in sys.argv
 ALL = "--all" in sys.argv
 
 
+def sniff_image_mime(data):
+    """Real media type from the magic number — see master_scout for why."""
+    if not data or len(data) < 12:
+        return None
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if data[:2] == b"\xff\xd8":
+        return "image/jpeg"
+    if data[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
 def upload_venue_image(image_url, venue_id, referer=None):
     """Store a venue photo under venues/{id}.jpg. Returns public URL or None."""
     try:
@@ -43,7 +58,10 @@ def upload_venue_image(image_url, venue_id, referer=None):
             return None
         path = f"venues/{venue_id}.jpg"
         supabase.storage.from_("event-flyers").upload(
-            path, data, {"content-type": "image/jpeg", "upsert": "true"}
+            # Venue photos are served as WebP by most sites now. Storing them
+            # all as image/jpeg is what made /admin/kit unable to decode them.
+            path, data,
+            {"content-type": sniff_image_mime(data) or "image/jpeg", "upsert": "true"}
         )
         return supabase.storage.from_("event-flyers").get_public_url(path)
     except Exception as err:

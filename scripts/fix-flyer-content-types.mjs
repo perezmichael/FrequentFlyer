@@ -36,6 +36,9 @@ const U = env.SUPABASE_URL, K = env.SUPABASE_SERVICE_KEY;
 const H = { apikey: K, Authorization: `Bearer ${K}` };
 const BUCKET = 'event-flyers';
 const MARKER = `/storage/v1/object/public/${BUCKET}/`;
+// venues/ too: a venue photo is the fallback when an event has no flyer, so a
+// mislabelled one breaks the kit exactly the same way. 19 of 27 were wrong.
+const PREFIXES = ['flyers', 'flyers/shared', 'venues'];
 
 /** Magic-number sniff, mirroring sniff_image_mime in the three scouts. */
 function sniff(b) {
