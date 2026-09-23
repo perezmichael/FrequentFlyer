@@ -455,6 +455,33 @@ def looks_like_image(data):
     )
 
 
+def sniff_image_mime(data):
+    """
+    The real media type of these bytes, from their magic number.
+
+    upload_flyer used to label every upload "image/jpeg" regardless of what it
+    had actually downloaded, and most venue CDNs now serve WebP or PNG — 139 of
+    344 upcoming flyers were stored under the wrong type. Browsers sniff for
+    <img>, so the feed looked fine, but a canvas is stricter: WebKit refuses to
+    decode a PNG declared as JPEG, which is why /admin/kit silently fell back to
+    the branded card for exactly those events while Chromium showed them.
+
+    Returns None when the bytes are not a recognised image, which
+    looks_like_image already rejects separately.
+    """
+    if not data or len(data) < 12:
+        return None
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if data[:2] == b"\xff\xd8":
+        return "image/jpeg"
+    if data[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
 def upload_flyer(image_url, event_id, referer=None):
     """
     Download an image URL and upload it to Supabase storage.
@@ -485,9 +512,13 @@ def upload_flyer(image_url, event_id, referer=None):
         if len(data) < 1500 or not looks_like_image(data):
             return None, None
 
+        # Store the type the bytes actually are. The path keeps its .jpg
+        # spelling — Supabase serves from the stored content-type, not the
+        # extension, and renaming would churn every flyer URL for nothing.
+        mime = sniff_image_mime(data) or "image/jpeg"
         path = f"flyers/{event_id}.jpg"
         supabase.storage.from_("event-flyers").upload(
-            path, data, {"content-type": "image/jpeg", "upsert": "true"}
+            path, data, {"content-type": mime, "upsert": "true"}
         )
         # Digest of the actual bytes: lets callers spot the SAME picture reused
         # across events (a venue hero masquerading as a per-event flyer), which

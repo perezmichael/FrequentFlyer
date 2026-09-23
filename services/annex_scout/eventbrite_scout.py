@@ -154,6 +154,21 @@ def guess_neighborhood(venue_data):
     return best_name, lat, lng
 
 
+def sniff_image_mime(data):
+    """Real media type from the magic number — see master_scout for why."""
+    if not data or len(data) < 12:
+        return None
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if data[:2] == b"\xff\xd8":
+        return "image/jpeg"
+    if data[:6] in (b"GIF87a", b"GIF89a"):
+        return "image/gif"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
 def upload_eventbrite_image(logo_data, event_id):
     """Download Eventbrite event logo/image and upload to Supabase."""
     if not logo_data:
@@ -174,7 +189,11 @@ def upload_eventbrite_image(logo_data, event_id):
 
         path = f"flyers/{event_id}.jpg"
         supabase.storage.from_("event-flyers").upload(
-            path, resp.content, {"content-type": "image/jpeg", "upsert": "true"}
+            # The bytes decide the type, not the filename: most venue CDNs
+            # serve WebP or PNG now, and a mislabelled image is undecodable on
+            # a canvas even though <img> sniffs past it.
+            path, resp.content,
+            {"content-type": sniff_image_mime(resp.content) or "image/jpeg", "upsert": "true"}
         )
         return supabase.storage.from_("event-flyers").get_public_url(path)
     except Exception as e:
