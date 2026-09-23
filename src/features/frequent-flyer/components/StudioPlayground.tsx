@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Reorder, useDragControls } from 'framer-motion';
 import * as fabric from 'fabric';
+import { generateBackgroundPublic } from '@/app/actions';
 
 /**
  * Studio Playground — an interaction-craft sandbox for the flyer editor.
@@ -32,7 +33,7 @@ type Role = 'headline' | 'accent' | 'date' | 'venue';
 // `sys` marks the background-fill / background-image / texture layers. They live
 // in the normal object stack (so they show in the panel and can be reordered)
 // but aren't directly selectable/draggable on the canvas.
-type SysKind = 'bgfill' | 'bgimage' | 'texture';
+type SysKind = 'bgfill' | 'bgimage' | 'texture' | 'scrim';
 type StudioObject = fabric.FabricObject & { role?: Role; sid?: string; sname?: string; sys?: SysKind };
 
 type LayerInfo = { id: string; name: string; type: string; visible: boolean; role?: Role; sys?: SysKind };
@@ -94,6 +95,29 @@ const TEMPLATES: Template[] = [
             venue: { left: INSET, top: CANVAS_H - 72, fontSize: 14, fill: FLYER, opacity: 0.6 },
         },
     },
+    {
+        id: 'poster',
+        name: 'Poster',
+        bg: CREAM,
+        roles: {
+            headline: { left: INSET, top: 44, width: CANVAS_W - 72, fontSize: 58, fill: INK, textAlign: 'left', fontWeight: 'bold' },
+            accent: { left: INSET, top: 236, width: 160, height: 10, fill: BRAND },
+            date: { left: INSET, top: CANVAS_H - 96, fontSize: 18, fill: INK },
+            venue: { left: INSET, top: CANVAS_H - 64, fontSize: 14, fill: INK, opacity: 0.65 },
+        },
+    },
+    {
+        id: 'footer',
+        name: 'Footer',
+        bg: CREAM,
+        roles: {
+            // Text lives in the lower third — pairs well with an image up top.
+            accent: { left: INSET, top: 338, width: 110, height: 8, fill: BRAND },
+            headline: { left: INSET, top: 360, width: CANVAS_W - 72, fontSize: 44, fill: INK, textAlign: 'left', fontWeight: 'bold' },
+            date: { left: INSET, top: 500, fontSize: 17, fill: INK },
+            venue: { left: INSET, top: 528, fontSize: 14, fill: INK, opacity: 0.65 },
+        },
+    },
 ];
 
 const ROLES: Role[] = ['headline', 'accent', 'date', 'venue'];
@@ -106,6 +130,8 @@ const GRADIENTS: GradientPreset[] = [
     { id: 'sunset', stops: ['#F5D8B0', '#E8907A', '#C2371B'] },
     { id: 'dusk', stops: ['#2b2350', '#5a4b8a', '#c98fb0'] },
     { id: 'ocean', stops: ['#0f2a3a', '#1f6f8b', '#8fd0c9'] },
+    { id: 'acid', stops: ['#d4ff3f', '#7cb342', '#16240f'] },
+    { id: 'mono', stops: ['#FFFAEB', '#cfc7b0', '#1a1a1a'] },
 ];
 
 const cssGradient = (g: GradientPreset) => `linear-gradient(135deg, ${g.stops.join(', ')})`;
@@ -154,6 +180,9 @@ type TextProps = {
 };
 
 const isTextType = (t?: string) => t === 'textbox' || t === 'i-text' || t === 'text';
+
+// Custom props that must survive the undo/redo JSON round-trip.
+const SNAPSHOT_PROPS = ['sid', 'sname', 'role', 'sys', 'selectable', 'evented', 'hoverCursor', 'globalCompositeOperation', 'charSpacing', 'lineHeight'];
 
 /** Procedural film-grain / paper noise as a data URL (no asset files). */
 function makeNoise(alpha: number): string {
@@ -298,6 +327,11 @@ export default function StudioPlayground() {
     const [activeBg, setActiveBg] = useState<string>(CREAM);
     const [activeTexture, setActiveTexture] = useState<'none' | 'grain' | 'paper'>('none');
     const [textProps, setTextProps] = useState<TextProps | null>(null);
+    const [selOpacity, setSelOpacity] = useState(1);
+    const [aiPrompt, setAiPrompt] = useState('');
+    const [aiLoading, setAiLoading] = useState(false);
+    const [aiError, setAiError] = useState<string | null>(null);
+    const [scrim, setScrim] = useState(false);
     const uploadModeRef = useRef<'object' | 'bg'>('object');
 
     // Load the curated Google fonts once (for the canvas + the panel preview).
@@ -321,6 +355,66 @@ export default function StudioPlayground() {
         const canvas = fcRef.current;
         if (canvas) setLayers(describeCanvas(canvas));
     }, []);
+
+    // ---- Undo / redo (coalesced full-canvas JSON snapshots) ----------------
+    const historyRef = useRef<string[]>([]);
+    const histIdxRef = useRef(-1);
+    const restoringRef = useRef(false);
+    const snapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const snapshot = useCallback(() => {
+        if (restoringRef.current || snapTimerRef.current != null) return;
+        // Coalesce a burst of mutations (e.g. remove+add) into one entry.
+        snapTimerRef.current = setTimeout(() => {
+            snapTimerRef.current = null;
+            const c = fcRef.current;
+            if (!c) return;
+            const json = JSON.stringify(c.toObject(SNAPSHOT_PROPS));
+            const h = historyRef.current.slice(0, histIdxRef.current + 1);
+            if (h[h.length - 1] === json) return;
+            h.push(json);
+            while (h.length > 25) h.shift();
+            historyRef.current = h;
+            histIdxRef.current = h.length - 1;
+        }, 0);
+    }, []);
+
+    const restore = useCallback((json: string) => {
+        const c = fcRef.current;
+        if (!c) return;
+        restoringRef.current = true;
+        c.loadFromJSON(JSON.parse(json)).then(() => {
+            // Re-apply branded controls + lock the system layers (controls and
+            // selectable flags aren't part of the serialized geometry).
+            c.getObjects().forEach((o) => {
+                const so = o as StudioObject;
+                if (so.sys === 'bgfill' || so.sys === 'texture' || so.sys === 'scrim') {
+                    o.selectable = false;
+                    o.evented = false;
+                } else {
+                    brandObject(o);
+                }
+            });
+            c.discardActiveObject();
+            c.requestRenderAll();
+            restoringRef.current = false;
+            refreshLayers();
+            setSelectedId(null);
+            setTextProps(null);
+        });
+    }, [refreshLayers]);
+
+    const undo = useCallback(() => {
+        if (histIdxRef.current <= 0) return;
+        histIdxRef.current -= 1;
+        restore(historyRef.current[histIdxRef.current]);
+    }, [restore]);
+
+    const redo = useCallback(() => {
+        if (histIdxRef.current >= historyRef.current.length - 1) return;
+        histIdxRef.current += 1;
+        restore(historyRef.current[histIdxRef.current]);
+    }, [restore]);
 
     // ---- Canvas setup -------------------------------------------------------
     useEffect(() => {
@@ -467,6 +561,7 @@ export default function StudioPlayground() {
         const onSelect = () => {
             const a = canvas.getActiveObject() as StudioObject | undefined;
             setSelectedId(a?.sid ?? null);
+            setSelOpacity(a?.opacity ?? 1);
             if (a && isTextType(a.type)) {
                 const t = a as fabric.IText;
                 setTextProps({
@@ -490,13 +585,19 @@ export default function StudioPlayground() {
         canvas.on('selection:updated', onSelect);
         canvas.on('selection:cleared', () => { clearGuides(); setSelectedId(null); setTextProps(null); });
 
+        // History: snapshot on structural changes + transform end.
+        canvas.on('object:added', snapshot);
+        canvas.on('object:removed', snapshot);
+        canvas.on('object:modified', snapshot);
+
         setReady(true);
+        snapshot(); // baseline (seeded composition)
 
         return () => {
             canvas.dispose();
             fcRef.current = null;
         };
-    }, []);
+    }, [snapshot]);
 
     // ---- Template morph -----------------------------------------------------
     const applyTemplate = useCallback((tpl: Template) => {
@@ -595,6 +696,7 @@ export default function StudioPlayground() {
                 for (const { obj, to } of freeRecolor) obj.set('fill', to);
                 canvas.requestRenderAll();
                 animatingRef.current = false;
+                snapshot();
             },
         });
     }, []);
@@ -667,6 +769,7 @@ export default function StudioPlayground() {
         bgFill.set('fill', hex);
         canvas.requestRenderAll();
         setActiveBg(hex);
+        snapshot();
     };
 
     const setBgGradient = (g: GradientPreset) => {
@@ -681,14 +784,24 @@ export default function StudioPlayground() {
         }) as unknown as string);
         canvas.requestRenderAll();
         setActiveBg(g.id);
+        snapshot();
+    };
+
+    /** Cover-fit an image to the canvas (fills fully, crops overflow). */
+    const coverFit = (img: fabric.FabricImage) => {
+        const s = Math.max(CANVAS_W / (img.width || 1), CANVAS_H / (img.height || 1));
+        img.set({ originX: 'center', originY: 'center', left: CANVAS_W / 2, top: CANVAS_H / 2, scaleX: s, scaleY: s, angle: 0 });
+        img.setCoords();
     };
 
     const setBgImage = (dataUrl: string) => {
         const canvas = fcRef.current;
         if (!canvas) return;
         fabric.FabricImage.fromURL(dataUrl).then((img) => {
-            const s = Math.max(CANVAS_W / (img.width || 1), CANVAS_H / (img.height || 1));
-            img.set({ originX: 'center', originY: 'center', left: CANVAS_W / 2, top: CANVAS_H / 2, scaleX: s, scaleY: s, selectable: false, evented: false, hoverCursor: 'default' });
+            // A real, selectable/resizable layer (drag a corner to push any baked
+            // borders off-canvas); enters cover-fit so it fills by default.
+            brandObject(img);
+            coverFit(img);
             const so = img as StudioObject;
             so.sys = 'bgimage';
             so.sid = nextId();
@@ -700,10 +813,60 @@ export default function StudioPlayground() {
             const bgFill = findSys(canvas, 'bgfill');
             const idx = bgFill ? canvas.getObjects().indexOf(bgFill) + 1 : 0;
             moveToIndex(canvas, img, idx);
+            canvas.setActiveObject(img);
             canvas.requestRenderAll();
             setActiveBg('image');
             refreshLayers();
+            setSelectedId(so.sid ?? null);
         });
+    };
+
+    /** Re-fit the current background image to cover the canvas. */
+    const fitBg = () => {
+        const canvas = fcRef.current;
+        if (!canvas) return;
+        const img = findSys(canvas, 'bgimage') as fabric.FabricImage | undefined;
+        if (!img) return;
+        coverFit(img);
+        canvas.requestRenderAll();
+    };
+
+    // Legibility scrim: a soft top->bottom darkening above the photo but below
+    // the text, so text stays readable on busy/light image backgrounds.
+    const toggleScrim = () => {
+        const canvas = fcRef.current;
+        if (!canvas) return;
+        const existing = findSys(canvas, 'scrim');
+        if (existing) {
+            canvas.remove(existing);
+            canvas.requestRenderAll();
+            setScrim(false);
+            refreshLayers();
+            return;
+        }
+        const grad = new fabric.Gradient({
+            type: 'linear',
+            coords: { x1: 0, y1: 0, x2: 0, y2: CANVAS_H },
+            colorStops: [
+                { offset: 0, color: 'rgba(0,0,0,0)' },
+                { offset: 0.5, color: 'rgba(0,0,0,0.12)' },
+                { offset: 1, color: 'rgba(0,0,0,0.66)' },
+            ],
+        });
+        const rect = new fabric.Rect({
+            left: 0, top: 0, originX: 'left', originY: 'top', width: CANVAS_W, height: CANVAS_H,
+            fill: grad as unknown as string, selectable: false, evented: false, hoverCursor: 'default',
+        }) as StudioObject;
+        rect.sys = 'scrim';
+        rect.sid = nextId();
+        rect.sname = 'Scrim';
+        canvas.add(rect);
+        const anchor = findSys(canvas, 'bgimage') || findSys(canvas, 'bgfill');
+        const idx = anchor ? canvas.getObjects().indexOf(anchor) + 1 : 1;
+        moveToIndex(canvas, rect, idx);
+        canvas.requestRenderAll();
+        setScrim(true);
+        refreshLayers();
     };
 
     const applyTexture = (kind: 'none' | 'grain' | 'paper') => {
@@ -736,6 +899,20 @@ export default function StudioPlayground() {
         });
     };
 
+    const generateAi = async () => {
+        if (!aiPrompt.trim() || aiLoading) return;
+        setAiError(null);
+        setAiLoading(true);
+        try {
+            const url = await generateBackgroundPublic(aiPrompt.trim());
+            setBgImage(url);
+        } catch (e) {
+            setAiError(e instanceof Error ? e.message : 'Generation failed');
+        } finally {
+            setAiLoading(false);
+        }
+    };
+
     const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
         const f = e.target.files?.[0];
         if (!f) return;
@@ -762,17 +939,55 @@ export default function StudioPlayground() {
         setSelectedId(null);
     }, [refreshLayers]);
 
+    const duplicateActive = useCallback(async () => {
+        const canvas = fcRef.current;
+        if (!canvas) return;
+        const active = canvas.getActiveObject() as StudioObject | undefined;
+        if (!active || active.sys) return; // don't clone bg/texture system layers
+        const cl = (await active.clone()) as StudioObject;
+        cl.set({ left: (active.left ?? 0) + 16, top: (active.top ?? 0) + 16 });
+        brandObject(cl);
+        cl.sid = nextId();
+        cl.sname = active.role ? `${active.sname} copy` : freeName(isTextType(active.type) ? 'Text' : 'Box');
+        cl.role = undefined; // a duplicate is a free element, not a template slot
+        canvas.add(cl);
+        canvas.setActiveObject(cl);
+        canvas.requestRenderAll();
+        refreshLayers();
+        setSelectedId(cl.sid ?? null);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [refreshLayers]);
+
+    /** Export the flyer as a high-res PNG (selection chrome excluded). */
+    const exportPng = useCallback(() => {
+        const canvas = fcRef.current;
+        if (!canvas) return;
+        canvas.discardActiveObject();
+        guidesRef.current = [];
+        hoverRef.current = null;
+        canvas.renderAll(); // synchronous, so the data URL is clean
+        const url = canvas.toDataURL({ format: 'png', multiplier: 2, enableRetinaScaling: false });
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'frequent-flyer.png';
+        a.click();
+        setSelectedId(null);
+    }, []);
+
     // ---- Layers panel actions ----------------------------------------------
     const selectLayer = useCallback((id: string) => {
         const canvas = fcRef.current;
         if (!canvas) return;
         const obj = findById(canvas, id);
         if (!obj) return;
-        // Background/texture layers aren't directly selectable; just highlight.
-        if ((obj as StudioObject).sys) { setSelectedId(id); return; }
+        // The fill + texture layers aren't directly selectable; just highlight.
+        // (The background *image* IS a normal selectable/resizable layer.)
+        const sys = (obj as StudioObject).sys;
+        if (sys === 'bgfill' || sys === 'texture' || sys === 'scrim') { setSelectedId(id); return; }
         canvas.setActiveObject(obj);
         canvas.requestRenderAll();
         setSelectedId(id);
+        setSelOpacity(obj.opacity ?? 1);
         // Populate the typography panel directly (don't depend on the event firing).
         if (isTextType(obj.type)) {
             const t = obj as fabric.IText;
@@ -804,7 +1019,18 @@ export default function StudioPlayground() {
         o.setCoords();
         canvas.requestRenderAll();
         setTextProps((p) => (p ? { ...p, ...patch } : p));
-    }, []);
+        snapshot();
+    }, [snapshot]);
+
+    const setObjOpacity = useCallback((v: number) => {
+        const canvas = fcRef.current;
+        const o = canvas?.getActiveObject();
+        if (!canvas || !o) return;
+        o.set('opacity', v);
+        canvas.requestRenderAll();
+        setSelOpacity(v);
+        snapshot();
+    }, [snapshot]);
 
     const setFont = useCallback((family: string) => {
         updateText({ fontFamily: family });
@@ -832,11 +1058,17 @@ export default function StudioPlayground() {
         canvas.requestRenderAll();
     }, []);
 
-    // ---- Keyboard: nudge + delete ------------------------------------------
+    // ---- Keyboard: nudge, delete, duplicate, escape ------------------------
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             const canvas = fcRef.current;
             if (!canvas) return;
+
+            if (e.key === 'Escape') { canvas.discardActiveObject(); canvas.requestRenderAll(); setSelectedId(null); setTextProps(null); return; }
+            if ((e.key === 'z' || e.key === 'Z') && (e.metaKey || e.ctrlKey)) { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
+            if ((e.key === 'y' || e.key === 'Y') && (e.metaKey || e.ctrlKey)) { e.preventDefault(); redo(); return; }
+            if ((e.key === 'd' || e.key === 'D') && (e.metaKey || e.ctrlKey)) { e.preventDefault(); duplicateActive(); return; }
+
             const active = canvas.getActiveObject();
             if (!active) return;
             if ((active as fabric.IText).isEditing) return;
@@ -852,11 +1084,11 @@ export default function StudioPlayground() {
                 case 'ArrowDown': active.set('top', (active.top ?? 0) + step); break;
                 default: moved = false;
             }
-            if (moved) { e.preventDefault(); active.setCoords(); canvas.requestRenderAll(); }
+            if (moved) { e.preventDefault(); active.setCoords(); canvas.requestRenderAll(); snapshot(); }
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
-    }, [deleteActive]);
+    }, [deleteActive, duplicateActive, undo, redo, snapshot]);
 
     // ---- Chrome -------------------------------------------------------------
     const toolBtn =
@@ -912,16 +1144,33 @@ export default function StudioPlayground() {
                     {/* Left column: tools + background */}
                     <div className="flex flex-col gap-7 w-full lg:w-auto">
                         <div className="flex flex-row lg:flex-col gap-3 flex-wrap">
+                            <div className="flex gap-2">
+                                <button className={`${toolBtn} flex-1`} onClick={undo} disabled={!ready} title="Undo (⌘Z)">↶ Undo</button>
+                                <button className={`${toolBtn} flex-1`} onClick={redo} disabled={!ready} title="Redo (⌘⇧Z)">↷ Redo</button>
+                            </div>
                             <button className={toolBtn} onClick={addHeadline} disabled={!ready}>+ Headline</button>
                             <button className={toolBtn} onClick={addLabel} disabled={!ready}>+ Label</button>
                             <button className={toolBtn} onClick={addBox} disabled={!ready}>+ Box</button>
                             <button className={toolBtn} onClick={onPickImage} disabled={!ready}>+ Image</button>
+                            <button className={toolBtn} onClick={duplicateActive} disabled={!ready} title="⌘D">Duplicate</button>
                             <button className={toolBtn} onClick={deleteActive} disabled={!ready}>Delete</button>
+                            <button className={`${toolBtn} bg-black text-[#FFFAEB]`} onClick={exportPng} disabled={!ready} title="Download PNG">↓ Export</button>
                             <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" className="hidden" onChange={onFile} />
                         </div>
 
                         {/* Background panel */}
                         <div className="flex flex-col gap-3" style={{ width: 168, maxWidth: '100%' }}>
+                            <p className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-black/50">AI background</p>
+                            <textarea value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} rows={2}
+                                placeholder="moody neon synthwave city at night…"
+                                className="font-space-mono text-[11px] border border-black/30 rounded-md px-2 py-1.5 bg-cream resize-none placeholder:text-black/30 focus:outline-none focus:border-black/60" />
+                            <button type="button" onClick={generateAi} disabled={!ready || aiLoading || !aiPrompt.trim()}
+                                className="font-space-mono uppercase text-[11px] tracking-[-0.44px] rounded-full border border-black/40 px-3 py-1.5 hover:bg-black hover:text-[#FFFAEB] transition-colors disabled:opacity-40">
+                                {aiLoading ? 'Generating…' : '✨ Generate'}
+                            </button>
+                            {aiError && <p className="font-space-mono text-[10px] text-brand leading-snug">{aiError}</p>}
+                            <div className="h-px bg-black/10 my-1" />
+
                             <p className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-black/50">Background</p>
                             <div className="flex flex-wrap gap-2">
                                 {BG_SWATCHES.map((c) => (
@@ -945,6 +1194,11 @@ export default function StudioPlayground() {
                                     className="font-space-mono uppercase text-[10px] tracking-[-0.44px] border border-black/40 rounded-full px-3 py-1 hover:bg-black hover:text-[#FFFAEB] transition-colors disabled:opacity-40">
                                     Image…
                                 </button>
+                                <button type="button" disabled={!ready} onClick={fitBg}
+                                    className="font-space-mono uppercase text-[10px] tracking-[-0.44px] border border-black/40 rounded-full px-3 py-1 hover:bg-black hover:text-[#FFFAEB] transition-colors disabled:opacity-40"
+                                    title="Re-fit the background image to cover the canvas">
+                                    Fit
+                                </button>
                             </div>
 
                             <p className="font-space-mono uppercase text-[10px] tracking-[-0.44px] text-black/40">Texture</p>
@@ -957,20 +1211,49 @@ export default function StudioPlayground() {
                                         {k}
                                     </button>
                                 ))}
+                                <button type="button" disabled={!ready} onClick={toggleScrim}
+                                    className={`font-space-mono uppercase text-[10px] tracking-[-0.44px] rounded-full border px-3 py-1 transition-colors ${
+                                        scrim ? 'bg-black text-[#FFFAEB] border-black' : 'border-black/30 hover:border-black'
+                                    }`}
+                                    title="Darken behind text for legibility on photos">
+                                    scrim
+                                </button>
                             </div>
                         </div>
                     </div>
 
                     {/* Canvas stage */}
                     <div className="flex-1 flex justify-center">
-                        <div className="bg-cream" style={{ boxShadow: '0 1px 0 rgba(26,26,26,0.08), 0 18px 50px -12px rgba(26,26,26,0.35)' }}>
+                        <div className="relative bg-cream" style={{ boxShadow: '0 1px 0 rgba(26,26,26,0.08), 0 18px 50px -12px rgba(26,26,26,0.35)' }}>
                             <canvas ref={canvasRef} />
+                            {aiLoading && (
+                                <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ background: 'rgba(255,250,235,0.35)' }}>
+                                    <div className="ff-shimmer absolute inset-y-0 w-1/3"
+                                        style={{ background: `linear-gradient(90deg, transparent, ${BRAND}33, transparent)` }} />
+                                    <span className="absolute bottom-4 left-0 right-0 text-center font-space-mono uppercase text-[12px] tracking-[-0.44px] text-ink">
+                                        Generating…
+                                    </span>
+                                    <style>{`@keyframes ff-sweep{0%{transform:translateX(-120%)}100%{transform:translateX(420%)}}.ff-shimmer{animation:ff-sweep 1.2s ease-in-out infinite}`}</style>
+                                </div>
+                            )}
                         </div>
                     </div>
 
                     {/* Layers panel — inline width: a few Tailwind v4 JIT width
                         utilities don't generate reliably in this setup. */}
                     <div className="shrink-0" style={{ width: 230, maxWidth: '100%' }}>
+                        {/* Layer — opacity for any selected (non-system) element */}
+                        {selectedId && !layers.find((l) => l.id === selectedId && (l.sys === 'bgfill' || l.sys === 'texture' || l.sys === 'scrim')) && (
+                            <div className="mb-6 flex flex-col gap-2 border-b border-black/10 pb-6">
+                                <p className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-black/50">Layer</p>
+                                <label className="flex flex-col gap-1">
+                                    <span className="font-space-mono uppercase text-[10px] tracking-[-0.44px] text-black/40">Opacity</span>
+                                    <input type="range" min={0} max={1} step={0.01} value={selOpacity}
+                                        onChange={(e) => setObjOpacity(Number(e.target.value))} style={{ accentColor: BRAND }} />
+                                </label>
+                            </div>
+                        )}
+
                         {/* Typography — contextual: shows when a text layer is selected */}
                         {textProps && (
                             <div className="mb-6 flex flex-col gap-3 border-b border-black/10 pb-6">
