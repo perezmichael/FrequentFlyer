@@ -318,11 +318,13 @@ export async function setEventCuration(id: string, level: string, note?: string)
     // the only "why" being stored anywhere. This is the editorial judgment
     // that's actually yours, and it was evaporating every week: 8 picks, zero
     // recorded reasons. It's also the raw material for guide copy later.
+    // Columns, not metadata keys. This note used to live in the metadata blob,
+    // which the scout rebuilds on every pass — so a note written on a scraped
+    // event survived only until that venue was next scraped. See
+    // db/schema_editor_locks.sql.
     if (typeof note === 'string') {
-        update.metadata = await mergeEventMetadata(id, {
-            pick_note: note.trim().slice(0, 500),
-            pick_noted_at: new Date().toISOString(),
-        });
+        update.pick_note = note.trim().slice(0, 500) || null;
+        update.pick_noted_at = new Date().toISOString();
     }
 
     await supabase.from('events').update(update).eq('id', id);
@@ -473,14 +475,26 @@ export async function updateEvent(id: string, updates: Record<string, unknown>) 
         .from('events')
         // flyer_url included so scraped_values keeps what the venue published
         // the first time an editor overrides it, like every other owned field.
-        .select('event_name, event_date, start_time, end_time, event_vibe, flyer_url, metadata')
+        .select('event_name, event_date, start_time, end_time, event_vibe, flyer_url, metadata, editor_locked')
         .eq('id', id)
         .maybeSingle();
 
     const metadata: Record<string, unknown> = { ...((current?.metadata as object) || {}) };
-    const locked = new Set<string>(
-        Array.isArray(metadata.editor_locked) ? (metadata.editor_locked as string[]) : [],
-    );
+    /**
+     * The lock list is a column now. It used to live in this metadata blob,
+     * which the scout and a dozen maintenance scripts rewrite — and any writer
+     * that rebuilt the blob instead of merging into it dropped the locks
+     * silently. After that the scout was behaving correctly when it replaced a
+     * hand-written title, which is how two FF Picks got reverted twice in ten
+     * days. Of 2,890 events only 16 still had a lock list by then.
+     *
+     * metadata.editor_locked is still read here so nothing written before the
+     * migration is lost, but it is never written again.
+     */
+    const locked = new Set<string>([
+        ...(Array.isArray(current?.editor_locked) ? (current!.editor_locked as string[]) : []),
+        ...(Array.isArray(metadata.editor_locked) ? (metadata.editor_locked as string[]) : []),
+    ]);
     // Keep the scraped original the first time a field is overridden, so the
     // divergence stays visible and nothing the venue published is lost.
     const scrapedValues: Record<string, unknown> = {
@@ -495,12 +509,13 @@ export async function updateEvent(id: string, updates: Record<string, unknown>) 
         locked.add(key);
     }
 
-    metadata.editor_locked = Array.from(locked);
+    // Written to the column, deliberately not back into metadata.
+    delete metadata.editor_locked;
     if (Object.keys(scrapedValues).length > 0) metadata.scraped_values = scrapedValues;
 
     await supabase
         .from('events')
-        .update({ ...safeUpdates, metadata })
+        .update({ ...safeUpdates, metadata, editor_locked: Array.from(locked) })
         .eq('id', id);
 
     revalidateEventPaths();

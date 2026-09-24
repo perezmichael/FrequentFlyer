@@ -62,13 +62,17 @@ async function getAdminEvents() {
         venueName: e.venues?.name || 'Unknown',
         sourceUrl: e.source_url || e.venues?.url || null,
         eventVibe: e.event_vibe || null,
-        lockedFields: Array.isArray(e.metadata?.editor_locked) ? e.metadata.editor_locked : [],
+        // Column first; the metadata key is only a fallback for rows written
+        // before db/schema_editor_locks.sql moved it out of the blob.
+        lockedFields: Array.isArray(e.editor_locked) && e.editor_locked.length
+            ? e.editor_locked
+            : (Array.isArray(e.metadata?.editor_locked) ? e.metadata.editor_locked : []),
         scrapedValues: e.metadata?.scraped_values || {},
         vibe_score: e.metadata?.vibe_score || 0,
         curationLevel: e.curation_level || 'scraped',
         // Your reason for picking it — distinct from metadata.justification,
         // which is the scout explaining its own score.
-        pickNote: e.metadata?.pick_note || '',
+        pickNote: e.pick_note || e.metadata?.pick_note || '',
         // Untagged means the scout wrote it — 2,255 of the 2,288 rows with no
         // metadata.source are curation_level 'scraped'. Defaulting these to
         // 'manual' labelled 2,288 scraped events as hand-entered, which made
