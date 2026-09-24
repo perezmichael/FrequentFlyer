@@ -531,16 +531,60 @@ export async function uploadEventFlyer(id: string, fileBase64: string) {
     const mime = fileBase64.split(';')[0].split(':')[1]; // e.g. image/jpeg
     const ext = mime.split('/')[1].replace('jpeg', 'jpg');
     const buffer = Buffer.from(fileBase64.replace(/^data:image\/\w+;base64,/, ''), 'base64');
-    const fileName = `flyers/${id}.${ext}`;
+
+    /**
+     * Content-addressed, not `flyers/<id>.<ext>`.
+     *
+     * That fixed path was overwritten in place on every re-upload, so the URL
+     * never changed — and next/image caches an optimized result per URL for 31
+     * days (minimumCacheTTL in next.config.mjs), with Cloudflare holding the
+     * old bytes on top of that. Replacing a bad flyer looked like it had done
+     * nothing, sometimes for weeks. A digest in the name makes new bytes a new
+     * URL, which no cache can confuse with the old one.
+     */
+    const digest = createHash('sha1').update(buffer).digest('hex').slice(0, 12);
+    const fileName = `flyers/${id}-${digest}.${ext}`;
 
     const { error } = await supabase.storage
         .from('event-flyers')
+        // The digest makes collisions mean "identical bytes", so upsert is a
+        // no-op rather than a destructive overwrite.
         .upload(fileName, buffer, { contentType: mime, upsert: true });
 
     if (error) throw new Error('Upload failed: ' + error.message);
 
     const publicUrl = supabase.storage.from('event-flyers').getPublicUrl(fileName).data.publicUrl;
-    await supabase.from('events').update({ flyer_url: publicUrl }).eq('id', id);
+
+    /**
+     * Take ownership of the flyer, the same way updateEvent() does for a typed
+     * edit. Without this the scouts' "is flyer_url locked?" check said no, and
+     * the next scrape of that venue replaced a hand-picked image with the
+     * venue's shared hero — which is exactly what happened to Tinlicker twice.
+     */
+    const { data: current } = await supabase
+        .from('events')
+        .select('flyer_url, metadata, editor_locked')
+        .eq('id', id)
+        .maybeSingle();
+
+    const metadata: Record<string, unknown> = { ...((current?.metadata as object) || {}) };
+    const locked = new Set<string>([
+        ...(Array.isArray(current?.editor_locked) ? (current!.editor_locked as string[]) : []),
+        ...(Array.isArray(metadata.editor_locked) ? (metadata.editor_locked as string[]) : []),
+    ]);
+    // Keep what the venue published, the first time an editor overrides it.
+    const scrapedValues: Record<string, unknown> = { ...((metadata.scraped_values as object) || {}) };
+    if (!locked.has('flyer_url') && current?.flyer_url) {
+        scrapedValues.flyer_url = current.flyer_url;
+    }
+    locked.add('flyer_url');
+    delete metadata.editor_locked;
+    if (Object.keys(scrapedValues).length > 0) metadata.scraped_values = scrapedValues;
+
+    await supabase
+        .from('events')
+        .update({ flyer_url: publicUrl, metadata, editor_locked: Array.from(locked) })
+        .eq('id', id);
 
     revalidatePath('/admin');
     revalidatePath('/');
