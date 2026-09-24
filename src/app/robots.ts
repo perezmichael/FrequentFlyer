@@ -16,7 +16,11 @@ export default function robots(): MetadataRoute.Robots {
                     '/admin',      // password-gated; nothing to index
                     '/design',     // internal design-system reference
                     '/studio',
-                    '/events2',    // static UI reference kept on purpose — would be duplicate content
+                    // NOTE: /events2 is deliberately NOT listed. It carries a
+                    // noindex tag instead. Disallowing it here would stop the
+                    // crawler fetching the page, and a noindex that is never
+                    // fetched is never obeyed — which is how it ended up
+                    // reported as a duplicate in Search Console.
                     // Internal API routes stay out. The public read API below
                     // is carved back in explicitly — a blanket '/api/' here
                     // would tell every well-behaved agent that the endpoint we
