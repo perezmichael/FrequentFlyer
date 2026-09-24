@@ -418,7 +418,7 @@ def find_matching_event(title: str, performers, event_date: str, venue_name: str
          band name decides, which is what the weighting was always for.
     """
     rows = supabase.table("events").select(
-        "id, event_name, event_date, flyer_url, metadata, venue_id, venues(name)"
+        "id, event_name, event_date, flyer_url, metadata, editor_locked, venue_id, venues(name)"
     ).eq("event_date", event_date).execute().data or []
     if not rows:
         return None, 0.0
@@ -501,7 +501,8 @@ def enrich_event(row: dict, event: dict, flyer_url, apply: bool, series: bool = 
     whole point of recording them. Returns the field names that changed.
     """
     meta = dict(row.get("metadata") or {})
-    locked = set(meta.get("editor_locked") or [])
+    # Column first; the metadata key is the pre-migration fallback.
+    locked = set(row.get("editor_locked") or meta.get("editor_locked") or [])
     filled = []
 
     def fill(key, value):

@@ -1,3 +1,16 @@
+import type { Metadata } from 'next';
+
+/**
+ * Still a placeholder, so it's kept out of the index — thin content competing
+ * for the site's own queries helps nobody. The canonical stays because the
+ * trailing-slash twin exists either way.
+ */
+export const metadata: Metadata = {
+    title: 'Tips',
+    alternates: { canonical: '/tips' },
+    robots: { index: false, follow: true },
+};
+
 export default function TipsPage() {
     return (
         <div style={{

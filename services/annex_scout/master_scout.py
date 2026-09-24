@@ -1391,14 +1391,23 @@ def run_master_scout():
                     # reads…", curly vs straight quotes), and exact matching
                     # inserted each variant as a separate row — duplicate cards
                     # in the feed.
-                    same_slot = supabase.table("events").select("id, status, event_name, metadata") \
+                    same_slot = supabase.table("events").select("id, status, event_name, metadata, editor_locked") \
                         .eq("event_date", event['date']) \
                         .eq("venue_id", venue_id).execute().data
                     existing = [r for r in same_slot
                                 if same_event_name(r.get('event_name'), event['event_name'])]
 
                     prior_meta = (existing[0].get('metadata') or {}) if existing else {}
-                    locked = prior_meta.get('editor_locked') or []
+                    # The lock list is a column. It used to live in metadata,
+                    # where any writer that rebuilt the blob dropped it — and a
+                    # dropped lock reads as permission to overwrite a hand-
+                    # edited title. The metadata key is still read so rows
+                    # written before the migration keep their locks.
+                    locked = (
+                        (existing[0].get('editor_locked') if existing else None)
+                        or prior_meta.get('editor_locked')
+                        or []
+                    )
 
                     if existing:
                         is_new = False
@@ -1414,8 +1423,11 @@ def run_master_scout():
                             # list or the stored originals.
                             prior = existing[0].get('metadata') or {}
                             payload['metadata'] = {
+                                # editor_locked is deliberately NOT written back
+                                # here — it lives in its own column now, which
+                                # this payload never touches, so rebuilding the
+                                # blob can no longer lose it.
                                 **payload['metadata'],
-                                'editor_locked': locked,
                                 **({'scraped_values': prior['scraped_values']}
                                    if 'scraped_values' in prior else {}),
                             }
@@ -1567,7 +1579,7 @@ def run_master_scout():
                         event_payload["metadata"]["image_hash"] = flyer_digest
                     final_meta = {**event_payload["metadata"]}
                     if locked:
-                        final_meta['editor_locked'] = locked
+                        # Again: the column carries the locks, not this blob.
                         if 'scraped_values' in prior_meta:
                             final_meta['scraped_values'] = prior_meta['scraped_values']
                         # Locked metadata keys keep the editor's value.

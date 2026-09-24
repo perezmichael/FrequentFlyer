@@ -47,7 +47,7 @@ export default async function KitPage({
 
     const { data, error } = await supabase
         .from('events')
-        .select('id, event_name, event_date, start_time, end_time, flyer_url, event_vibe, curation_level, source_url, status, metadata, venues (name, neighborhood, url)')
+        .select('id, event_name, event_date, start_time, end_time, flyer_url, event_vibe, curation_level, source_url, status, metadata, editor_locked, venues (name, neighborhood, url)')
         .gte('event_date', from)
         .lte('event_date', to)
         .eq('status', 'approved')
@@ -77,7 +77,9 @@ export default async function KitPage({
         // Everything here is status 'approved' by the query above, but the
         // sheet is shared with /admin and shows status either way.
         status: e.status || 'approved',
-        lockedFields: Array.isArray(e.metadata?.editor_locked) ? e.metadata.editor_locked : [],
+        lockedFields: Array.isArray(e.editor_locked) && e.editor_locked.length
+            ? e.editor_locked
+            : (Array.isArray(e.metadata?.editor_locked) ? e.metadata.editor_locked : []),
         scrapedValues: e.metadata?.scraped_values || {},
     }));
 

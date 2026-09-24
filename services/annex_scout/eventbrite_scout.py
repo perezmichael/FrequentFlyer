@@ -326,7 +326,12 @@ def run_eventbrite_scout():
             # flyers/{event_id}.jpg with upsert, the same path a locked
             # flyer_url points at, so checking the lock only at write time
             # would keep the column and replace the image behind it.
-            locked = (event_row.get("metadata") or {}).get("editor_locked") or []
+            # Column first; metadata is the pre-migration fallback.
+            locked = (
+                event_row.get("editor_locked")
+                or (event_row.get("metadata") or {}).get("editor_locked")
+                or []
+            )
             flyer_url = None
             if "flyer_url" in locked:
                 print(f"   🔒 Keeping the editor's flyer for {event_name}")
