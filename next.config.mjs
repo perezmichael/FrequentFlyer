@@ -93,6 +93,30 @@ const nextConfig = {
      * which is crawlers.
      */
     deviceSizes: [640, 828, 1200, 1920],
+
+    /**
+     * Serve stored bytes directly instead of through Vercel's optimizer.
+     *
+     * The free tier's image-optimization quota ran out on 2026-10-14, after a
+     * three-week catch-up scrape added 150+ events and therefore 150+ new
+     * source images. Every variant Vercel hadn't already cached started
+     * returning 402 Payment Required — including the logo — so most of the
+     * site's images broke at once.
+     *
+     * The alternatives were worse: Supabase's own resize endpoint is not
+     * enabled on this plan (403 FeatureNotEnabled), and waiting for the quota
+     * to reset leaves the site visibly broken for an unknown number of days.
+     *
+     * This is only safe because the stored files were rebuilt to suit it —
+     * upcoming flyers above 250 KB were re-encoded to a 1400px long edge, which
+     * took the heaviest from 11 MB to a couple of hundred KB. Serving the
+     * originals as they were would have swapped a Vercel quota problem for a
+     * Supabase egress one, and Supabase had just warned about quota too.
+     *
+     * To revert once the quota resets: delete this line. deviceSizes above is
+     * kept for exactly that reason.
+     */
+    unoptimized: true,
   },
 };
 
