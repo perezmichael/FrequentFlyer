@@ -1,8 +1,18 @@
+import os
 import os, json
 import argparse
 from supabase import create_client
 from google import genai
 from dotenv import load_dotenv
+
+# Model ID, overridable without a code change.
+#
+# gemini-2.5-flash was retired for new accounts mid-Oct 2026: moving to a
+# fresh API key made every call 404 with "no longer available to new users".
+# The ID now reads from the environment so the next retirement is a secret
+# change, not a deploy. 3.5-flash was chosen over the newer 3.7/3.8 because
+# those were returning 503 "high demand" on the free tier at the time.
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 
 load_dotenv()
 supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_KEY"))
@@ -61,9 +71,9 @@ def get_weekly_exploration():
     """
 
     try:
-        response = client.models.generate_content(model="gemini-2.0-flash-exp", contents=prompt)
+        response = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
     except Exception:
-        response = client.models.generate_content(model="gemini-1.5-pro", contents=prompt)
+        response = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
     
     filename = f'ff_production_menu_{start_date}.txt'
     with open(filename, 'w') as f:

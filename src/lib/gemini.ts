@@ -33,6 +33,18 @@ function getClient(): GoogleGenerativeAI {
  * `genAI.getGenerativeModel({ ... })` unchanged — the key is only read once a
  * model is actually requested.
  */
+/**
+ * Model ID, overridable without a code change.
+ *
+ * gemini-2.5-flash was retired for new accounts in mid-Oct 2026 — moving to a
+ * fresh API key made every call 404 with "no longer available to new users",
+ * which took the nightly scout down for three weeks before anyone noticed.
+ * Reading it from the environment means the next retirement is a config
+ * change, not a deploy. 3.5-flash over the newer 3.7/3.8 because those were
+ * returning 503 "high demand" on the free tier when this was chosen.
+ */
+export const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
+
 export const genAI = {
     getGenerativeModel: (
         ...args: Parameters<GoogleGenerativeAI['getGenerativeModel']>
