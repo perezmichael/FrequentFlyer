@@ -10,6 +10,7 @@ from supabase import create_client, Client
 from google import genai
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 # Model ID, overridable without a code change.
 #
@@ -20,8 +21,33 @@ from datetime import datetime, timedelta, timezone
 # those were returning 503 "high demand" on the free tier at the time.
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 
+# Models to fall back through when the first one is busy, in order.
+#
+# The free tier sheds load with 503 "experiencing high demand", and the newest
+# models are the most contended — 3.8-flash returned 503 on three consecutive
+# calls while 3.5-flash and 3.6-flash answered every time. A single 503 used to
+# cost a whole venue for the night, because nothing retried.
+GEMINI_FALLBACKS = [
+    m.strip() for m in os.getenv(
+        "GEMINI_FALLBACKS", f"{GEMINI_MODEL},gemini-3.6-flash,gemini-3.1-flash-lite"
+    ).split(",") if m.strip()
+]
+
 # 1. Setup
-load_dotenv()
+#
+# The repo-root .env.local is the single source of truth, loaded first so it
+# wins — python-dotenv does not override a value that is already set.
+#
+# A bare load_dotenv() reads .env from the *working directory*, and a stale
+# services/annex_scout/.env from January silently shadowed the real key:
+# every local run used a dead credential and reported "prepayment credits are
+# depleted" long after a working key was in place. CI never saw it, because
+# there is no .env file on the runner — so it only broke the machine where
+# you debug. Same class of bug scripts/copy-secret.sh exists to prevent.
+load_dotenv(Path(__file__).resolve().parents[2] / ".env.local")
+load_dotenv()  # local overrides, if any, for values not already set
+
+
 def _env(name):
     """
     Read an env var, tolerating quotes and stray whitespace.
@@ -47,6 +73,42 @@ if not SUPABASE_URL.startswith("http"):
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+
+def generate_resilient(prompt, tries_per_model=2):
+    """
+    Ask Gemini, surviving a busy model.
+
+    503 UNAVAILABLE means "experiencing high demand ... try again later" — a
+    statement about capacity, not about the request. There was no retry here,
+    so one transient 503 silently cost that venue for the night, and a busy
+    evening could empty a whole run. Measured on the free tier: 3.8-flash
+    returned 503 three times out of three while 3.5-flash answered every time,
+    so falling through to a different model recovers faster than waiting.
+
+    Raises the last error if everything is busy, which keeps the caller's
+    existing "model error" reporting intact.
+    """
+    last = None
+    for model in GEMINI_FALLBACKS:
+        for attempt in range(tries_per_model):
+            try:
+                return client.models.generate_content(model=model, contents=prompt)
+            except Exception as err:
+                last = err
+                text = str(err)
+                # Only capacity and rate errors are worth retrying. A 404 (model
+                # retired) or 402 (no credits) will fail identically forever.
+                if not any(s in text for s in ("503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED")):
+                    raise
+                if "402" in text:          # depleted credits, not a rate limit
+                    raise
+                wait = 2 ** attempt * 3
+                print(f"      ⏳ {model} busy — retrying in {wait}s")
+                time.sleep(wait)
+        if model != GEMINI_FALLBACKS[-1]:
+            print(f"      ↪ falling back from {model}")
+    raise last
 
 # Load the "Soul Doc" (Manifesto)
 with open('vibedoc.md', 'r') as f:
@@ -1301,7 +1363,7 @@ def run_master_scout():
             """
 
             try:
-                response = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
+                response = generate_resilient(prompt)
                 cleaned = response.text.replace('```json', '').replace('```', '').strip()
                 if not cleaned:
                     print(f"   ⚠️  Empty response from Gemini for {v['name']}")
