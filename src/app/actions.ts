@@ -1,6 +1,6 @@
 'use server';
 
-import { genAI } from '@/lib/gemini';
+import { genAI, GEMINI_MODEL } from '@/lib/gemini';
 import { cookies } from 'next/headers';
 import { VIBE_KEYS } from '@/features/frequent-flyer/data/vibes';
 
@@ -27,7 +27,7 @@ export async function getVibeCheck(eventTitle: string, eventVibes: string[]) {
         // User-supplied values are passed as a separate user-role message,
         // which prevents prompt injection from hijacking the instructions.
         const model = genAI.getGenerativeModel({
-            model: 'gemini-2.5-flash',
+            model: GEMINI_MODEL,
             systemInstruction:
                 'You are Benny, the vibe curator of Los Angeles. ' +
                 'When given an event name and vibe tags, respond with exactly ' +
@@ -600,7 +600,7 @@ async function generateVibeStyleCore(prompt: string) {
     // System instruction is fixed. User-supplied prompt is passed as a
     // separate user message to prevent it from overriding instructions.
     const model = genAI.getGenerativeModel({
-        model: 'gemini-2.5-flash',
+        model: GEMINI_MODEL,
         systemInstruction:
             'You are a Visual Synthesis Engine (Nano Banana). ' +
             'When given a vibe description, return ONLY a valid JSON object ' +

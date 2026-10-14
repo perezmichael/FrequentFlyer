@@ -31,7 +31,16 @@ from master_scout import (
     upsert_performers, link_performers,
 )
 
-MODEL = "gemini-2.5-flash"
+# Model ID, overridable without a code change.
+#
+# gemini-2.5-flash was retired for new accounts mid-Oct 2026: moving to a
+# fresh API key made every call 404 with "no longer available to new users".
+# The ID now reads from the environment so the next retirement is a secret
+# change, not a deploy. 3.5-flash was chosen over the newer 3.7/3.8 because
+# those were returning 503 "high demand" on the free tier at the time.
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+
+MODEL = GEMINI_MODEL
 DEFAULT_DIR = Path(__file__).resolve().parents[2] / "flyer-inbox"
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 

@@ -6,6 +6,15 @@ from supabase import create_client, Client
 from google import genai
 from dotenv import load_dotenv
 
+# Model ID, overridable without a code change.
+#
+# gemini-2.5-flash was retired for new accounts mid-Oct 2026: moving to a
+# fresh API key made every call 404 with "no longer available to new users".
+# The ID now reads from the environment so the next retirement is a secret
+# change, not a deploy. 3.5-flash was chosen over the newer 3.7/3.8 because
+# those were returning 503 "high demand" on the free tier at the time.
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+
 # 1. Setup
 load_dotenv()
 supabase: Client = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_KEY"))
@@ -105,7 +114,7 @@ def run_recurring_scout():
             """
 
             try:
-                response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+                response = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
                 events = json.loads(response.text.replace('```json', '').replace('```', '').strip())
                 print(f"   🔮 Gemini found {len(events)} recurring events.")
             except Exception as e:
