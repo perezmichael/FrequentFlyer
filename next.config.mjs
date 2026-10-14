@@ -80,8 +80,19 @@ const nextConfig = {
      * generated and stored for widths no visitor ever requested.
      *
      * 1920 stays as the ceiling for the full-bleed guide hero (sizes="100vw").
+     *
+     * Trimmed again Oct 2026 after Vercel warned at 75% of the free tier's
+     * 300,000 image-optimization cache reads. 750 and 1080 are near-neighbours
+     * of 828 and 1200 — dropping them sends those requests one rung up, for a
+     * few KB more per image and a third fewer stored variants. The measured
+     * CSS widths above (200 / 381 / 560px, so ~1120 at 2x) are still covered
+     * exactly.
+     *
+     * Note this mainly reduces transformations and stored variants. Cache
+     * *reads* track image requests, so they scale with traffic — a lot of
+     * which is crawlers.
      */
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    deviceSizes: [640, 828, 1200, 1920],
   },
 };
 
