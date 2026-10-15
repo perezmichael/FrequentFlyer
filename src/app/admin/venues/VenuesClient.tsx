@@ -19,6 +19,9 @@ export type AdminVenue = {
     /** What the submitter typed. Deliberately not the venue's address until
      *  you promote it — see submitEvent. */
     submittedAddress?: string | null;
+    /** A handle offered by a submitter for a venue that had none. Same rule
+     *  as the address: a claim until you promote it. */
+    submittedInstagram?: string | null;
     /** Existing venues with a similar name, so a duplicate gets caught at
      *  review time rather than becoming a second row for the same room. */
     similar?: { id: string; name: string; neighborhood: string }[];
@@ -138,6 +141,21 @@ function Row({ venue }: { venue: AdminVenue }) {
                         className="mt-1.5 rounded-full border border-[#C2371B] px-2.5 py-0.5 font-space-mono text-[10px] uppercase tracking-[-0.44px] text-[#C2371B] transition-colors hover:bg-[#C2371B] hover:text-[#FFFAEB]"
                     >
                         use as the address
+                    </button>
+                </div>
+            )}
+
+            {draft.submittedInstagram && !draft.instagram_handle && (
+                <div className="mb-2 rounded-md border border-[#C2371B]/30 bg-[#C2371B]/[0.06] px-3 py-2">
+                    <p className="font-space-mono text-[11px] uppercase tracking-[-0.44px] text-black/55">
+                        submitter says the venue&apos;s instagram is
+                    </p>
+                    <p className="mt-0.5 text-[13px]">{draft.submittedInstagram}</p>
+                    <button
+                        onClick={() => setDraft(d => ({ ...d, instagram_handle: d.submittedInstagram || '' }))}
+                        className="mt-1.5 rounded-full border border-[#C2371B] px-2.5 py-0.5 font-space-mono text-[10px] uppercase tracking-[-0.44px] text-[#C2371B] transition-colors hover:bg-[#C2371B] hover:text-[#FFFAEB]"
+                    >
+                        use as the handle
                     </button>
                 </div>
             )}

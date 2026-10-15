@@ -63,6 +63,7 @@ export default async function AdminVenuesPage() {
             upcoming: counts.get(v.id) || 0,
             verified,
             submittedAddress: (v.metadata as { submitted_address?: string } | null)?.submitted_address ?? null,
+            submittedInstagram: (v.metadata as { submitted_instagram?: string } | null)?.submitted_instagram ?? null,
             // Only computed for quarantined rows — that is the only moment the
             // answer changes anything.
             similar: verified === false
