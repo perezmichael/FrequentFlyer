@@ -190,7 +190,45 @@ export default function EventDetailSheet({ event, onClose }: EventDetailSheetPro
                             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
                             <circle cx="12" cy="10" r="3" />
                         </svg>
-                        <span>{event.location}</span>
+                        <span>
+                            {event.location}
+                            {/* The venue's own Instagram rides along in the venue
+                                row rather than taking a row of its own — it
+                                belongs to the venue, and an extra meta row was
+                                enough to push the share button off a 375x812
+                                screen.
+
+                                It wraps to a second line on most venues, and
+                                that's accepted for now: measured at 375px the
+                                row has 309px of space, and "Name, Neighborhood ·
+                                @handle" needs 318–349px for all but the
+                                shortest venue names. The glyph is 16px of that
+                                but removing it doesn't buy a line back.
+
+                                Deliberately a plain anchor rather than
+                                OutboundLink: outbound_click currently means
+                                "left for the event's ticket page", and mixing a
+                                social tap into that number would quietly change
+                                what every past reading of it meant. */}
+                            {event.venueInstagram && (
+                                <>
+                                    {' · '}
+                                    <a
+                                        className={styles.metaHandle}
+                                        href={`https://instagram.com/${event.venueInstagram.replace(/^@/, '')}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        <svg className={styles.metaHandleIcon} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                                            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                                            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+                                        </svg>
+                                        {event.venueInstagram}
+                                    </a>
+                                </>
+                            )}
+                        </span>
                     </div>
 
                     <div className={`${styles.metaRow} font-space-mono`}>
@@ -211,28 +249,6 @@ export default function EventDetailSheet({ event, onClose }: EventDetailSheetPro
                             </svg>
                             <span>{event.price}</span>
                         </div>
-                    )}
-
-                    {/* The venue's own Instagram, when one is on file.
-                        Deliberately a plain anchor rather than OutboundLink:
-                        outbound_click currently means "left for the event's
-                        ticket page", and mixing a social tap into that number
-                        would quietly change what every past reading of it
-                        meant. */}
-                    {event.venueInstagram && (
-                        <a
-                            className={`${styles.metaRow} ${styles.metaLink} font-space-mono`}
-                            href={`https://instagram.com/${event.venueInstagram.replace(/^@/, '')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            <svg className={styles.metaIcon} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-                                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-                                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-                            </svg>
-                            <span>{event.venueInstagram}</span>
-                        </a>
                     )}
 
                     {event.description && event.description !== 'No description available' && (
