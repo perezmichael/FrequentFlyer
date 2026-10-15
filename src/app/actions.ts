@@ -773,6 +773,28 @@ export async function submitEvent(input: unknown, flyerBase64?: string) {
     const startTime = isNonEmptyString(f.startTime) ? f.startTime : null;
     const endTime = isNonEmptyString(f.endTime) ? f.endTime : null;
 
+    /**
+     * Optional contact. Both are allowed to be absent — a submission is still
+     * worth having from someone who'd rather stay anonymous, and requiring
+     * either would cost submissions outright.
+     *
+     * Validated loosely on purpose: the point is to be able to reach someone,
+     * not to reject a real promoter over a stray character. Anything that
+     * can't plausibly be reached is dropped rather than stored as noise.
+     */
+    const submitterEmail = isNonEmptyString(f.submitterEmail)
+        && /^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(f.submitterEmail.trim())
+        ? f.submitterEmail.trim().slice(0, 200)
+        : null;
+    // Accept "@handle", "handle", or a profile URL — people paste all three.
+    const submitterInstagram = isNonEmptyString(f.submitterInstagram)
+        ? (f.submitterInstagram.trim()
+            .replace(/^https?:\/\/(www\.)?instagram\.com\//i, '')
+            .replace(/\/.*$/, '')
+            .replace(/^@?/, '@')
+            .slice(0, 60))
+        : null;
+
     // Resolve the venue: use an existing one by id, or create a new row from a
     // free-text name. Either path must yield a venue_id.
     let venueId: string;
@@ -856,6 +878,9 @@ export async function submitEvent(input: unknown, flyerBase64?: string) {
         venue_id: venueId,
         flyer_url: flyerUrl,
         status: 'pending',
+        // Columns, not metadata keys — see db/schema_submitter_contact.sql.
+        submitter_email: submitterEmail,
+        submitter_instagram: submitterInstagram,
         metadata: { justification: description, source: 'public_create' },
     });
 

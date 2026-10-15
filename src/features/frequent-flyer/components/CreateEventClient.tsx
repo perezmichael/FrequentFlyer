@@ -93,6 +93,9 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
     const [newVenueName, setNewVenueName] = useState('');
     const [newVenueNeighborhood, setNewVenueNeighborhood] = useState('');
     const [newVenueAddress, setNewVenueAddress] = useState('');
+    /** Optional contact, so a submission isn't anonymous by default. */
+    const [submitterEmail, setSubmitterEmail] = useState('');
+    const [submitterInstagram, setSubmitterInstagram] = useState('');
     const [venueOpen, setVenueOpen] = useState(false);
 
     const [hasFlyer, setHasFlyer] = useState(false);
@@ -362,6 +365,8 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
                     venueName: venueId ? undefined : newVenueName,
                     venueNeighborhood: venueId ? undefined : newVenueNeighborhood,
                     venueAddress: venueId ? undefined : newVenueAddress,
+                    submitterEmail,
+                    submitterInstagram,
                 },
                 flyerBase64,
             );
@@ -386,7 +391,7 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
                     onClick={() => {
                         setDone(false);
                         setTitle(''); setDate(''); setStartTime(''); setEndTime(''); setVibe(''); setDescription(''); setPrompt('');
-                        setVenueQuery(''); setVenueId(null); setNewVenueName(''); setNewVenueNeighborhood(''); setNewVenueAddress('');
+                        setVenueQuery(''); setVenueId(null); setNewVenueName(''); setNewVenueNeighborhood(''); setNewVenueAddress(''); setSubmitterEmail(''); setSubmitterInstagram('');
                         setHasFlyer(false); setIsArtwork(false); setFlyerError(null);
                     }}
                     className="font-space-mono uppercase text-[14px] tracking-[-0.5px] border border-black/40 rounded-full px-6 py-3 hover:bg-black hover:text-cream transition-colors"
@@ -491,6 +496,30 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
                         <label className={labelClass}>Description</label>
                         <textarea className={`${inputClass} h-28 resize-none`} value={description} maxLength={1000}
                             onChange={e => setDescription(e.target.value)} placeholder="What's the event about?" />
+                    </div>
+
+                    {/* Optional, and said plainly: 14 events arrived with no way
+                        to reach the person who sent them. Both blank is fine. */}
+                    <div>
+                        <label className={labelClass}>Your contact (optional)</label>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <input
+                                className={inputClass}
+                                type="email"
+                                value={submitterEmail}
+                                onChange={e => setSubmitterEmail(e.target.value)}
+                                placeholder="you@email.com"
+                            />
+                            <input
+                                className={inputClass}
+                                value={submitterInstagram}
+                                onChange={e => setSubmitterInstagram(e.target.value)}
+                                placeholder="@yourinstagram"
+                            />
+                        </div>
+                        <p className="mt-1.5 font-space-mono text-[12px] leading-[1.5] text-black/50">
+                            So we can follow up, and tag you if this makes the weekly post. Never shown on the site.
+                        </p>
                     </div>
 
                     {error && <p className="font-space-mono text-[13px] text-red-600">{error}</p>}

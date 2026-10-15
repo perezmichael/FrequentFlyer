@@ -73,6 +73,9 @@ async function getAdminEvents() {
         // Your reason for picking it — distinct from metadata.justification,
         // which is the scout explaining its own score.
         pickNote: e.pick_note || e.metadata?.pick_note || '',
+        // Who sent it in, when they chose to say. Admin-only.
+        submitterEmail: e.submitter_email || '',
+        submitterInstagram: e.submitter_instagram || '',
         // Untagged means the scout wrote it — 2,255 of the 2,288 rows with no
         // metadata.source are curation_level 'scraped'. Defaulting these to
         // 'manual' labelled 2,288 scraped events as hand-entered, which made
