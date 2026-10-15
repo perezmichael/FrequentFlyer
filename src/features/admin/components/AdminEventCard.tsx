@@ -12,6 +12,9 @@ import { Check, X, Edit2, Upload, AlertTriangle, ImageOff, Star } from 'lucide-r
 interface AdminEventCardProps {
     event: Event & { status?: string; vibe_score?: number; curationLevel?: string; pickNote?: string };
     source?: string;
+    /** Contact the submitter chose to leave. Admin-only; never rendered publicly. */
+    submitterEmail?: string;
+    submitterInstagram?: string;
     selected?: boolean;
     focused?: boolean;
     duplicate?: boolean;
@@ -38,6 +41,8 @@ const SOURCE_STYLE: Record<string, string> = {
 export default function AdminEventCard({
     event,
     source,
+    submitterEmail,
+    submitterInstagram,
     selected = false,
     focused = false,
     duplicate = false,
@@ -195,6 +200,36 @@ export default function AdminEventCard({
             </div>
 
             <CardContent className="p-4 space-y-3">
+                        {/* A person is on the other end of this one. Click-to-act,
+                            because the whole point is being able to reply. */}
+                        {(submitterEmail || submitterInstagram) && (
+                            <div className="flex flex-wrap items-center gap-2 rounded-md bg-[#C2371B]/[0.07] px-2.5 py-1.5">
+                                <span className="font-space-mono text-[10px] uppercase tracking-[-0.44px] text-black/55">
+                                    submitted by
+                                </span>
+                                {submitterEmail && (
+                                    <a
+                                        href={`mailto:${submitterEmail}?subject=${encodeURIComponent(`Your event on Frequent Flyer: ${event.title}`)}`}
+                                        onClick={e => e.stopPropagation()}
+                                        className="text-[12px] text-[#C2371B] underline-offset-2 hover:underline"
+                                    >
+                                        {submitterEmail}
+                                    </a>
+                                )}
+                                {submitterInstagram && (
+                                    <a
+                                        href={`https://instagram.com/${submitterInstagram.replace(/^@/, '')}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={e => e.stopPropagation()}
+                                        className="text-[12px] text-[#C2371B] underline-offset-2 hover:underline"
+                                    >
+                                        {submitterInstagram}
+                                    </a>
+                                )}
+                            </div>
+                        )}
+
                         <div className="flex justify-between items-start gap-2">
                             <div>
                                 <h3 className="font-semibold text-lg leading-tight line-clamp-1">{event.title}</h3>

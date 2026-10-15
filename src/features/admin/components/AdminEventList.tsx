@@ -30,6 +30,8 @@ type AdminEvent = Event & {
     sourceUrl?: string | null;
     eventVibe?: string | null;
     lockedFields?: string[];
+    submitterEmail?: string;
+    submitterInstagram?: string;
     scrapedValues?: Record<string, string | null>;
 };
 
@@ -165,6 +167,8 @@ export default function AdminEventList({ events }: AdminEventListProps) {
             sourceUrl: e.sourceUrl ?? null,
             vibeScore: typeof e.vibe_score === 'number' ? e.vibe_score : null,
             lockedFields: e.lockedFields || [],
+            submitterEmail: e.submitterEmail || '',
+            submitterInstagram: e.submitterInstagram || '',
             scrapedValues: e.scrapedValues || {},
         };
     })();
@@ -254,6 +258,11 @@ export default function AdminEventList({ events }: AdminEventListProps) {
      * when you are looking at something else entirely.
      */
     const submittedCount = useMemo(
+        () => mergedEvents.filter(e => sourceLabel(e.source) === SUBMITTED).length,
+        [mergedEvents],
+    );
+    /** Of those, the ones still waiting on a decision — what the pill leads with. */
+    const submittedPending = useMemo(
         () => mergedEvents.filter(e => sourceLabel(e.source) === SUBMITTED && e.status === 'pending').length,
         [mergedEvents],
     );
@@ -296,13 +305,22 @@ export default function AdminEventList({ events }: AdminEventListProps) {
 
         return mergedEvents
             .filter(event => {
+                /**
+                 * Checked before status, not after.
+                 *
+                 * It used to sit below the status test, so approving a
+                 * submission dropped it out of the pending tab and it looked
+                 * like the event had been deleted. Eight of the first fourteen
+                 * submissions vanished that way, and the person who approved
+                 * them assumed he'd broken something.
+                 *
+                 * This filter now answers to nothing: click it and you see
+                 * every submission ever, whatever its status or date.
+                 */
+                if (onlySubmitted) return sourceLabel(event.source) === SUBMITTED;
+
                 const normalizedStatus = (!event.status || event.status === 'planned') ? 'pending' : event.status;
                 if (normalizedStatus !== statusFilter) return false;
-
-                // Submissions answer to status and nothing else. Every other
-                // filter here is a way of narrowing a 2,300-row scrape; none of
-                // them should be capable of hiding a person waiting on a reply.
-                if (onlySubmitted) return sourceLabel(event.source) === SUBMITTED;
 
                 if (!showPast && toLocalMidnight(event.date) < today) return false;
                 if (dateRange) {
@@ -745,7 +763,7 @@ export default function AdminEventList({ events }: AdminEventListProps) {
                                     onClick={() => setOnlySubmitted(v => !v)}
                                     className={`${pillBase} ${onlySubmitted ? pillSubmitted : pillSubmittedIdle}`}
                                 >
-                                    Submitted · {submittedCount}
+                                    Submitted · {submittedPending > 0 ? `${submittedPending} new` : submittedCount}
                                 </button>
                             )}
                         </div>
@@ -872,6 +890,8 @@ export default function AdminEventList({ events }: AdminEventListProps) {
                                         key={event.id}
                                         event={event}
                                         source={event.source}
+                                        submitterEmail={event.submitterEmail}
+                                        submitterInstagram={event.submitterInstagram}
                                         selected={selected.has(event.id)}
                                         focused={focusedId === event.id}
                                         duplicate={duplicateIds.has(event.id)}
