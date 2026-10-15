@@ -6,7 +6,7 @@ import { VIBES, VIBE_KEYS } from '@/features/frequent-flyer/data/vibes';
 import { formatEventDateTime } from '@/features/frequent-flyer/data/events';
 import { submitEvent, generateVibeStylePublic } from '@/app/actions';
 
-type VenueOption = { id: string; name: string; neighborhood: string | null };
+type VenueOption = { id: string; name: string; neighborhood: string | null; instagramHandle?: string | null };
 
 const CANVAS_W = 400;
 const CANVAS_H = 500;
@@ -96,6 +96,10 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
     /** Optional contact, so a submission isn't anonymous by default. */
     const [submitterEmail, setSubmitterEmail] = useState('');
     const [submitterInstagram, setSubmitterInstagram] = useState('');
+    /** The venue's own public handle — a fact about the room, not a way to
+     *  reach the submitter. Used for a new venue, or an existing one with none. */
+    const [venueInstagram, setVenueInstagram] = useState('');
+    const [ticketUrl, setTicketUrl] = useState('');
     const [venueOpen, setVenueOpen] = useState(false);
 
     const [hasFlyer, setHasFlyer] = useState(false);
@@ -325,6 +329,8 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
         : venues.slice(0, 8);
     const exactMatch = venues.some(v => v.name.toLowerCase() === venueQuery.trim().toLowerCase());
 
+    const selectedVenue = venueId ? venues.find(v => v.id === venueId) ?? null : null;
+
     const selectExisting = (v: VenueOption) => {
         setVenueId(v.id);
         setVenueQuery(v.name);
@@ -365,6 +371,8 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
                     venueName: venueId ? undefined : newVenueName,
                     venueNeighborhood: venueId ? undefined : newVenueNeighborhood,
                     venueAddress: venueId ? undefined : newVenueAddress,
+                    venueInstagram,
+                    ticketUrl,
                     submitterEmail,
                     submitterInstagram,
                 },
@@ -391,7 +399,7 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
                     onClick={() => {
                         setDone(false);
                         setTitle(''); setDate(''); setStartTime(''); setEndTime(''); setVibe(''); setDescription(''); setPrompt('');
-                        setVenueQuery(''); setVenueId(null); setNewVenueName(''); setNewVenueNeighborhood(''); setNewVenueAddress(''); setSubmitterEmail(''); setSubmitterInstagram('');
+                        setVenueQuery(''); setVenueId(null); setNewVenueName(''); setNewVenueNeighborhood(''); setNewVenueAddress(''); setSubmitterEmail(''); setSubmitterInstagram(''); setVenueInstagram(''); setTicketUrl('');
                         setHasFlyer(false); setIsArtwork(false); setFlyerError(null);
                     }}
                     className="font-space-mono uppercase text-[14px] tracking-[-0.5px] border border-black/40 rounded-full px-6 py-3 hover:bg-black hover:text-cream transition-colors"
@@ -472,12 +480,37 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
                                 )}
                             </div>
                         )}
+                        {/* An existing venue: show the handle we hold, or ask for
+                            the one we're missing. 88 of 125 venues have none, and
+                            the person submitting almost certainly knows it. */}
+                        {selectedVenue && (
+                            selectedVenue.instagramHandle ? (
+                                <p className="mt-2 font-space-mono text-[12px] text-black/50">
+                                    Venue instagram on file: <span className="text-black/70">{selectedVenue.instagramHandle}</span>
+                                </p>
+                            ) : (
+                                <div className="mt-3">
+                                    <label className={labelClass}>Venue instagram (optional)</label>
+                                    <input className={inputClass} value={venueInstagram}
+                                        onChange={e => setVenueInstagram(e.target.value)} placeholder="@thevenue" />
+                                    <p className="mt-1.5 font-space-mono text-[12px] leading-[1.5] text-black/50">
+                                        We don&apos;t have one for {selectedVenue.name} yet. This is the venue&apos;s public handle, not yours.
+                                    </p>
+                                </div>
+                            )
+                        )}
+
                         {newVenueName && (
                             <>
                                 <div className="mt-3">
                                     <label className={labelClass}>Neighborhood (for the new venue)</label>
                                     <input className={inputClass} value={newVenueNeighborhood}
                                         onChange={e => setNewVenueNeighborhood(e.target.value)} placeholder="e.g. Echo Park" />
+                                </div>
+                                <div className="mt-3">
+                                    <label className={labelClass}>Venue instagram (optional)</label>
+                                    <input className={inputClass} value={venueInstagram}
+                                        onChange={e => setVenueInstagram(e.target.value)} placeholder="@thevenue" />
                                 </div>
                                 <div className="mt-3">
                                     <label className={labelClass}>Street address (optional)</label>
@@ -496,6 +529,23 @@ export default function CreateEventClient({ venues }: { venues: VenueOption[] })
                         <label className={labelClass}>Description</label>
                         <textarea className={`${inputClass} h-28 resize-none`} value={description} maxLength={1000}
                             onChange={e => setDescription(e.target.value)} placeholder="What's the event about?" />
+                    </div>
+
+                    {/* The link is the outbound click — the closest thing this
+                        site has to an outcome — and it doubles as where the
+                        flyer comes from when none is attached. */}
+                    <div>
+                        <label className={labelClass}>Ticket or event link (optional)</label>
+                        <input
+                            className={inputClass}
+                            type="url"
+                            value={ticketUrl}
+                            onChange={e => setTicketUrl(e.target.value)}
+                            placeholder="https://eventbrite.com/e/..."
+                        />
+                        <p className="mt-1.5 font-space-mono text-[12px] leading-[1.5] text-black/50">
+                            Where people buy or RSVP. We&apos;ll also pull the flyer from it if you don&apos;t upload one.
+                        </p>
                     </div>
 
                     {/* Optional, and said plainly: 14 events arrived with no way

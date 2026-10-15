@@ -62,7 +62,7 @@ export async function getVenuesForCreate() {
     const { supabase } = await import('@/lib/supabase');
     const { data, error } = await supabase
         .from('venues')
-        .select('id, name, neighborhood, metadata')
+        .select('id, name, neighborhood, instagram_handle, metadata')
         .order('name', { ascending: true });
 
     if (error) {
@@ -71,7 +71,13 @@ export async function getVenuesForCreate() {
     }
     return (data || [])
         .filter(v => (v.metadata as { verified?: boolean } | null)?.verified !== false)
-        .map(({ id, name, neighborhood }) => ({ id, name, neighborhood }));
+        // instagram_handle comes along so the form can show what's on file and
+        // ask for it when it isn't: 88 of 125 venues have no handle, and none
+        // of the 11 created by submissions do. The people submitting events
+        // know these handles; nobody was ever asked.
+        .map(({ id, name, neighborhood, instagram_handle }) => ({
+            id, name, neighborhood, instagramHandle: instagram_handle || null,
+        }));
 }
 
 export async function getGuides() {
@@ -752,6 +758,119 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // Accepts "HH:MM" or "HH:MM:SS" (the format an <input type="time"> emits).
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
 
+/** "@handle", "handle", or a profile URL — people paste all three. */
+function normalizeHandle(value: unknown): string | null {
+    if (!isNonEmptyString(value)) return null;
+    const h = value.trim()
+        .replace(/^https?:\/\/(www\.)?instagram\.com\//i, '')
+        .replace(/[/?].*$/, '')
+        .replace(/^@?/, '@')
+        .slice(0, 60);
+    return /^@[\w.]{1,30}$/.test(h) ? h : null;
+}
+
+/**
+ * Accept a link only if it points somewhere on the public internet.
+ *
+ * This value is stored, rendered as an outbound link, and — when the
+ * submission has no flyer — fetched by the server. A URL from an anonymous
+ * form that the server will fetch is the textbook setup for SSRF: without this
+ * check, `http://169.254.169.254/` or `http://localhost:3000/admin` is a
+ * request made from inside the deployment, with its network position.
+ *
+ * Hostname only; the address it resolves to is checked separately at fetch
+ * time, because DNS can point a public name at a private address.
+ */
+function safeExternalUrl(raw: string): string | null {
+    let u: URL;
+    try { u = new URL(raw.trim()); } catch { return null; }
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
+    if (u.username || u.password) return null;
+    const host = u.hostname.toLowerCase();
+    if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.internal')) return null;
+    // Bare IPs are never a real ticket page, and are how the private ranges
+    // get reached. Names are allowed and re-checked after resolution.
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(':')) return null;
+    if (!host.includes('.')) return null;
+    return u.toString().slice(0, 500);
+}
+
+/** True when an IP literal sits in a range that should never be fetched. */
+function isPrivateAddress(ip: string): boolean {
+    if (ip.includes(':')) {                      // IPv6
+        const v = ip.toLowerCase();
+        return v === '::1' || v.startsWith('fc') || v.startsWith('fd')
+            || v.startsWith('fe80') || v.startsWith('::ffff:');
+    }
+    const [a, b] = ip.split('.').map(Number);
+    return a === 0 || a === 10 || a === 127
+        || (a === 169 && b === 254)               // link-local / cloud metadata
+        || (a === 172 && b >= 16 && b <= 31)
+        || (a === 192 && b === 168)
+        || (a === 100 && b >= 64 && b <= 127)     // carrier-grade NAT
+        || a >= 224;                              // multicast / reserved
+}
+
+/**
+ * Pull the social image off a ticket page, so a submission without a flyer
+ * still gets artwork.
+ *
+ * Both flyers recovered by hand for the October submissions came from exactly
+ * this tag — the Open Myth poster from Eventbrite, the Halloween Ball art from
+ * Tickettailor. Doing it on submit turns an hour of hunting into a fetch.
+ *
+ * Returns null on anything unexpected: this is a nice-to-have running inside a
+ * public endpoint, so it fails quiet rather than failing the submission.
+ */
+async function flyerFromTicketPage(url: string): Promise<{ data: Buffer; mime: string } | null> {
+    const dns = await import('node:dns/promises');
+    const check = async (target: string) => {
+        const host = new URL(target).hostname;
+        const addrs = await dns.lookup(host, { all: true });
+        if (!addrs.length || addrs.some(a => isPrivateAddress(a.address))) throw new Error('private address');
+    };
+    try {
+        await check(url);
+        const page = await fetch(url, {
+            headers: { 'User-Agent': 'FrequentFlyerLA/1.0 (+https://frequentflyerla.com)' },
+            redirect: 'follow',
+            signal: AbortSignal.timeout(12_000),
+        });
+        if (!page.ok) return null;
+        if (page.url !== url) await check(page.url);   // a redirect can land somewhere private
+        const html = (await page.text()).slice(0, 400_000);
+        const m = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+            || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+        if (!m) return null;
+        /**
+         * Decode entities before treating this as a URL. Tickettailor escapes
+         * the whole thing — `https&#x3A;&#x2F;&#x2F;…` — so handling only
+         * `&amp;` produced a URL that 404s. Eventbrite doesn't escape, which is
+         * why this looked fine until a second site was tried.
+         */
+        const decoded = m[1]
+            .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+            .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
+            .replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+        const imgUrl = safeExternalUrl(new URL(decoded, page.url).toString());
+        if (!imgUrl) return null;
+        await check(imgUrl);
+        const img = await fetch(imgUrl, {
+            headers: { 'User-Agent': 'FrequentFlyerLA/1.0 (+https://frequentflyerla.com)' },
+            signal: AbortSignal.timeout(12_000),
+        });
+        if (!img.ok) return null;
+        const mime = (img.headers.get('content-type') || '').split(';')[0].trim();
+        if (!/^image\/(jpeg|png|webp|gif|avif)$/.test(mime)) return null;
+        const buf = Buffer.from(await img.arrayBuffer());
+        // Big enough to be artwork, small enough to serve unoptimised.
+        if (buf.length < 5_000 || buf.length > 8_000_000) return null;
+        return { data: buf, mime };
+    } catch {
+        return null;
+    }
+}
+
 export async function submitEvent(input: unknown, flyerBase64?: string) {
     if (!input || typeof input !== 'object') throw new Error('Invalid submission');
     const f = input as Record<string, unknown>;
@@ -787,13 +906,25 @@ export async function submitEvent(input: unknown, flyerBase64?: string) {
         ? f.submitterEmail.trim().slice(0, 200)
         : null;
     // Accept "@handle", "handle", or a profile URL — people paste all three.
-    const submitterInstagram = isNonEmptyString(f.submitterInstagram)
-        ? (f.submitterInstagram.trim()
-            .replace(/^https?:\/\/(www\.)?instagram\.com\//i, '')
-            .replace(/\/.*$/, '')
-            .replace(/^@?/, '@')
-            .slice(0, 60))
-        : null;
+    const submitterInstagram = normalizeHandle(f.submitterInstagram);
+
+    /**
+     * The venue's own public handle, which is a different thing from the
+     * submitter's personal one above: this is a fact about the room, that one
+     * is a way to reach a person. 88 of 125 venues have no handle on file and
+     * none of the venues created by submissions do — the people sending events
+     * in know these, and were never asked.
+     */
+    const venueInstagram = normalizeHandle(f.venueInstagram);
+
+    /**
+     * Where to buy or RSVP. This is the single most valuable thing the form
+     * wasn't collecting: event.url is `source_url || venues.url`, and it powers
+     * the "Event page & tickets" button — the outbound_click that is the
+     * closest thing this product has to an outcome. Every submission so far
+     * arrived with no link and therefore no button.
+     */
+    const ticketUrl = isNonEmptyString(f.ticketUrl) ? safeExternalUrl(f.ticketUrl) : null;
 
     // Resolve the venue: use an existing one by id, or create a new row from a
     // free-text name. Either path must yield a venue_id.
@@ -807,6 +938,22 @@ export async function submitEvent(input: unknown, flyerBase64?: string) {
             .single();
         if (error || !existing) throw new Error('Venue not found');
         venueId = existing.id;
+
+        /**
+         * A handle offered for a venue we already have. Recorded as a claim,
+         * never written straight into instagram_handle — the same rule the
+         * submitted address follows. If the venue already has one, this is
+         * ignored outright: an existing handle is a fact someone checked, and
+         * an anonymous form should not be able to overwrite it.
+         */
+        if (venueInstagram) {
+            const { data: v } = await supabase
+                .from('venues').select('instagram_handle, metadata').eq('id', venueId).maybeSingle();
+            if (v && !v.instagram_handle?.trim()) {
+                const meta = { ...((v.metadata as object) || {}), submitted_instagram: venueInstagram };
+                await supabase.from('venues').update({ metadata: meta }).eq('id', venueId);
+            }
+        }
     } else if (isNonEmptyString(f.venueName)) {
         const name = f.venueName.trim().slice(0, 200);
         const neighborhood = isNonEmptyString(f.venueNeighborhood)
@@ -844,6 +991,7 @@ export async function submitEvent(input: unknown, flyerBase64?: string) {
                     source: 'public_create',
                     verified: false,
                     ...(submittedAddress ? { submitted_address: submittedAddress } : {}),
+                    ...(venueInstagram ? { submitted_instagram: venueInstagram } : {}),
                 },
             })
             .select('id')
@@ -869,6 +1017,31 @@ export async function submitEvent(input: unknown, flyerBase64?: string) {
         flyerUrl = supabase.storage.from('event-flyers').getPublicUrl(fileName).data.publicUrl;
     }
 
+    /**
+     * No flyer, but a ticket link? Take the artwork off that page.
+     *
+     * Three October submissions arrived with no image and rendered as the
+     * branded placeholder, which reads as broken. Both flyers recovered by
+     * hand came from the og:image of the ticket page — so do it here instead.
+     *
+     * Content-addressed, so two events pointing at the same ticket page share
+     * one stored object rather than duplicating it.
+     */
+    if (!flyerUrl && ticketUrl) {
+        const fetched = await flyerFromTicketPage(ticketUrl);
+        if (fetched) {
+            const ext = fetched.mime.split('/')[1].replace('jpeg', 'jpg');
+            const digest = createHash('sha1').update(fetched.data).digest('hex').slice(0, 12);
+            const fileName = `flyers/shared/${digest}.${ext}`;
+            const { error: fetchUploadError } = await supabase.storage
+                .from('event-flyers')
+                .upload(fileName, fetched.data, { contentType: fetched.mime, upsert: true });
+            if (!fetchUploadError) {
+                flyerUrl = supabase.storage.from('event-flyers').getPublicUrl(fileName).data.publicUrl;
+            }
+        }
+    }
+
     const { error: insertError } = await supabase.from('events').insert({
         event_name: title,
         event_date: date,
@@ -877,6 +1050,7 @@ export async function submitEvent(input: unknown, flyerBase64?: string) {
         event_vibe: vibe,
         venue_id: venueId,
         flyer_url: flyerUrl,
+        source_url: ticketUrl,
         status: 'pending',
         // Columns, not metadata keys — see db/schema_submitter_contact.sql.
         submitter_email: submitterEmail,

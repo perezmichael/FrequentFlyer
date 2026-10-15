@@ -14,6 +14,8 @@ export interface Event {
      */
     lat: number | null;
     lng: number | null;
+    /** The venue's public Instagram handle, when one is on file. */
+    venueInstagram?: string | null;
     image: string;
     /**
      * True when `image` is the event's OWN flyer rather than a venue photo
