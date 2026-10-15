@@ -29,7 +29,8 @@ export async function getEvents(): Promise<Event[]> {
         lat,
         lng,
         url,
-        image_url
+        image_url,
+        instagram_handle
       )
     `)
         .order('event_date', { ascending: true })
@@ -67,6 +68,10 @@ export async function getEvents(): Promise<Event[]> {
         // for one — the feed dedupes the second and must not dedupe the first.
         imageIsFlyer: Boolean(e.flyer_url),
         neighborhood: e.venues?.neighborhood || 'Unknown',
+        // The venue's public handle. Collected on the submit form and in
+        // /admin, but it had never been sent to the client, so nothing
+        // could show it.
+        venueInstagram: e.venues?.instagram_handle || null,
         vibe: e.event_vibe ? [e.event_vibe] : ['Event'],
         // Prefer the event's own page (scraped source_url) over the venue calendar.
         url: e.source_url || e.venues?.url,
@@ -103,7 +108,8 @@ export async function getEventById(id: string): Promise<Event | null> {
         lat,
         lng,
         url,
-        image_url
+        image_url,
+        instagram_handle
       )
     `)
         .eq('id', id)
@@ -153,6 +159,10 @@ export async function getEventById(id: string): Promise<Event | null> {
         // for one — the feed dedupes the second and must not dedupe the first.
         imageIsFlyer: Boolean(e.flyer_url),
         neighborhood: e.venues?.neighborhood || 'Unknown',
+        // The venue's public handle. Collected on the submit form and in
+        // /admin, but it had never been sent to the client, so nothing
+        // could show it.
+        venueInstagram: e.venues?.instagram_handle || null,
         vibe: e.event_vibe ? [e.event_vibe] : ['Event'],
         url: e.source_url || e.venues?.url,
         curationLevel: e.curation_level || 'scraped',
@@ -305,7 +315,7 @@ export async function getRecurringEvents(): Promise<RecurringEvent[]> {
         .select(`
             id, event_name, category, day_of_week, start_time, end_time,
             recurrence, description, metadata,
-            venues (name, neighborhood, lat, lng, url, image_url)
+            venues (name, neighborhood, lat, lng, url, image_url, instagram_handle)
         `)
         .eq('status', 'approved')
         .order('day_of_week', { ascending: true })
@@ -327,6 +337,10 @@ export async function getRecurringEvents(): Promise<RecurringEvent[]> {
         description: e.description,
         venue_name: e.venues?.name || 'Unknown',
         neighborhood: e.venues?.neighborhood || 'Unknown',
+        // The venue's public handle. Collected on the submit form and in
+        // /admin, but it had never been sent to the client, so nothing
+        // could show it.
+        venueInstagram: e.venues?.instagram_handle || null,
         // Never invent coordinates: an un-geocoded venue is skipped on the
         // map, not dropped onto a downtown default.
         lat: e.venues?.lat ?? null,
@@ -346,7 +360,7 @@ export async function getAdminRecurringEvents(): Promise<(RecurringEvent & { sta
         .select(`
             id, event_name, category, day_of_week, start_time, end_time,
             recurrence, description, status, metadata,
-            venues (name, neighborhood, lat, lng, url, image_url)
+            venues (name, neighborhood, lat, lng, url, image_url, instagram_handle)
         `)
         .order('day_of_week', { ascending: true })
         .order('start_time', { ascending: true });
@@ -368,6 +382,10 @@ export async function getAdminRecurringEvents(): Promise<(RecurringEvent & { sta
         status: e.status || 'pending',
         venue_name: e.venues?.name || 'Unknown',
         neighborhood: e.venues?.neighborhood || 'Unknown',
+        // The venue's public handle. Collected on the submit form and in
+        // /admin, but it had never been sent to the client, so nothing
+        // could show it.
+        venueInstagram: e.venues?.instagram_handle || null,
         // Never invent coordinates: an un-geocoded venue is skipped on the
         // map, not dropped onto a downtown default.
         lat: e.venues?.lat ?? null,

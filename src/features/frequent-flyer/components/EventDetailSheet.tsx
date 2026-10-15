@@ -213,6 +213,28 @@ export default function EventDetailSheet({ event, onClose }: EventDetailSheetPro
                         </div>
                     )}
 
+                    {/* The venue's own Instagram, when one is on file.
+                        Deliberately a plain anchor rather than OutboundLink:
+                        outbound_click currently means "left for the event's
+                        ticket page", and mixing a social tap into that number
+                        would quietly change what every past reading of it
+                        meant. */}
+                    {event.venueInstagram && (
+                        <a
+                            className={`${styles.metaRow} ${styles.metaLink} font-space-mono`}
+                            href={`https://instagram.com/${event.venueInstagram.replace(/^@/, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <svg className={styles.metaIcon} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+                            </svg>
+                            <span>{event.venueInstagram}</span>
+                        </a>
+                    )}
+
                     {event.description && event.description !== 'No description available' && (
                         <p className={styles.description}>{event.description}</p>
                     )}

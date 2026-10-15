@@ -179,6 +179,29 @@
     color: rgba(26, 26, 26, 0.5);
 }
 
+/* A meta row that happens to be a link — the venue's Instagram. Reads as the
+   rows above it until you touch it, so it doesn't compete with the ticket
+   button for attention. */
+.metaLink {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+@media (hover: hover) {
+    .metaLink:hover {
+        color: #C2371B;
+    }
+
+    .metaLink:hover .metaIcon {
+        color: #C2371B;
+    }
+}
+
+.metaLink:active {
+    color: #C2371B;
+}
+
 .description {
     margin-top: 14px;
     padding-top: 14px;
