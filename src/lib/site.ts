@@ -33,3 +33,9 @@ export const SUPPORT_EMAIL = 'support@frequentflyerla.com';
 
 export const SITE_NAME = 'Frequent Flyer';
 export const SITE_TAGLINE = 'What’s happening in Los Angeles';
+
+/** The Instagram account is where the audience actually is — the site links
+ *  to it from the nav and footer so someone who lands here from a bare URL
+ *  can tell the two are the same thing. */
+export const INSTAGRAM_HANDLE = 'frequentflyerla';
+export const INSTAGRAM_URL = `https://www.instagram.com/${INSTAGRAM_HANDLE}/`;

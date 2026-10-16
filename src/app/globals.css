@@ -143,9 +143,20 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-a {
+/* Layered so Tailwind color utilities on links (text-brand, hover:text-cream…)
+   can win. Unlayered, this reset beat every utility and the create pill's
+   hover went black-on-black. */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
+
+/* The unlayered reset above also kept Leaflet's blue off the map credits.
+   Keep them muted now that it's layered (leaflet.css is unlayered too). */
+.leaflet-container .leaflet-control-attribution a {
   color: inherit;
-  text-decoration: none;
 }
 
 h1,

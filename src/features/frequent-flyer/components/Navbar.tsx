@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import TipsBill from '@/components/TipsBill';
 import { navLink as navLinkClass, createPill as createPillClass } from '@/features/frequent-flyer/design/patterns';
+import { INSTAGRAM_HANDLE, INSTAGRAM_URL } from '@/lib/site';
 import styles from './Navbar.module.css';
 
 export default function Navbar() {
@@ -59,6 +60,18 @@ export default function Navbar() {
                     <Link href="/events" className={navLinkClass}>events</Link>
                     <Link href="/map" className={navLinkClass}>map</Link>
                     <Link href="/guides" className={navLinkClass}>guides</Link>
+                    {/* Short label on desktop — the row only has ~20px to spare
+                        at 1024px. The handle is in the title and aria-label. */}
+                    <a
+                        href={INSTAGRAM_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={navLinkClass}
+                        title={`@${INSTAGRAM_HANDLE} on Instagram`}
+                        aria-label={`@${INSTAGRAM_HANDLE} on Instagram`}
+                    >
+                        ig ↗
+                    </a>
                     <Link href="/create" className={createPillClass}>+ create</Link>
                     <TipsBill />
                 </div>
@@ -80,8 +93,9 @@ export default function Navbar() {
                     <Link href="/events" className={navLinkClass} onClick={() => setIsMenuOpen(false)}>events</Link>
                     <Link href="/map" className={navLinkClass} onClick={() => setIsMenuOpen(false)}>map</Link>
                     <Link href="/guides" className={navLinkClass} onClick={() => setIsMenuOpen(false)}>guides</Link>
+                    <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className={navLinkClass}>@{INSTAGRAM_HANDLE} ↗</a>
                     <Link href="/create" className={`${createPillClass} self-start`} onClick={() => setIsMenuOpen(false)}>+ create</Link>
-                    <TipsBill />
+                    <TipsBill onClick={() => setIsMenuOpen(false)} />
                 </div>
             )}
         </nav>

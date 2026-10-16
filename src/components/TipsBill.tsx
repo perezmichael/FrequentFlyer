@@ -1,11 +1,18 @@
-export default function TipsBill() {
+import Link from 'next/link';
+
+export default function TipsBill({ onClick }: { onClick?: () => void }) {
     return (
-        <div className="relative cursor-pointer hover:scale-105 transition-transform duration-200">
+        <Link
+            href="/tips"
+            onClick={onClick}
+            aria-label="Tip Frequent Flyer"
+            className="relative block hover:scale-105 transition-transform duration-200"
+        >
             <img
                 src="/images/100dolla.svg"
-                alt="Tips"
+                alt=""
                 style={{ height: '36px', width: 'auto', display: 'block' }}
             />
-        </div>
+        </Link>
     );
 }
