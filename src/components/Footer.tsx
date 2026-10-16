@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { SITE_NAME } from '@/lib/site';
+import { INSTAGRAM_HANDLE, INSTAGRAM_URL, SITE_NAME } from '@/lib/site';
 
 /**
  * Site footer — mainly a home for the legal and developer links.
@@ -33,6 +33,14 @@ export default function Footer() {
                             {text}
                         </Link>
                     ))}
+                    <a
+                        href={INSTAGRAM_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-black/55 hover:text-brand transition-colors duration-150"
+                    >
+                        @{INSTAGRAM_HANDLE} ↗
+                    </a>
                 </nav>
             </div>
         </footer>
