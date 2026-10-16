@@ -2,10 +2,12 @@
 
 import { useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Event } from '@/features/frequent-flyer/data/events';
-import { GuideWithItems } from '@/features/frequent-flyer/types/guides';
+import { DATE_PRESETS, getDatePresetRange, toLocalMidnight } from '@/features/frequent-flyer/data/datePresets';
 import MapLoader from '@/components/MapLoader';
+import FilterPillRow from './FilterPillRow';
+import EventDetailSheet from './EventDetailSheet';
 import styles from './MapPageClient.module.css';
 
 // Dynamically import Map to avoid SSR issues with Leaflet
@@ -14,84 +16,52 @@ const Map = dynamic(() => import('@/features/frequent-flyer/components/Map'), {
     loading: () => <MapLoader />,
 });
 
-interface Venue {
-    id: string;
-    name: string;
-    neighborhood: string;
-    lat: number;
-    lng: number;
-    image_url?: string;
-}
+/* The map answers "what's on near me?", so it opens on tonight rather than
+ * the whole month — 230 pins at once read as noise. `?date=all` widens it. */
+const DEFAULT_PRESET = 'today';
 
 interface MapPageClientProps {
     initialEvents: Event[];
-    guides: GuideWithItems[];
-    venues: Venue[];
 }
 
-export default function MapPageClient({ initialEvents, guides, venues }: MapPageClientProps) {
-    const [showEvents, setShowEvents] = useState(true);
-    const [showVenues, setShowVenues] = useState(true);
-    const [showGuides, setShowGuides] = useState(true);
+/**
+ * Full-screen map of upcoming events. Events only: venue and guide pins were
+ * here too, but neither is filled in enough yet to be worth a tap, and mixing
+ * them in made it hard to see what's actually happening. Tapping a pin opens
+ * its popup; the popup opens the same EventDetailSheet as the home feed.
+ */
+export default function MapPageClient({ initialEvents }: MapPageClientProps) {
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const datePreset = searchParams.get('date') || DEFAULT_PRESET;
+
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+    const [detailEvent, setDetailEvent] = useState<Event | null>(null);
 
-    // Transform all data sources into "Map Items" (Events)
-    const mapItems = useMemo(() => {
-        let items: Event[] = [];
+    const mapEvents = useMemo(() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const range = getDatePresetRange(datePreset);
 
-        if (showEvents) {
-            items = [...items, ...initialEvents];
-        }
+        return initialEvents.filter(event => {
+            // Invalid coordinates crash Leaflet.
+            if (typeof event.lat !== 'number' || typeof event.lng !== 'number' || isNaN(event.lat) || isNaN(event.lng)) return false;
+            const day = toLocalMidnight(event.date);
+            if (day < today) return false;
+            if (range && (day < range.from || day > range.to)) return false;
+            return true;
+        });
+    }, [initialEvents, datePreset]);
 
-        if (showVenues) {
-            const venueItems: Event[] = venues.map(v => ({
-                id: `venue-${v.id}`,
-                title: v.name,
-                date: 'Venue', // Marker label fallback usually checks vibe, but popup shows date
-                location: v.neighborhood || 'Los Angeles',
-                description: 'Popular Spot',
-                lat: v.lat,
-                lng: v.lng,
-                image: v.image_url || '/placeholder.jpg',
-                neighborhood: v.neighborhood || 'Unknown',
-                vibe: ['Venue']
-            }));
-            items = [...items, ...venueItems];
-        }
-
-        if (showGuides) {
-            // For guides, we could show the "Curator" or just the main guide location? 
-            // Or maybe guides are just routes?
-            // The requirement says "filters to show venues, events, guides".
-            // Let's treat Guides as a pin at the first location of the guide?
-            const guideItems: Event[] = guides.map((g): Event | null => {
-                const firstItem = g.items?.[0]?.venues;
-                if (!firstItem) return null;
-                return {
-                    id: `guide-${g.id}`,
-                    title: g.title,
-                    date: 'Guide',
-                    location: g.neighborhood || 'Los Angeles',
-                    description: g.description || '',
-                    lat: firstItem.lat,
-                    lng: firstItem.lng,
-                    image: g.cover_image || '/placeholder.jpg',
-                    neighborhood: g.neighborhood || 'Unknown',
-                    vibe: ['Guide']
-                };
-            }).filter((i): i is Event => i !== null);
-            items = [...items, ...guideItems];
-        }
-
-        // Filter out any items with invalid coordinates to prevent Map crash
-        return items.filter(item =>
-            item &&
-            typeof item.lat === 'number' &&
-            typeof item.lng === 'number' &&
-            !isNaN(item.lat) &&
-            !isNaN(item.lng)
-        );
-    }, [initialEvents, venues, guides, showEvents, showVenues, showGuides]);
+    function setDate(value: string) {
+        const params = new URLSearchParams(searchParams.toString());
+        if (value === DEFAULT_PRESET) params.delete('date');
+        else params.set('date', value);
+        const qs = params.toString();
+        setSelectedEventId(null);
+        router.replace(qs ? `${pathname}?${qs}` : pathname);
+    }
 
     const handleMarkerClick = (id: string) => {
         setSelectedEventId(id === selectedEventId ? null : id);
@@ -99,37 +69,43 @@ export default function MapPageClient({ initialEvents, guides, venues }: MapPage
 
     return (
         <div className={styles.container}>
-            {/* Header removed in favor of main Navbar */}
-
-            {/* Filter Overlay */}
+            {/* Date filter overlay */}
             <div className={styles.filters}>
-                <button
-                    className={`${styles.filterButton} ${showEvents ? styles.active : ''}`}
-                    onClick={() => setShowEvents(!showEvents)}
-                >
-                    Events
-                </button>
-                <button
-                    className={`${styles.filterButton} ${showVenues ? styles.active : ''}`}
-                    onClick={() => setShowVenues(!showVenues)}
-                >
-                    Venues
-                </button>
-                <button
-                    className={`${styles.filterButton} ${showGuides ? styles.active : ''}`}
-                    onClick={() => setShowGuides(!showGuides)}
-                >
-                    Guides
-                </button>
+                <FilterPillRow
+                    aria-label="Filter by date"
+                    pills={DATE_PRESETS.map(p => ({
+                        key: p.value,
+                        label: p.value === 'today' ? 'Tonight' : p.label,
+                        active: datePreset === p.value,
+                        onClick: () => setDate(p.value),
+                    }))}
+                />
+                <span className={styles.count}>
+                    {mapEvents.length} event{mapEvents.length !== 1 ? 's' : ''}
+                </span>
             </div>
+
+            {mapEvents.length === 0 && (
+                <div className={styles.empty}>
+                    <p className="font-space-mono uppercase text-[13px] tracking-[-0.44px] text-ink">nothing pinned {datePreset === 'today' ? 'tonight' : 'yet'}.</p>
+                    {datePreset !== 'weekend' && datePreset !== 'all' && (
+                        <button type="button" onClick={() => setDate('weekend')} className="font-space-mono uppercase text-[11px] tracking-[-0.44px] text-brand hover:underline underline-offset-4">
+                            see this weekend →
+                        </button>
+                    )}
+                </div>
+            )}
 
             <div className={styles.mapWrapper}>
                 <Map
-                    events={mapItems}
+                    events={mapEvents}
                     selectedEventId={selectedEventId}
                     onMarkerClick={handleMarkerClick}
+                    onEventOpen={setDetailEvent}
                 />
             </div>
+
+            <EventDetailSheet event={detailEvent} onClose={() => setDetailEvent(null)} />
         </div>
     );
 }
