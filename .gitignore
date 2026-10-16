@@ -54,3 +54,7 @@ flyer-inbox/*
 # Data dumps written by scripts/clean-talent.mjs before it deletes rows.
 # Keep them locally so a cleanup is reversible; they are not repo content.
 talent-backup-*.json
+
+# Case-study working material kept out of a public repo. Pairs prompts from
+# local session transcripts with what shipped — Mike's own words, unedited.
+docs/local/

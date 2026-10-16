@@ -233,9 +233,9 @@ Then add the new entries to the right theme. Commit bodies hold the rationale �
   covering **29 May 2026 onward only**. The first 5½ months have no prompt
   record. They live in `~/.claude/projects/` and are **deliberately not in this
   repo**: it's public, and they contain correspondence and personal context.
-  Six features are already traced back to the prompt that triggered them in
-  [PROMPT-PROVENANCE.md](./PROMPT-PROVENANCE.md); others can be matched on
-  request.
+  Six features are already traced back to the prompt that triggered them, in a
+  companion file kept out of this repo for the same reason (`docs/local/`,
+  gitignored); others can be matched on request.
 - **PostHog** — live behavioural data for anything shipped after 25 Aug 2026,
   which is where outcome numbers for a case study would come from.
 - **`VISION.md`**, **`AUDIENCE.md`**, **`services/annex_scout/vibedoc.md`** —
