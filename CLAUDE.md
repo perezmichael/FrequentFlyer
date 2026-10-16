@@ -19,7 +19,7 @@ for maps · fabric.js for the flyer canvas.
   shadcn primitives in `src/components/ui/*`** (and therefore the oklch tokens in
   `globals.css`). Leave those alone.
 - `src/components/**` — a few genuinely shared components (Navbar wrapper, Map,
-  loaders, FlyerCard) plus `ui/` (shadcn, admin-only).
+  loaders) plus `ui/` (shadcn, admin-only).
 
 ---
 

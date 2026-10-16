@@ -1,12 +1,15 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import FlyerCard from '@/components/FlyerCard';
 import { Event } from '@/features/frequent-flyer/data/events';
 import { RecurringEvent } from '@/features/frequent-flyer/data/recurringEvents';
+import { hasRealImage } from '@/features/frequent-flyer/data/vibePlaceholders';
+import { filterPill } from '@/features/frequent-flyer/design/patterns';
 import RecurringEventsTab from './RecurringEventsTab';
 import FilterPillRow from './FilterPillRow';
+import FlyerWallTile from './FlyerWallTile';
+import EventDetailSheet from './EventDetailSheet';
 
 const DATE_PRESETS = [
     { label: 'Today', value: 'today' },
@@ -65,6 +68,26 @@ function toLocalMidnight(dateStr: string): Date {
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
+/* Masonry columns for the flyer wall, at Tailwind's sm/lg/2xl. Four holds
+   until 2xl so each flyer stays big enough to read. */
+function columnsFor(width: number): number {
+    if (width >= 1536) return 5;
+    if (width >= 1024) return 4;
+    if (width >= 640) return 3;
+    return 2;
+}
+
+function useColumnCount(): number {
+    const [count, setCount] = useState(4);
+    useEffect(() => {
+        const update = () => setCount(columnsFor(window.innerWidth));
+        update();
+        window.addEventListener('resize', update);
+        return () => window.removeEventListener('resize', update);
+    }, []);
+    return count;
+}
+
 interface Props {
     initialEvents: Event[];
     recurringEvents?: RecurringEvent[];
@@ -78,16 +101,10 @@ export default function EventsPageClient({ initialEvents, recurringEvents = [] }
     const tab = searchParams.get('tab') || 'upcoming';
     const datePreset = searchParams.get('date') || 'all';
     const neighborhoodFilter = searchParams.get('neighborhood');
-    const vibeFilter = searchParams.get('vibe');
 
     // Derive unique options from the live dataset
     const neighborhoods = useMemo(() => {
         const set = new Set(initialEvents.map(e => e.neighborhood).filter(Boolean));
-        return Array.from(set).sort();
-    }, [initialEvents]);
-
-    const vibes = useMemo(() => {
-        const set = new Set(initialEvents.flatMap(e => e.vibe || []));
         return Array.from(set).sort();
     }, [initialEvents]);
 
@@ -120,12 +137,46 @@ export default function EventsPageClient({ initialEvents, recurringEvents = [] }
             // Neighborhood
             if (neighborhoodFilter && event.neighborhood !== neighborhoodFilter) return false;
 
-            // Vibe
-            if (vibeFilter && !event.vibe?.includes(vibeFilter)) return false;
-
             return true;
         });
-    }, [initialEvents, tab, datePreset, neighborhoodFilter, vibeFilter, todayMidnight]);
+    }, [initialEvents, tab, datePreset, neighborhoodFilter, todayMidnight]);
+
+    /* One tile per flyer. A poster made for a run of dates ("every Friday in
+     * October") would otherwise fill a row with the same image, so later dates
+     * are dropped from the wall — the first date's tile stands for the run. A
+     * venue photo reused by different events is a different case — those are
+     * separate events that happen to share stock art — so they keep their
+     * tiles and fall back to the generated flyer, the same rule the home feed
+     * uses. */
+    const tiles = useMemo(() => {
+        const out: { event: Event; forcePlaceholder: boolean }[] = [];
+        const seenFlyers = new Set<string>();
+        const seenPhotos = new Set<string>();
+        for (const event of filteredEvents) {
+            const real = hasRealImage(event.image);
+            if (real && event.imageIsFlyer) {
+                if (seenFlyers.has(event.image!)) continue;
+                seenFlyers.add(event.image!);
+            }
+            const forcePlaceholder = real && !event.imageIsFlyer && seenPhotos.has(event.image!);
+            if (real && !event.imageIsFlyer) seenPhotos.add(event.image!);
+            out.push({ event, forcePlaceholder });
+        }
+        return out;
+    }, [filteredEvents]);
+
+    const [detailEvent, setDetailEvent] = useState<Event | null>(null);
+
+    /* Tiles are dealt across the columns like cards (0,1,2,3 · 4,5,6,7 …)
+     * rather than filling column one first, which is what CSS `columns` does.
+     * That keeps the wall reading in date order left to right — with CSS
+     * columns the first column would be tonight and the last one next month. */
+    const columnCount = useColumnCount();
+    const columns = useMemo(() => {
+        const cols: typeof tiles[] = Array.from({ length: columnCount }, () => []);
+        tiles.forEach((tile, i) => cols[i % columnCount].push(tile));
+        return cols;
+    }, [tiles, columnCount]);
 
     function setParam(key: string, value: string | null) {
         const params = new URLSearchParams(searchParams.toString());
@@ -172,11 +223,12 @@ export default function EventsPageClient({ initialEvents, recurringEvents = [] }
                     <RecurringEventsTab events={recurringEvents} />
                 )}
 
-                {/* Filter pills — Upcoming only */}
+                {/* Filters — Upcoming only. One row: when first, then where.
+                    The area list is long, so it's a select rather than a third
+                    row of pills; vibe tags are too inconsistent in the data
+                    ("Arts", "Art & Cultural", "Art/Community") to filter on. */}
                 {tab !== 'archive' && tab !== 'regulars' && (
-                    <div className="flex flex-col gap-[10px] mb-[28px]">
-
-                        {/* Date presets */}
+                    <div className="flex flex-wrap items-center gap-[8px] mb-[20px]">
                         <FilterPillRow
                             aria-label="Filter by date"
                             pills={DATE_PRESETS.map(p => ({
@@ -186,44 +238,28 @@ export default function EventsPageClient({ initialEvents, recurringEvents = [] }
                                 onClick: () => setParam('date', p.value === 'all' ? null : p.value),
                             }))}
                         />
-
-                        {/* Neighborhood pills */}
                         {neighborhoods.length > 0 && (
-                            <FilterPillRow
-                                aria-label="Filter by neighborhood"
-                                pills={[
-                                    { key: '__all', label: 'All Areas', active: !neighborhoodFilter, onClick: () => setParam('neighborhood', null) },
-                                    ...neighborhoods.map(n => ({
-                                        key: n,
-                                        label: n,
-                                        active: neighborhoodFilter === n,
-                                        onClick: () => setParam('neighborhood', neighborhoodFilter === n ? null : n),
-                                    })),
-                                ]}
-                            />
-                        )}
-
-                        {/* Vibe pills */}
-                        {vibes.length > 0 && (
-                            <FilterPillRow
-                                aria-label="Filter by vibe"
-                                pills={[
-                                    { key: '__all', label: 'All Vibes', active: !vibeFilter, onClick: () => setParam('vibe', null) },
-                                    ...vibes.map(v => ({
-                                        key: v,
-                                        label: v,
-                                        active: vibeFilter === v,
-                                        onClick: () => setParam('vibe', vibeFilter === v ? null : v),
-                                    })),
-                                ]}
-                            />
+                            <label className="relative inline-flex">
+                                <span className="sr-only">Filter by neighborhood</span>
+                                <select
+                                    value={neighborhoodFilter ?? ''}
+                                    onChange={e => setParam('neighborhood', e.target.value || null)}
+                                    className={`${filterPill(Boolean(neighborhoodFilter))} appearance-none pr-[28px]`}
+                                >
+                                    <option value="">All areas</option>
+                                    {neighborhoods.map(n => (
+                                        <option key={n} value={n}>{n}</option>
+                                    ))}
+                                </select>
+                                <span aria-hidden className={`pointer-events-none absolute right-[11px] top-1/2 -translate-y-1/2 text-[9px] ${neighborhoodFilter ? 'text-cream' : 'text-black'}`}>▾</span>
+                            </label>
                         )}
                     </div>
                 )}
 
                 {tab !== 'regulars' && (
                     <p className="font-space-grotesk font-normal leading-[1.25] text-[14px] text-black/50 tracking-[-0.64px] mb-[24px]">
-                        {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''} · tap or hover a flyer for details
+                        {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''}
                     </p>
                 )}
             </div>
@@ -232,13 +268,18 @@ export default function EventsPageClient({ initialEvents, recurringEvents = [] }
             {tab !== 'regulars' && (
                 <div className="page-container pb-[80px]">
                     {filteredEvents.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[32px] w-full stagger-in">
-                            {filteredEvents.map((event) => (
-                                <FlyerCard
-                                    key={event.id}
-                                    image={event.image || '/nanobanana_placeholder.png'}
-                                    event={event}
-                                />
+                        <div className="flex items-start gap-[16px] md:gap-[32px] w-full">
+                            {columns.map((col, c) => (
+                                <div key={c} className="flex-1 min-w-0 flex flex-col gap-[28px] md:gap-[36px]">
+                                    {col.map(({ event, forcePlaceholder }) => (
+                                        <FlyerWallTile
+                                            key={event.id}
+                                            event={event}
+                                            forcePlaceholder={forcePlaceholder}
+                                            onOpen={setDetailEvent}
+                                        />
+                                    ))}
+                                </div>
                             ))}
                         </div>
                     ) : (
@@ -249,6 +290,8 @@ export default function EventsPageClient({ initialEvents, recurringEvents = [] }
                     )}
                 </div>
             )}
+
+            <EventDetailSheet event={detailEvent} onClose={() => setDetailEvent(null)} />
         </div>
     );
 }
