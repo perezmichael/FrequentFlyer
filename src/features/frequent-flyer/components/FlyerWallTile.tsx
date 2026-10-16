@@ -1,6 +1,6 @@
 'use client';
 
-import { Event, formatEventDateTime } from '@/features/frequent-flyer/data/events';
+import { Event } from '@/features/frequent-flyer/data/events';
 import { hasRealImage } from '@/features/frequent-flyer/data/vibePlaceholders';
 import GeneratedFlyer from './GeneratedFlyer';
 
@@ -9,31 +9,32 @@ interface FlyerWallTileProps {
     /** Render the generated flyer instead of the image — a venue photo
      *  already shown on an earlier tile, which would read as a duplicate. */
     forcePlaceholder?: boolean;
-    /** Further dates for the same flyer, collapsed into this tile. */
-    moreDates?: number;
     onOpen: (event: Event) => void;
 }
 
 /**
  * One flyer on the /events wall, shown whole at its own shape — square,
- * portrait or landscape — rather than cropped into a shared frame. Details sit
- * under the art instead of blurring over it; the full listing opens in the
- * same EventDetailSheet the home feed uses.
+ * portrait or landscape — rather than cropped into a shared frame. The art is
+ * the point, so the only text is the title, small, underneath; date, venue
+ * and the rest open in the same EventDetailSheet the home feed uses.
+ *
+ * Hover draws a hairline outline a few pixels off the art — the cue that the
+ * tile opens something — and focus-visible draws the same one for keyboards.
  *
  * A plain <img> rather than SmartImage: SmartImage always renders `fill`,
  * which needs a sized box, and here the image's own height is the point.
  * Nothing is lost — images are served unoptimized anyway (next.config.mjs).
  */
-export default function FlyerWallTile({ event, forcePlaceholder = false, moreDates = 0, onOpen }: FlyerWallTileProps) {
+export default function FlyerWallTile({ event, forcePlaceholder = false, onOpen }: FlyerWallTileProps) {
     const showImage = hasRealImage(event.image) && !forcePlaceholder;
 
     return (
         <button
             type="button"
             onClick={() => onOpen(event)}
-            className="group flex flex-col gap-[10px] text-left cursor-pointer"
+            className="group flex flex-col items-center gap-[12px] w-full text-center cursor-pointer outline-none"
         >
-            <div className="relative w-full transition-transform duration-200 ease-out group-hover:-translate-y-[3px] group-active:scale-[0.98]">
+            <div className="relative w-full rounded-[6px] outline outline-1 outline-offset-[5px] outline-transparent transition-[outline-color,transform] duration-150 ease-out group-hover:outline-ink group-focus-visible:outline-ink group-active:scale-[0.98]">
                 {showImage ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
@@ -44,36 +45,18 @@ export default function FlyerWallTile({ event, forcePlaceholder = false, moreDat
                         // min-h holds a slot while loading so the column
                         // doesn't collapse and jump; max-h stops one very tall
                         // poster from owning the whole column.
-                        className="block w-full h-auto min-h-[120px] max-h-[640px] object-contain bg-black/[0.04] shadow-[0_12px_28px_-14px_rgba(0,0,0,0.35)]"
+                        className="block w-full h-auto min-h-[120px] max-h-[640px] object-contain rounded-[6px] bg-black/[0.04]"
                     />
                 ) : (
-                    <div className="relative w-full aspect-[4/5]">
+                    <div className="relative w-full aspect-[4/5] rounded-[6px] overflow-hidden">
                         <GeneratedFlyer title={event.title} vibe={event.vibe?.[0]} neighborhood={event.neighborhood} />
                     </div>
                 )}
             </div>
 
-            <div className="flex flex-col gap-[3px] min-w-0">
-                <p className="font-space-mono text-[11px] uppercase tracking-[-0.44px] text-black/55">
-                    {formatEventDateTime(event.date, event.startTime, event.endTime)}
-                    {moreDates > 0 && <span className="text-brand"> · +{moreDates} more date{moreDates !== 1 ? 's' : ''}</span>}
-                </p>
-                <h3 className="font-space-grotesk font-bold text-[15px] leading-[1.2] tracking-[-0.3px] text-ink line-clamp-2 group-hover:underline underline-offset-2 decoration-1">
-                    {event.title}
-                </h3>
-                <p className="font-space-grotesk text-[13px] leading-[1.3] text-black/55 truncate">
-                    {/* Scraped locations often already end in the
-                        neighborhood ("Lyric Hyperion, Silver Lake"). */}
-                    {event.neighborhood && !event.location?.toLowerCase().includes(event.neighborhood.toLowerCase())
-                        ? `${event.location} · ${event.neighborhood}`
-                        : event.location}
-                </p>
-                {event.curationLevel === 'ff_curated' && (
-                    <span className="self-start mt-[4px] inline-flex items-center gap-1 rounded-full border border-brand/50 px-2 py-0.5 font-space-mono text-[10px] font-bold uppercase tracking-[-0.44px] text-brand">
-                        ★ FF Pick
-                    </span>
-                )}
-            </div>
+            <p className="w-full px-[4px] font-space-mono text-[11px] leading-[1.3] uppercase tracking-[-0.44px] text-black/55 truncate transition-colors duration-150 group-hover:text-ink">
+                {event.title}
+            </p>
         </button>
     );
 }

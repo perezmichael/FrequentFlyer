@@ -68,9 +68,10 @@ function toLocalMidnight(dateStr: string): Date {
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
-/* Masonry columns for the flyer wall, matching Tailwind's sm/lg/xl. */
+/* Masonry columns for the flyer wall, at Tailwind's sm/lg/2xl. Four holds
+   until 2xl so each flyer stays big enough to read. */
 function columnsFor(width: number): number {
-    if (width >= 1280) return 5;
+    if (width >= 1536) return 5;
     if (width >= 1024) return 4;
     if (width >= 640) return 3;
     return 2;
@@ -142,27 +143,24 @@ export default function EventsPageClient({ initialEvents, recurringEvents = [] }
 
     /* One tile per flyer. A poster made for a run of dates ("every Friday in
      * October") would otherwise fill a row with the same image, so later dates
-     * collapse into the first tile as "+N more dates". A venue photo reused by
-     * different events is a different case — those are separate events that
-     * happen to share stock art — so they keep their tiles and fall back to
-     * the generated flyer, the same rule the home feed uses. */
+     * are dropped from the wall — the first date's tile stands for the run. A
+     * venue photo reused by different events is a different case — those are
+     * separate events that happen to share stock art — so they keep their
+     * tiles and fall back to the generated flyer, the same rule the home feed
+     * uses. */
     const tiles = useMemo(() => {
-        const out: { event: Event; moreDates: number; forcePlaceholder: boolean }[] = [];
-        const flyerTile = new Map<string, number>();
+        const out: { event: Event; forcePlaceholder: boolean }[] = [];
+        const seenFlyers = new Set<string>();
         const seenPhotos = new Set<string>();
         for (const event of filteredEvents) {
             const real = hasRealImage(event.image);
             if (real && event.imageIsFlyer) {
-                const at = flyerTile.get(event.image!);
-                if (at !== undefined) {
-                    out[at].moreDates += 1;
-                    continue;
-                }
-                flyerTile.set(event.image!, out.length);
+                if (seenFlyers.has(event.image!)) continue;
+                seenFlyers.add(event.image!);
             }
             const forcePlaceholder = real && !event.imageIsFlyer && seenPhotos.has(event.image!);
             if (real && !event.imageIsFlyer) seenPhotos.add(event.image!);
-            out.push({ event, moreDates: 0, forcePlaceholder });
+            out.push({ event, forcePlaceholder });
         }
         return out;
     }, [filteredEvents]);
@@ -270,14 +268,13 @@ export default function EventsPageClient({ initialEvents, recurringEvents = [] }
             {tab !== 'regulars' && (
                 <div className="page-container pb-[80px]">
                     {filteredEvents.length > 0 ? (
-                        <div className="flex items-start gap-[16px] md:gap-[24px] w-full">
+                        <div className="flex items-start gap-[16px] md:gap-[32px] w-full">
                             {columns.map((col, c) => (
-                                <div key={c} className="flex-1 min-w-0 flex flex-col gap-[32px] md:gap-[40px]">
-                                    {col.map(({ event, moreDates, forcePlaceholder }) => (
+                                <div key={c} className="flex-1 min-w-0 flex flex-col gap-[28px] md:gap-[36px]">
+                                    {col.map(({ event, forcePlaceholder }) => (
                                         <FlyerWallTile
                                             key={event.id}
                                             event={event}
-                                            moreDates={moreDates}
                                             forcePlaceholder={forcePlaceholder}
                                             onOpen={setDetailEvent}
                                         />
