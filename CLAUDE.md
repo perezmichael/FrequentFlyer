@@ -108,8 +108,14 @@ import { navLink, createPill, filterPill } from '@/features/frequent-flyer/desig
 - `reactStrictMode` is **off** (`next.config.mjs`) — react-leaflet v4 throws
   "Map container is already initialized" under StrictMode's dev double-mount.
   Production is unaffected.
-- Tailwind v4 arbitrary values (e.g. `bg-[#FFFAEB]`) work in `className`, but a
-  few JIT arbitrary utilities (notably `z-[...]`) haven't generated reliably in
-  this setup — use an inline `style` for those edge cases.
+- Tailwind v4 arbitrary values (`bg-[#FFFAEB]`, `z-[1300]`, `md:gap-[36px]`)
+  all generate normally and hot-reload on save, with no inline-`style`
+  workaround needed. The classes that once seemed to "not generate" were
+  really a broken dev server. `next build` and `next dev` both used `.next`,
+  so a build run while the dev server was up deleted its chunks and CSS
+  (`Cannot find module './8948.js'`, stale or missing styles until
+  `rm -rf .next`). `next dev` now writes to **`.next-dev`** (see
+  `next.config.mjs`), so building alongside a running dev server is safe. If
+  styles look stale anyway, `rm -rf .next-dev` and restart.
 - `/events2` is intentionally kept with static data as a UI reference. Don't
   remove it.

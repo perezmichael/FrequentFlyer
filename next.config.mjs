@@ -1,3 +1,4 @@
+import { PHASE_DEVELOPMENT_SERVER } from 'next/constants.js';
 import { OPTIMIZED_IMAGE_HOSTS } from './src/lib/imageHosts.mjs';
 
 /** @type {import('next').NextConfig} */
@@ -120,4 +121,25 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+/**
+ * `next dev` writes to .next-dev; `next build` / `next start` keep .next.
+ *
+ * Both commands default to the same .next directory, and `next build` clears
+ * and rewrites it. Run a build while the dev server is up — which happens all
+ * the time here, since agent sessions build to check their work — and the dev
+ * server is left serving out of a directory it no longer owns: chunks it
+ * required are gone ("Cannot find module './8948.js'"), CSS it emitted is
+ * deleted, and new Tailwind classes or globals.css edits stop showing up until
+ * the server is stopped, .next is deleted, and it's started again.
+ *
+ * Splitting the directories by phase makes the two independent. Production is
+ * untouched: Vercel and `next start` still read .next. (Next 16 does the same
+ * thing by default with .next/dev; that path can't be used on 14 because
+ * `next build` empties .next.)
+ */
+export default function config(phase) {
+  return {
+    ...nextConfig,
+    distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next',
+  };
+}
