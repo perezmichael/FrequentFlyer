@@ -238,5 +238,6 @@ Then add the new entries to the right theme. Commit bodies hold the rationale �
   request.
 - **PostHog** — live behavioural data for anything shipped after 25 Aug 2026,
   which is where outcome numbers for a case study would come from.
-- **`vibedoc.md`**, **`AUDIENCE.md`**, **`VISION.md`** (uncommitted) — the
-  editorial and strategic reasoning behind curation choices.
+- **`VISION.md`**, **`AUDIENCE.md`**, **`services/annex_scout/vibedoc.md`** —
+  the editorial and strategic reasoning behind curation choices. All three are
+  in the repo.
