@@ -4,6 +4,7 @@ import PageLoader from '@/components/PageLoader';
 import { supabase } from '@/lib/supabase';
 import { notFound } from 'next/navigation';
 import { GuideWithItems } from '@/features/frequent-flyer/types/guides';
+import { PUBLISHED_GUIDE_SLUGS } from '@/features/frequent-flyer/data/guides';
 import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
@@ -15,6 +16,9 @@ interface PageProps {
 }
 
 async function getGuide(slug: string): Promise<GuideWithItems | null> {
+    // Hidden guides 404 rather than render — see PUBLISHED_GUIDE_SLUGS.
+    if (!PUBLISHED_GUIDE_SLUGS.includes(slug)) return null;
+
     const { data, error } = await supabase
         .from('guides')
         .select(`
