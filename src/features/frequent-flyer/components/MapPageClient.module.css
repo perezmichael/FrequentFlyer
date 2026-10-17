@@ -27,52 +27,64 @@
 }
 
 .filters {
+    /* Bottom, not top: pin popups open upward, and a bar along the top
+       covered the flyer in every popup near the top edge. Down here it's
+       also in thumb reach on a phone, and clears the attribution line. */
     position: absolute;
-    top: 124px;
-    /* Navbar (100px) + 24px padding */
+    bottom: calc(28px + env(safe-area-inset-bottom));
     left: 50%;
     transform: translateX(-50%);
     z-index: 1000;
     display: flex;
+    align-items: center;
     gap: 12px;
-    background: rgba(255, 255, 255, 0.9);
-    padding: 8px;
-    border-radius: 50px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    backdrop-filter: blur(8px);
+    background: var(--ff-cream);
+    border: 1px solid var(--ff-border-strong);
+    padding: 6px 14px 6px 6px;
+    border-radius: var(--ff-radius-pill);
+    box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.35);
     white-space: nowrap;
     max-width: calc(100vw - 32px);
-    overflow-x: auto;
 }
 
-.filterButton {
-    padding: 8px 16px;
-    border-radius: 20px;
-    border: 1px solid transparent;
-    background: transparent;
-    font-size: 14px;
-    font-weight: 500;
-    color: #64748b;
-    cursor: pointer;
-    /* Enumerated, not `all`: `all` also animates layout-affecting properties. */
-    transition: color var(--ff-duration-fast) var(--ff-ease-out),
-        background var(--ff-duration-fast) var(--ff-ease-out),
-        border-color var(--ff-duration-fast) var(--ff-ease-out);
+/* Lets the pill row scroll inside the bar on narrow phones. */
+.filters > [role='group'] {
+    min-width: 0;
 }
 
-.active {
-    background: #000;
-    color: white;
+.count {
+    flex-shrink: 0;
+    font-family: var(--font-space-mono), monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: var(--ff-tracking-pill);
+    color: rgba(0, 0, 0, 0.55);
 }
 
-/* Guarded — an unselected filter that stays tinted after a tap reads as
-   selected, which is actively misleading on a filter row. */
-@media (hover: hover) and (pointer: fine) {
-    .filterButton:hover {
-        background: rgba(0, 0, 0, 0.05);
+.empty {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 20px 28px;
+    background: var(--ff-cream);
+    border: 1px solid var(--ff-border-strong);
+    border-radius: 16px;
+    text-align: center;
+}
+
+/* On a phone the four pills already need the full bar; the count goes. */
+@media (max-width: 479px) {
+    .filters {
+        padding-right: 6px;
     }
 
-    .active:hover {
-        background: #333;
+    .count {
+        display: none;
     }
 }

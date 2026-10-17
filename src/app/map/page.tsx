@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import MapPageClient from '@/features/frequent-flyer/components/MapPageClient';
 import PageLoader from '@/components/PageLoader';
-import { getEvents, getVenues, getGuides } from '@/lib/queries';
+import { getEvents } from '@/lib/queries';
 import type { Metadata } from 'next';
 
 /**
@@ -13,7 +13,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
     title: 'Map of what’s on in Los Angeles',
     description:
-        'Every event we’re tracking across LA, pinned. Browse by neighbourhood and see what’s happening near you tonight.',
+        'Every event we’re tracking across LA, pinned. See what’s happening near you tonight, this weekend or this week.',
     alternates: { canonical: '/map' },
     openGraph: { title: 'Map of what’s on in Los Angeles', url: '/map' },
 };
@@ -22,15 +22,11 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function MapPage() {
-    const [events, venues, guides] = await Promise.all([
-        getEvents(),
-        getVenues(),
-        getGuides()
-    ]);
+    const events = await getEvents();
 
     return (
         <Suspense fallback={<PageLoader />}>
-            <MapPageClient initialEvents={events} venues={venues} guides={guides} />
+            <MapPageClient initialEvents={events} />
         </Suspense>
     );
 }
