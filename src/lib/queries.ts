@@ -2,6 +2,7 @@ import 'server-only';
 import { supabase } from '@/lib/supabase';
 import { Event, formatPrice } from '@/features/frequent-flyer/data/events';
 import { GuideWithItems } from '@/features/frequent-flyer/types/guides';
+import { PUBLISHED_GUIDE_SLUGS } from '@/features/frequent-flyer/data/guides';
 import { RecurringEvent } from '@/features/frequent-flyer/data/recurringEvents';
 
 /** Today's date (YYYY-MM-DD) in LA — event dates are LA-local, server may be UTC. */
@@ -300,7 +301,7 @@ export async function getGuides(): Promise<GuideWithItems[]> {
                 venues(*)
             )
         `)
-        ;
+        .in('slug', PUBLISHED_GUIDE_SLUGS);
 
     if (error) {
         console.error('Error fetching guides:', error);
