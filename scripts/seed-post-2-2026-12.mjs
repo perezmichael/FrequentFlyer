@@ -116,7 +116,7 @@ const EVENTS = [
     {
         name: 'Frogtown Holiday Hop at Forager Crafts',
         date: '2026-12-05', start: '12:00', end: '17:00', venue: 'Forager Crafts',
-        vibe: 'Market', price: 'Free', pick: false, score: 8, promoter: 'Frogtown Arts',
+        vibe: 'Market', price: 'Free', pick: true, score: 8, promoter: 'Frogtown Arts',
         flyer: 'frogtown-holiday-hop.webp',
         url: 'https://www.instagram.com/p/Df-3FRcD7Jh/',
         performers: ['Maneatingplant', 'Gabrielle Lessard', 'Sweet Butterfly Bake Shop', "Kate's Closet", 'Jim Kisiel',
