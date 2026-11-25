@@ -32,6 +32,8 @@ const VENUES = [
     { name: 'Palihouse West Hollywood', neighborhood: 'West Hollywood', address: '8465 Holloway Dr, West Hollywood, CA 90069' }, // address: not on the poster
     { name: 'Forager Crafts', neighborhood: 'Frogtown', address: '2915 Knox Ave, Unit 103, Los Angeles, CA 90039', geocodeQuery: '2915 Knox Ave, Los Angeles, CA 90039' }, // address: their Instagram post
     { name: 'Luft Los Angeles', neighborhood: 'Venice', address: '1930 Lincoln Blvd, Venice, CA 90291' },
+    { name: 'La Más', neighborhood: 'Frogtown', address: '2806 Clearwater St, Los Angeles, CA 90039' },
+    { name: 'El Rey Theatre', neighborhood: 'Mid-Wilshire', address: '5515 Wilshire Blvd, Los Angeles, CA 90036', url: 'https://www.theelrey.com' }, // address: not on the poster
     { name: 'Blue Note Los Angeles', neighborhood: 'Hollywood', address: '6372 Sunset Blvd, Los Angeles, CA 90028', url: 'https://www.bluenotejazz.com/la/' }, // address: club's own listings
 ];
 
@@ -50,6 +52,23 @@ const EVENTS = [
         flyer: 'jijis-nicos-windkin.jpg', performers: ['Windkin'],
         description: "JIJI's Jazz Club takes over Baby Battista, the wine bar inside Nico's, for a live set from Windkin.",
     },
+    {
+        name: 'Snoh Aalegra — One Night Only',
+        date: '2026-12-02', venue: 'El Rey Theatre',
+        vibe: 'Live Music', pick: false, score: 7,
+        flyer: 'snoh-aalegra-el-rey.jpg', performers: ['Snoh Aalegra'],
+        url: 'https://alegendarylove.com',
+        description: 'Snoh Aalegra plays one night only in Los Angeles at the El Rey. Limited capacity.',
+    },
+    // 1st + 3rd Fridays. recurring_events can't express "1st and 3rd" — the
+    // app renders every recurring row as weekly — so each date is its own event.
+    ...['2026-12-04', '2026-12-18'].map(date => ({
+        name: 'Somos NELA Night Market',
+        date, start: '18:00', end: '21:00', venue: 'La Más',
+        vibe: 'Market', pick: false, score: 7, promoter: 'La Más',
+        flyer: 'somos-nela-night-market.jpg',
+        description: 'A bilingual night market from La Más — food, drinks, crafts, apothecary, art and community resources. Mercado de noche: comida, bebidas, artesanías, boticaria, arte y recursos.',
+    })),
     {
         name: 'The Record Club × NOAH: A Tribe Called Quest — Midnight Marauders',
         date: '2026-12-03', start: '19:00', venue: 'NOAH Los Angeles',
@@ -102,7 +121,7 @@ const EVENTS = [
         url: 'https://www.instagram.com/p/Df-3FRcD7Jh/',
         performers: ['Maneatingplant', 'Gabrielle Lessard', 'Sweet Butterfly Bake Shop', "Kate's Closet", 'Jim Kisiel',
             'Rough Draft Leathercraft', 'Srimoyee Handmade', 'LA Is Not a Desert', 'Rebecca Holopter', 'Michael Osborne'],
-        description: 'The 4th annual Frogtown Holiday Hop: about 20 stops along the LA River with art shows, pop-ups, food, drinks and music. Forager’s studio hosts a dozen-plus makers — jewelry, leather goods, prints, 10-minute pet portraits — plus the Maneatingplant vegan food truck. Dogs welcome; walk, bike or rideshare.',
+        description: 'The 4th annual Frogtown Holiday Hop: about 20 stops along the LA River with art shows, pop-ups, food, drinks and music. Forager’s studio hosts a dozen-plus makers — jewelry, leather goods, prints, 10-minute pet portraits — plus the Maneatingplant vegan food truck. Dogs welcome; walk, bike or rideshare. Frogtown Arts is also collecting canned and non-perishable food for NELA Mercadito through 12/10 — drop-offs at The Left Bank (2479 Fletcher Dr) and Frogtown Brewery (2931 Gilroy St).',
     },
     {
         name: 'First Saturdays Holiday Market',
