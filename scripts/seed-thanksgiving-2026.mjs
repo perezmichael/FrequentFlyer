@@ -119,6 +119,7 @@ const VENUES = [
     { name: 'Café Santo', neighborhood: 'Montebello', address: '520 Whittier Blvd, Montebello, CA 90640' },
     { name: 'Kids of Immigrants', neighborhood: 'East Hollywood', address: '4873 Melrose Ave, Los Angeles, CA 90029' },
     { name: 'The Pop-Hop', neighborhood: 'Highland Park', address: '5002 York Blvd, Los Angeles, CA 90042', url: 'https://thepophop.com' },
+    { name: 'York Manor', neighborhood: 'Highland Park', address: '4908 York Blvd, Los Angeles, CA 90042' },
     { name: 'Junior High', neighborhood: 'Glendale', address: '603 S Brand Blvd, Glendale, CA 91204', url: 'https://juniorhighlosangeles.com' },
     { name: 'Brain Dead Studios', neighborhood: 'Fairfax', address: '611 N Fairfax Ave, Los Angeles, CA 90036' },
     { name: 'Little Lions Social Club', neighborhood: 'Arts District', address: '689 Imperial St, Los Angeles, CA 90021', url: 'https://llsc.club' },
@@ -173,6 +174,13 @@ const EVENTS = [
         vibe: 'Market', pick: true, score: 8, promoter: 'Kids of Immigrants',
         flyer: 'kids-of-immigrants.jpg', performers: ['Prabs', 'Jstagirl', 'Jive MF'],
         description: 'Kids of Immigrants and Mom n Dad Vintage Shop host 18 local vendors with food and drinks, sounds by Prabs, Jstagirl and Jive MF, and film portraits by Thalia Gochez.',
+    },
+    {
+        name: 'We Met On York: Small Biz Market',
+        date: '2026-11-28', start: '12:00', end: '17:00', venue: 'York Manor',
+        vibe: 'Market', price: 'Free', pick: false, score: 7,
+        flyer: 'we-met-on-york.jpg',
+        description: 'A Small Business Saturday market with 40+ vendors — art and stationery, home goods, jewelry, vintage and clothing, food and drinks, interactive booths and a DJ.',
     },
     {
         name: 'Radical Clothes Swap',
