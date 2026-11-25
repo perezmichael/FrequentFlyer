@@ -32,6 +32,12 @@ Handles marked ✅ on venues are also saved to `venues.instagram_handle`.
 | [ ] | Jazz Cats Vol. 006 (Sun) | JIJI's Jazz Club | @jijisjazzclub | ✅ |
 | [ ] | | Little Lions Social Club | @littlelions_socialclub | 🟡 |
 | [ ] | | noamz, yinomi | ❓ | ❓ |
+| [ ] | Psychic Flute / D'Leau (Fri) | Permanent Records Roadhouse | @permanentrecordsroadhouse | ✅ |
+| [ ] | | Psychic Flute, D'Leau | ❓ | ❓ |
+| [ ] | Emma Ruth Rundle — These Killing Times (Sat) | Lodge Room | @lodgeroom | ✅ |
+| [ ] | | Emma Ruth Rundle · Cinder Well | ❓ | ❓ |
+| [ ] | Manila Sound: Backyard Disco (Sun) | Benny Boy Brewing | @truvillainy — what's on file, but looks wrong; check | 🟡 |
+| [ ] | | Manila Sound | ❓ | ❓ |
 
 ## Listed on the site
 
