@@ -30,6 +30,8 @@ const VENUES = [
     { name: 'Leimert Park Village', neighborhood: 'Leimert Park', address: '43rd St & Degnan Blvd, Los Angeles, CA 90008', geocodeQuery: 'Degnan Boulevard, Leimert Park, Los Angeles' },
     { name: 'Temple Grounds', neighborhood: 'Echo Park', address: '1650 W Temple St, Los Angeles, CA 90026' },
     { name: 'Palihouse West Hollywood', neighborhood: 'West Hollywood', address: '8465 Holloway Dr, West Hollywood, CA 90069' }, // address: not on the poster
+    { name: 'Forager Crafts', neighborhood: 'Frogtown', address: '2915 Knox Ave, Unit 103, Los Angeles, CA 90039', geocodeQuery: '2915 Knox Ave, Los Angeles, CA 90039' }, // address: their Instagram post
+    { name: 'Luft Los Angeles', neighborhood: 'Venice', address: '1930 Lincoln Blvd, Venice, CA 90291' },
     { name: 'Blue Note Los Angeles', neighborhood: 'Hollywood', address: '6372 Sunset Blvd, Los Angeles, CA 90028', url: 'https://www.bluenotejazz.com/la/' }, // address: club's own listings
 ];
 
@@ -63,6 +65,14 @@ const EVENTS = [
         description: 'A holiday gay night at the Echo Park wine bar.',
     },
     {
+        name: 'Club Sandwich_05 — Run Club',
+        date: '2026-12-03', start: '18:00', venue: 'Luft Los Angeles',
+        vibe: 'Run Club', pick: false, score: 6,
+        flyer: 'club-sandwich-luft.jpg', performers: ['shonswett'],
+        url: 'https://www.instagram.com/p/DgJCl_sRSWZ/',
+        description: 'The monthly Club Sandwich run heads out from Luft, led by _kwaves and picolasnico, with shonswett on the turntables. Register ahead for a limited-edition shirt and so they know how much pizza to order.',
+    },
+    {
         name: 'Libra — Disco to Brazil, All Night Long',
         date: '2026-12-04', start: '21:00', venue: 'Bar Stella',
         vibe: 'DJ Night', pick: true, score: 8,
@@ -83,6 +93,16 @@ const EVENTS = [
         flyer: 'lower-class-brats-extinction.jpg',
         performers: ['Lower Class Brats', 'The Stitches', 'Naked Aggression', 'S.C.R.S.', 'Rails', 'Trigger Damage'],
         description: 'Six punk bands for $10. Doors 6:30PM, show 7PM. Tickets on Eventbrite.',
+    },
+    {
+        name: 'Frogtown Holiday Hop at Forager Crafts',
+        date: '2026-12-05', start: '12:00', end: '17:00', venue: 'Forager Crafts',
+        vibe: 'Market', price: 'Free', pick: false, score: 8, promoter: 'Frogtown Arts',
+        flyer: 'frogtown-holiday-hop.webp',
+        url: 'https://www.instagram.com/p/Df-3FRcD7Jh/',
+        performers: ['Maneatingplant', 'Gabrielle Lessard', 'Sweet Butterfly Bake Shop', "Kate's Closet", 'Jim Kisiel',
+            'Rough Draft Leathercraft', 'Srimoyee Handmade', 'LA Is Not a Desert', 'Rebecca Holopter', 'Michael Osborne'],
+        description: 'The 4th annual Frogtown Holiday Hop: about 20 stops along the LA River with art shows, pop-ups, food, drinks and music. Forager’s studio hosts a dozen-plus makers — jewelry, leather goods, prints, 10-minute pet portraits — plus the Maneatingplant vegan food truck. Dogs welcome; walk, bike or rideshare.',
     },
     {
         name: 'First Saturdays Holiday Market',
