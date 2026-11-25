@@ -324,11 +324,16 @@ async function main() {
         const flyer = e.flyer ? await flyerUrl(e.flyer) : null;
         if (e.flyer && !flyer) noFlyer++;
 
-        // Match on date + title across every venue, as seed-ff-picks.mjs does.
+        // An exact title match on the same date counts across every venue (a
+        // scraper may have filed the show under a sibling room). A loose
+        // prefix match only counts at the SAME venue: "Black Friday Flea
+        // Market" and "Black Friday Big Record Sale" share their first ten
+        // letters, and matching them across venues overwrote one with the other.
         const sameDay = await sb(
-            `events?select=id,event_name,status,curation_level,flyer_url,metadata&event_date=eq.${e.date}`
+            `events?select=id,event_name,venue_id,status,curation_level,flyer_url,metadata&event_date=eq.${e.date}`
         );
-        const hit = sameDay.find(r => sameTitle(r.event_name, e.name));
+        const hit = sameDay.find(r => norm(r.event_name) === norm(e.name))
+            || sameDay.find(r => r.venue_id === venueId && sameTitle(r.event_name, e.name));
 
         const metadata = {
             description: e.description,
